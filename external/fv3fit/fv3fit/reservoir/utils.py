@@ -3,7 +3,7 @@ import tensorflow as tf
 from typing import Iterable, Mapping, Tuple
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
 from fv3fit.reservoir.domain import assure_txyz_dims
-from fv3fit.reservoir.domain2 import OverlapRankXYDivider
+from fv3fit.reservoir.domain2 import RankXYDivider
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
@@ -27,7 +27,8 @@ def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
 def process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
-    input_rank_divider: OverlapRankXYDivider,
+    x_rank_divider: RankXYDivider,
+    y_rank_divider: RankXYDivider,
     autoencoder: ReloadableTransfomer,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """ Convert physical state to corresponding reservoir hidden state,
@@ -39,12 +40,7 @@ def process_batch_Xy_data(
     # to latent representation
     batch_data_encoded = encode_columns(batch_X, autoencoder)
 
-    # output has no halo information
-    output_rank_divider = input_rank_divider.get_no_overlap_rank_xy_divider()
-
-    X_flat = input_rank_divider.get_all_subdomains_with_flat_feature(batch_data_encoded)
-    Y_flat = output_rank_divider.get_all_subdomains_with_flat_feature(
-        batch_data_encoded
-    )
+    X_flat = x_rank_divider.get_all_subdomains_with_flat_feature(batch_data_encoded)
+    Y_flat = y_rank_divider.get_all_subdomains_with_flat_feature(batch_data_encoded)
 
     return X_flat, Y_flat

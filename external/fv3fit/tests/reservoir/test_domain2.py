@@ -186,6 +186,30 @@ def test_all_subdomain_merge_roundtrip():
     np.testing.assert_equal(merged, data)
 
 
+def test_take_sequence_over_subdomains():
+    divider = RankXYDivider((2, 2), (4, 4))
+    data = get_4x4_rank_domain()
+    data_with_leading = np.array([data + 1 for i in range(3)])
+
+    subs = divider.get_all_subdomains(data)
+    subs_with_leading = divider.get_all_subdomains(data_with_leading)
+
+    # no change
+    res = divider.subdomains_to_leading_axis(subs)
+    np.testing.assert_equal(res, subs)
+
+    # leading time
+    res = divider.subdomains_to_leading_axis(subs_with_leading)
+    assert res.shape == (4, 3, 2, 2)
+    np.testing.assert_equal(res[:, 1], subs_with_leading[1])
+
+    # leading time and flat feature
+    flat_subs_with_leading = divider.flatten_subdomain_features(subs_with_leading)
+    res = divider.subdomains_to_leading_axis(flat_subs_with_leading, flat_feature=True)
+    assert res.shape == (4, 3, 4)
+    np.testing.assert_equal(res[:, 1], flat_subs_with_leading[1])
+
+
 def test_get_overlap_subdomain():
 
     rank_domain = get_4x4_rank_domain()
@@ -206,7 +230,7 @@ def test_get_overlap_subdomain():
 
 
 # TODO: used as a direct comparison, delete when no longer needed
-def test_sbudomain_decomp_against_original_RankDivider():
+def test_subdomain_decomp_against_original_RankDivider():
     original = RankDivider((2, 2), ["x", "y"], (4, 4), overlap=1)
     new = OverlapRankXYDivider((2, 2), (4, 4), overlap=1)
 

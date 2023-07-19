@@ -81,12 +81,21 @@ class RankXYDivider:
         return self._maybe_append_feature_value(self.subdomain_extent, self._z_feature)
 
     @property
-    def _flat_subdomain_shape(self):
-        return [np.prod(self._subdomain_shape)]
+    def flat_subdomain_len(self) -> int:
+        return np.prod(self._subdomain_shape)
 
     @property
     def _all_subdomains_shape(self):
         return [self.n_subdomains, *self._subdomain_shape]
+
+    @property
+    def subdomain_axis(self):
+        """axis dimension for decomposed subdomains"""
+        return -1 * len(self._all_subdomains_shape)
+
+    @property
+    def flat_feature_subdomain_axis(self):
+        return -2
 
     def _check_extent_divisibility(self):
         if self._x_rank_extent % self.subdomain_layout[0] != 0:
@@ -155,7 +164,7 @@ class RankXYDivider:
         Reshape flattened trailing feature dimensions of subdomain into original
         subdomain dimensions.
         """
-        flat_feature_shape = self._flat_subdomain_shape
+        flat_feature_shape = [self.flat_subdomain_len]
         _check_feature_dims_consistent(data.shape, flat_feature_shape)
         original_shape = list(data.shape[:-1]) + self._subdomain_shape
         return data.reshape(original_shape)
@@ -174,15 +183,14 @@ class RankXYDivider:
             Subdomains of data with shape [..., n_subdomains, x_sub, y_sub, (z)]
         """
 
-        new_index_dim = -1 * len(self._all_subdomains_shape)
         subdomains_with_new_dim = []
 
         for i in range(self.n_subdomains):
             subdomain = self.get_subdomain(data, i)
-            subdomain_newaxis = np.expand_dims(subdomain, axis=new_index_dim)
+            subdomain_newaxis = np.expand_dims(subdomain, axis=self.subdomain_axis)
             subdomains_with_new_dim.append(subdomain_newaxis)
 
-        return np.concatenate(subdomains_with_new_dim, axis=new_index_dim)
+        return np.concatenate(subdomains_with_new_dim, axis=self.subdomain_axis)
 
     def merge_all_subdomains(self, data: np.ndarray) -> np.ndarray:
         """
@@ -222,6 +230,22 @@ class RankXYDivider:
         """
         orig_features = self.reshape_flat_subdomain_features(data)
         return self.merge_all_subdomains(orig_features)
+
+    def subdomains_to_leading_axis(
+        self, data: np.ndarray, flat_feature: bool = False
+    ) -> np.ndarray:
+        """
+        Creates a sequence where the leading dimension is by subdomain.
+        """
+        if flat_feature:
+            feature_shape = [self.n_subdomains, self.flat_subdomain_len]
+            axis = self.flat_feature_subdomain_axis
+        else:
+            feature_shape = [self.n_subdomains, *self._subdomain_shape]
+            axis = self.subdomain_axis
+
+        _check_feature_dims_consistent(data.shape, feature_shape)
+        return np.moveaxis(data, axis, 0)
 
 
 class OverlapRankXYDivider(RankXYDivider):

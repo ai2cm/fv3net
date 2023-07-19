@@ -61,11 +61,13 @@ def train_reservoir_model(
         overlap=subdomain_config.overlap,
         z_feature=autoencoder.n_latent_dims,
     )
+    no_overlap_divider = rank_divider.get_no_overlap_rank_xy_divider()
+
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider._flat_subdomain_shape[0],
+        input_size=rank_divider.flat_subdomain_len,
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -78,7 +80,8 @@ def train_reservoir_model(
         time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
-            input_rank_divider=rank_divider,
+            x_rank_divider=rank_divider,
+            y_rank_divider=no_overlap_divider,
             autoencoder=autoencoder,
         )
 
@@ -95,7 +98,8 @@ def train_reservoir_model(
             _, hybrid_time_series = process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
-                input_rank_divider=rank_divider,
+                x_rank_divider=no_overlap_divider,
+                y_rank_divider=no_overlap_divider,
                 autoencoder=autoencoder,
             )
         else:
@@ -110,12 +114,15 @@ def train_reservoir_model(
 
         if b >= hyperparameters.n_batches_burn:
             logger.info(f"Fitting on batch {b+1}")
-            _fit_batch_over_subdomains(
-                X_batch=readout_input,
-                Y_batch=readout_output,
-                subdomain_regressors=subdomain_regressors,
-                n_jobs=hyperparameters.n_jobs,
+            readout_input = rank_divider.subdomains_to_leading_axis(readout_input)
+            readout_output = no_overlap_divider.subdomains_to_leading_axis(
+                readout_output
             )
+            jobs = [
+                delayed(regressor.batch_update)(readout_input[i], readout_output[i])
+                for i, regressor in enumerate(subdomain_regressors)
+            ]
+            Parallel(n_jobs=hyperparameters.n_jobs, backend="threading")(jobs)
 
     subdomain_readout_coeffs = []
     subdomain_intercepts = []
@@ -193,20 +200,3 @@ def _construct_readout_inputs_outputs(
     # dimension has flattened (x, y, encoded-feature) coordinates
     Y_batch = prediction_time_series[1:]
     return X_batch, Y_batch
-
-
-def _fit_batch_over_subdomains(
-    X_batch, Y_batch, subdomain_regressors, n_jobs, subdomain_axis=1
-):
-    # Fit a readout to each subdomain's column of training data
-    # X_batch has dimensions [time, subdomain, reservoir_state?]
-    # TODO: what's the efficiency look like here?
-    # TODO: I can move the take into a rank divider function to
-    #      keep the subdomain information scoped within
-    Parallel(n_jobs=n_jobs, backend="threading")(
-        delayed(regressor.batch_update)(
-            np.take(X_batch, i, axis=subdomain_axis),
-            np.take(Y_batch, i, axis=subdomain_axis),
-        )
-        for i, regressor in enumerate(subdomain_regressors)
-    )
