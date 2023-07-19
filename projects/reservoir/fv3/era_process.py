@@ -23,7 +23,7 @@ logger.setLevel(logging.INFO)
 def add_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--in_path", help="path to directory /downloaded which contains raw data"
+        "--in_path", help="path to directory /var/downloaded which contains raw data"
     )
     parser.add_argument("--out_path", help="path to save regridded data")
     parser.add_argument("--variables", nargs="+", help="list of variables to process")
@@ -103,7 +103,7 @@ def check_time_steps_complete(path, var):
     for i, date in enumerate(arrs[1:]):
         if not (arrs[i] + np.timedelta64(1, "D") == date):
             raise ValueError(
-                "Time series has missing days. Missing day after: {arrs[i], i}"
+                f"Time series has missing days. Missing day after: {arrs[i], i}"
             )
     logger.info("all time steps checked.")
 
@@ -151,7 +151,11 @@ def save_nc_int32_time(infile, outfile):
     out_time = out_nc.createVariable("time", np.int32, ("time",))
     out_time[:] = as_julian
     for attr in in_time.ncattrs():
-        out_time.setncattr(attr, in_time.getncattr(attr))
+        if attr == "calendar":
+            value = "julian"
+        else:
+            value = in_time.getncattr(attr)
+        out_time.setncattr(attr, value)
     out_nc.close()
 
 
