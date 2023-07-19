@@ -33,7 +33,6 @@ class BatchLinearRegressor:
             )
 
     def batch_update(self, X, y):
-
         if self.hyperparameters.add_bias_term:
             X = self._add_bias_feature(X)
         else:
@@ -49,7 +48,7 @@ class BatchLinearRegressor:
     def get_weights(self):
         # use_least_squares_solve is useful for simple test cases
         # where np.linalg.solve encounters for singular XT.X
-        # print(self.A,self.B)
+
         reg = self.hyperparameters.l2 * np.identity(self.A.shape[1])
 
         if self.A is None and self.B is None:
