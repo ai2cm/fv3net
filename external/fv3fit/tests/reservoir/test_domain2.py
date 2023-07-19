@@ -66,11 +66,12 @@ def test_get_subdomain():
 
     rank_domain = get_4x4_rank_domain()
 
-    # Test with valid input
+    # test basic subdomain upper left corner
     divider = RankXYDivider((2, 2), (4, 4))
     subdomain = divider.get_subdomain(rank_domain, 0)
     np.testing.assert_equal(subdomain, np.array([[0, 1], [4, 5]]))
 
+    # lower right corner
     subdomain = divider.get_subdomain(rank_domain, 3)
     np.testing.assert_equal(subdomain, np.array([[10, 11], [14, 15]]))
 
@@ -86,7 +87,6 @@ def test_get_subdomain_with_feature():
     rank_domain = get_4x4_rank_domain()
     stacked = np.concatenate([rank_domain[..., None] + i for i in range(3)], axis=-1)
 
-    # Test with valid input
     divider = RankXYDivider((2, 2), (4, 4), z_feature=3)
     subdomain = divider.get_subdomain(stacked, 0)
     assert subdomain.shape == (2, 2, 3)
@@ -102,7 +102,7 @@ def test_get_subdomain_with_leading():
     rank_domain = get_4x4_rank_domain()
     stacked = np.concatenate([rank_domain[None] + i for i in range(3)], axis=0)
 
-    # Test with valid input
+    # check leading dimension is preserved while subdomains are consistent
     divider = RankXYDivider((2, 2), (4, 4))
     subdomain = divider.get_subdomain(stacked, 0)
     assert subdomain.shape == (3, 2, 2)
@@ -139,46 +139,42 @@ def test_get_all_subdomains_with_leading():
 
 
 def test_flatten_subdomain_features():
-    # Test with valid input
     divider = RankXYDivider((2, 2), (10, 20), 3)
     data = np.ones((5, 10, 3))
     flattened = divider.flatten_subdomain_features(data)
     assert flattened.shape == (150,)
 
-    # Test with invalid input
+    # Incorrect data feature shape
     data = np.random.rand(5, 10, 4)
     with pytest.raises(ValueError):
         divider.flatten_subdomain_features(data)
 
 
 def test_reshape_flat_subdomain_features():
-    # Test with valid input
     divider = RankXYDivider((2, 2), (10, 20), 3)
     data = np.ones((150))
     reshaped = divider.reshape_flat_subdomain_features(data)
     assert reshaped.shape == (5, 10, 3)
 
-    # Test with invalid input
+    # Incorect data feature shape
     data = np.ones((50, 4))
     with pytest.raises(ValueError):
         divider.reshape_flat_subdomain_features(data)
 
 
 def test_merge_all_subdomains():
-    # Test with valid input
     divider = RankXYDivider((2, 2), (10, 20), 3)
     data = np.ones((4, 5, 10, 3))
     merged = divider.merge_all_subdomains(data)
     assert merged.shape == (10, 20, 3)
 
-    # Test with invalid input
+    # Incorrect data feature shape
     data = np.ones((3, 5, 10, 3))
     with pytest.raises(ValueError):
         divider.merge_all_subdomains(data)
 
 
 def test_all_subdomain_merge_roundtrip():
-    # Test with valid input including a leading dimension
     divider = RankXYDivider((2, 2), (10, 20), 3)
     data = np.random.rand(15, 10, 20, 3)
     divided_flat = divider.get_all_subdomains_with_flat_feature(data)

@@ -38,8 +38,8 @@ class Reservoir:
         self,
         hyperparameters: ReservoirHyperparameters,
         input_size: int,
-        W_in: Optional[scipy.sparse.coo_matrix] = None,
-        W_res: Optional[scipy.sparse.coo_matrix] = None,
+        W_in: Optional[scipy.sparse.csc_matrix] = None,
+        W_res: Optional[scipy.sparse.csc_matrix] = None,
     ):
         """
 
