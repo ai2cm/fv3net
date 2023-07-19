@@ -195,7 +195,7 @@ def _construct_readout_inputs_outputs(
         X_batch = square_even_terms(X_batch, axis=1)
     if hybrid_time_series is not None:
         X_batch = concat_inputs_along_subdomain_features(
-            X_batch, hybrid_time_series[:-1]
+            X_batch, hybrid_time_series[1:]
         )
     # Y has dimensions [time, subdomain-feature, subdomain] where feature dimension
     # has flattened (x, y, encoded-feature) coordinates
