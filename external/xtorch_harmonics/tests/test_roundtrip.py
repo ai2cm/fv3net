@@ -4,18 +4,18 @@ import pytest
 import scipy.special
 import xarray as xr
 
-from xtorch_harmonics.core import (
+from xtorch_harmonics.xtorch_harmonics import (
     EQUIANGULAR_GRID,
     LEGENDRE_GAUSS_GRID,
     LOBATTO_GRID,
     VALID_GRIDS,
 )
-from xtorch_harmonics.core import LAT_DIM, LON_DIM
-from xtorch_harmonics.core import (
+from xtorch_harmonics.xtorch_harmonics import LAT_DIM, LON_DIM
+from xtorch_harmonics.xtorch_harmonics import (
     compute_quadrature_latitudes,
     compute_quadrature_longitudes,
 )
-from xtorch_harmonics.core import roundtrip
+from xtorch_harmonics.xtorch_harmonics import roundtrip
 
 
 HARMONIC_DIM = "harmonic"
