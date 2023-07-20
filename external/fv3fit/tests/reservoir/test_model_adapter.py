@@ -86,8 +86,11 @@ def test_adapter_predict(regtest):
     data = get_single_rank_xarray_data()
 
     model = HybridDatasetAdapter(hybrid_predictor)
-
-    result = model.predict(data)
+    nhalo = model.model.rank_divider.overlap
+    data_without_overlap = data.isel(
+        {"x": slice(nhalo, -nhalo), "y": slice(nhalo, -nhalo)}
+    )
+    result = model.predict(data_without_overlap)
     print(result, file=regtest)
 
 
