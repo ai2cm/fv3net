@@ -273,14 +273,15 @@ def test_HybridReservoirComputingModel_dump_load(tmpdir):
     )
     hybrid_predictor.reset_state()
     ts_sync = [
-        np.ones((input_size, hybrid_predictor.rank_divider.n_subdomains))
+        np.ones((input_size, hybrid_predictor.rank_divider.n_subdomains,))
         for i in range(20)
     ]
 
     hybrid_predictor.synchronize(ts_sync)
 
+    # Training data always has a feature dim, even if it's size 1
     hybrid_input = [
-        np.random.rand(*rank_divider.rank_extent),
+        np.random.rand(*rank_divider.rank_extent, 1),
     ]
     prediction0 = hybrid_predictor.predict(hybrid_input)
 

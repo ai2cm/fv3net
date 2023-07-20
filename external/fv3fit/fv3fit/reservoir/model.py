@@ -70,8 +70,23 @@ class HybridReservoirComputingModel(Predictor):
         encoded_hybrid_input = encode_columns(
             input_arrs=hybrid_input, transformer=self.autoencoder
         )
+        if encoded_hybrid_input.shape[:2] != tuple(
+            self.rank_divider.rank_extent_without_overlap
+        ):
+            raise ValueError(
+                "Hybrid input provided for prediction must have x, y dims of size "
+                f"{self.rank_divider.rank_extent_without_overlap}, which is the rank "
+                f"data shape *excluding* any overlap/halo points. "
+                f"Data provided has shape {encoded_hybrid_input.shape[:2]}."
+            )
+        # RankDivider assumes arrays to be sliced include overlap/halo points,
+        # so add zero padding to the hybrid input data array's xy axes
+        nhalo = self.rank_divider.overlap
+        padded_encoded_hybrid_input = np.pad(
+            encoded_hybrid_input, pad_width=((nhalo, nhalo), (nhalo, nhalo), (0, 0))
+        )
         flat_encoded_hybrid_input = self.rank_divider.flatten_subdomains_to_columns(
-            encoded_hybrid_input, with_overlap=False
+            padded_encoded_hybrid_input, with_overlap=False
         )
         flattened_readout_input = self._concatenate_readout_inputs(
             self.reservoir_model.reservoir.state, flat_encoded_hybrid_input
