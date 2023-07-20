@@ -3,7 +3,7 @@ import pytest
 from fv3fit.reservoir.domain import (
     slice_along_axis,
     RankDivider,
-    assure_same_dims,
+    assure_txyz_dims,
 )
 
 
@@ -30,22 +30,30 @@ default_rank_divider_kwargs = {
 }
 
 
-def test_assure_same_dims():
+def test_assure_txyz_dims():
     nt, nx, ny, nz = 5, 4, 4, 6
     arr_3d = np.ones((nt, nx, ny, nz))
     arr_2d = np.ones((nt, nx, ny))
     data = [arr_3d, arr_2d]
-    assert assure_same_dims(data)[0].shape == (nt, nx, ny, nz)
-    assert assure_same_dims(data)[1].shape == (nt, nx, ny, 1)
+    assert assure_txyz_dims(data)[0].shape == (nt, nx, ny, nz)
+    assert assure_txyz_dims(data)[1].shape == (nt, nx, ny, 1)
 
 
-def test_assure_same_dims_incompatible_shapes():
+def test_assure_txyz_dims_2d_only_inputs():
+    nt, nx, ny = 5, 4, 4
+    arr_2d = np.ones((nt, nx, ny))
+    data = [arr_2d, arr_2d]
+    for arr in assure_txyz_dims(data):
+        assert arr.shape == (nt, nx, ny, 1)
+
+
+def test_assure_txyz_dims_incompatible_shapes():
     nt, nx, ny, nz = 5, 4, 4, 6
     arr_3d = np.ones((nt, nx, ny, nz, 2))
     arr_2d = np.ones((nt, nx, ny))
     data = [arr_3d, arr_2d]
     with pytest.raises(ValueError):
-        assure_same_dims(data)
+        assure_txyz_dims(data)
 
 
 @pytest.mark.parametrize(
@@ -123,19 +131,20 @@ def test_RankDivider_get_subdomain_tensor_slice_covers_all_subdomains():
     "data_extent, overlap, with_overlap, nz ",
     [
         ([6, 6], 1, True, 2),
-        ([6, 6], 1, True, 2),
+        ([6, 6], 1, False, 2),
         ([4, 4], 0, False, 2),
         ([6, 6], 1, True, 1),
     ],
 )
 def test_RankDivider_unstack_subdomain(data_extent, overlap, with_overlap, nz):
+
+    xy_shape = [n + 2 * overlap for n in data_extent]
     divider = RankDivider(
         subdomain_layout=(2, 2),
         rank_dims=["x", "y"],
-        rank_extent=data_extent,
+        rank_extent=xy_shape,
         overlap=overlap,
     )
-    xy_shape = data_extent[:2]
     data_shape = (*xy_shape, nz) if nz > 1 else xy_shape
     data_arr = np.random.rand(*data_shape)
     subdomain_arr = divider.get_subdomain_tensor_slice(
@@ -234,3 +243,13 @@ def test_RankDivider_merge_subdomains():
 
     merged = rank_divider.merge_subdomains(prediction)
     np.testing.assert_array_equal(merged, data_orig)
+
+
+def test_RankDivider_get_subdomain_tensor_slice_wrong_input_shape():
+    divider = RankDivider(
+        subdomain_layout=(2, 2), rank_dims=["x", "y"], rank_extent=[6, 6], overlap=1,
+    )
+    with pytest.raises(ValueError):
+        divider.flatten_subdomains_to_columns(
+            np.ones((5, 5)), with_overlap=False,
+        )

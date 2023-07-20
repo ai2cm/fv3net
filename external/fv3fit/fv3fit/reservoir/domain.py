@@ -25,6 +25,9 @@ class RankDivider:
         overlap: int,
     ):
         """ Divides a rank of data into subdomains for use in training.
+        When dividing a tensor into subdomains, it is assumed that the input rank
+        data always includes <overlap> number of halo points.
+
         Args:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
@@ -139,7 +142,13 @@ class RankDivider:
     def get_subdomain_tensor_slice(
         self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool,
     ) -> tf.Tensor:
-
+        if tensor_data.shape[:2] != tuple(self.rank_extent):
+            raise ValueError(
+                f"Data array being divided must be of shape {self.rank_extent}, "
+                f"which is the rank shape {self.rank_extent_without_overlap} plus "
+                f"{self.overlap} halo points. "
+                f"Array provided was shape {tensor_data.shape}"
+            )
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
         x_ind, y_ind = self._x_ind, self._y_ind
         tensor_data_xsliced = slice_along_axis(
@@ -250,18 +259,19 @@ class RankDivider:
         return np.concatenate(np.concatenate(domain_z_blocks, axis=2), axis=0)
 
 
-def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
-    max_dims = max(len(v.shape) for v in variable_tensors)
+def assure_txyz_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
+    # Assumes dims 1, 2, 3 are t, x, y.
+    # If variable data has 3 dims, adds a 4th feature dim of size 1.
     reshaped_tensors = []
     for var_data in variable_tensors:
-        if len(var_data.shape) == max_dims:
+        if len(var_data.shape) == 4:
             reshaped_tensors.append(var_data)
-        elif len(var_data.shape) == max_dims - 1:
+        elif len(var_data.shape) == 3:
             orig_shape = var_data.shape
             reshaped_tensors.append(tf.reshape(var_data, shape=(*orig_shape, 1)))
         else:
             raise ValueError(
                 f"Tensor data has {len(var_data.shape)} dims, must either "
-                f"have either {max_dims} or {max_dims-1}."
+                "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)."
             )
     return reshaped_tensors
