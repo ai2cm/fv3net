@@ -52,7 +52,7 @@ class Reservoir:
                 generated upon initialiation.
         """
         self.hyperparameters = hyperparameters
-        self.input_size = input_size
+        self.input_size = int(input_size)
 
         np.random.seed(self.hyperparameters.seed)
         self.W_in = W_in if W_in is not None else self._generate_W_in()

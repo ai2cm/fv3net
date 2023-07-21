@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
-from fv3fit.reservoir.domain import RankDivider
+from fv3fit.reservoir.domain2 import OverlapRankXYDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir import (
     Reservoir,
@@ -27,15 +27,8 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
 
 def get_initialized_hybrid_model():
     # expects rank size (including halos) in latent space
-    divider = RankDivider((2, 2), ["x", "y"], [8, 8], 2)
+    divider = OverlapRankXYDivider((2, 2), (8, 8), 2, z_feature=6)
     autoencoder = DoNothingAutoencoder([3, 3])
-    input_size = 6 * 6 * autoencoder.n_latent_dims  # overlap subdomain in latent space
-    hybrid_input_size_per_subdomain = (
-        divider.subdomain_xy_size_without_overlap ** 2 * autoencoder.n_latent_dims
-    )  # no overlap subdomain in latent space
-    output_size = (
-        hybrid_input_size_per_subdomain  # no overlap subdomain in latent space
-    )
 
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
@@ -44,14 +37,19 @@ def get_initialized_hybrid_model():
         spectral_radius=1.0,
         input_coupling_sparsity=1,
     )
-    reservoir = Reservoir(hyperparameters, input_size=input_size)
+    reservoir = Reservoir(hyperparameters, input_size=divider.flat_subdomain_len)
 
+    no_overlap_divider = divider.get_no_overlap_rank_xy_divider()
     # multiplied by the number of subdomains since it's a combined readout
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(
-            4, state_size + hybrid_input_size_per_subdomain, output_size
+            divider.n_subdomains,
+            state_size + no_overlap_divider.flat_subdomain_len,
+            no_overlap_divider.flat_subdomain_len,
         ),
-        intercepts=np.random.rand(4, output_size),
+        intercepts=np.random.rand(
+            divider.n_subdomains, no_overlap_divider.flat_subdomain_len
+        ),
     )
 
     hybrid_predictor = HybridReservoirComputingModel(
@@ -69,6 +67,19 @@ def get_initialized_hybrid_model():
 
 
 def get_single_rank_xarray_data():
+    rng = np.random.RandomState(0)
+    a = rng.randn(4, 4, 3)  # two variables concatenated to form size 6 latent space
+    b = rng.randn(4, 4, 3)
+
+    return xr.Dataset(
+        {
+            "a": xr.DataArray(a, dims=["x", "y", "z"]),
+            "b": xr.DataArray(b, dims=["x", "y", "z"]),
+        }
+    )
+
+
+def get_single_rank_xarray_data_with_overlap():
     rng = np.random.RandomState(0)
     a = rng.randn(8, 8, 3)  # two variables concatenated to form size 6 latent space
     b = rng.randn(8, 8, 3)
@@ -93,7 +104,7 @@ def test_adapter_predict(regtest):
 
 def test_adapter_increment_state():
     hybrid_predictor = get_initialized_hybrid_model()
-    data = get_single_rank_xarray_data()
+    data = get_single_rank_xarray_data_with_overlap()
 
     model = HybridDatasetAdapter(hybrid_predictor)
     model.reset_state()

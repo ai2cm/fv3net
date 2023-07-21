@@ -227,7 +227,7 @@ def test_get_overlap_subdomain():
         divider.get_subdomain(rank_domain[0:2], 0)
 
 
-@pytest.mark.parameterize(
+@pytest.mark.parametrize(
     "cls, kwargs",
     [
         (RankXYDivider, {}),
@@ -239,8 +239,8 @@ def test_get_overlap_subdomain():
 def test_dump_load(cls, kwargs):
     divider = cls((2, 2), (4, 4), **kwargs)
     with tempfile.NamedTemporaryFile() as tmp:
-        divider.dump(tmp)
-        loaded = cls.load(tmp)
+        divider.dump(tmp.name)
+        loaded = cls.load(tmp.name)
         assert divider == loaded
 
 

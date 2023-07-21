@@ -12,7 +12,7 @@ def _check_feature_dims_consistent(data_shape, feature_shape):
     if feature_dims != tuple(feature_shape):
         raise ValueError(
             f"Feature dimensions of data {feature_dims}"
-            " are not consistent with expected: {feature_shape}"
+            f" are not consistent with expected: {feature_shape}"
         )
 
 
@@ -374,7 +374,7 @@ class OverlapRankXYDivider(RankXYDivider):
     def dump(self, path):
         metadata = {
             "subdomain_layout": self.subdomain_layout,
-            "rank_extent": self.rank_extent,
+            "overlap_rank_extent": self.overlap_rank_extent,
             "overlap": self.overlap,
             "z_feature": self._z_feature,
         }

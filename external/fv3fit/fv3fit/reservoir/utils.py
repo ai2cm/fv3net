@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Tuple
+from typing import Iterable, Mapping, Tuple, Union
 from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
 from fv3fit.reservoir.domain import assure_txyz_dims
-from fv3fit.reservoir.domain2 import RankXYDivider
+from fv3fit.reservoir.domain2 import RankXYDivider, OverlapRankXYDivider
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
@@ -27,7 +27,7 @@ def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
 def process_batch_Xy_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
-    x_rank_divider: RankXYDivider,
+    x_rank_divider: Union[OverlapRankXYDivider, RankXYDivider],
     y_rank_divider: RankXYDivider,
     autoencoder: ReloadableTransfomer,
 ) -> Tuple[np.ndarray, np.ndarray]:

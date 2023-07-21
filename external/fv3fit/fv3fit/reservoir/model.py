@@ -46,6 +46,12 @@ class HybridReservoirComputingModel(Predictor):
         autoencoder: ReloadableTransfomer,
         square_half_hidden_state: bool = False,
     ):
+        # TODO: The autoencoder and by  extension the rank encoder all assume
+        # that the same variable set are used for inputs, hybrid variables, and
+        # perhaps outputs.  This will quickly not be the case, so need to allow
+        # for different ones for each case.  Default can be an expectation that
+        # all variables are available, but the encoder will then contain all that
+        # information (e.g., time=t and t+1).  Separate PR is necessary for that.
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
             output_variables=output_variables,
@@ -83,7 +89,7 @@ class HybridReservoirComputingModel(Predictor):
         )
 
         flat_prediction = self.readout.predict(readout_input)
-        prediction = self.rank_divider.merge_all_flat_feature_subdomains(
+        prediction = self._no_overlap_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
         decoded_prediction = decode_columns(
@@ -248,7 +254,14 @@ class ReservoirComputingModel(Predictor):
         self.reservoir.increment_state(encoded_flat_sub)
 
     def synchronize(self, synchronization_time_series):
-        self.reservoir.synchronize(synchronization_time_series)
+        # input arrays in native x, y, z_feature coordinates
+        encoded_timeseries = encode_columns(
+            synchronization_time_series, self.autoencoder
+        )
+        encoded_flat = self.rank_divider.get_all_subdomains_with_flat_feature(
+            encoded_timeseries
+        )
+        self.reservoir.synchronize(encoded_flat)
 
     def dump(self, path: str) -> None:
         """Dump data to a directory

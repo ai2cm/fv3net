@@ -1,12 +1,13 @@
 import numpy as np
 import os
 import pytest
+from unittest.mock import MagicMock
 
 from fv3fit.reservoir.config import BatchLinearRegressorHyperparameters
 from fv3fit.reservoir.readout import (
     ReservoirComputingReadout,
-    combine_readouts,
     BatchLinearRegressor,
+    combine_readouts_from_subdomain_regressors,
 )
 
 
@@ -33,23 +34,22 @@ def test_combine_readouts():
 
     state_size = 3
     output_size = 2
-    readout_1 = ReservoirComputingReadout(
-        coefficients=np.random.rand(state_size, output_size),
-        intercepts=np.random.rand(output_size),
-    )
-    readout_2 = ReservoirComputingReadout(
-        coefficients=np.random.rand(state_size, output_size),
-        intercepts=np.random.rand(output_size),
-    )
-    input = np.array([[1, 1, 1], [2, 2, 2]])
-    output_1 = readout_1.predict(input)
-    output_2 = readout_2.predict(input)
 
-    combined_readout = combine_readouts(readouts=[readout_1, readout_2])
-    combined_input = np.concatenate([input, input], axis=1)
+    regressor = MagicMock()
+    regressor.get_weights.return_value = (
+        np.random.rand(state_size, output_size),
+        np.random.rand(output_size),
+    )
+    readout = ReservoirComputingReadout(*regressor.get_weights())
+    input = np.array([[1, 1, 1], [2, 2, 2]])
+    output = readout.predict(input)
+
+    regressors = [regressor, regressor]
+    combined_readout = combine_readouts_from_subdomain_regressors(regressors)
+    combined_input = np.stack([input, input], axis=0)
     output_combined = combined_readout.predict(combined_input)
     np.testing.assert_array_almost_equal(
-        output_combined, np.concatenate([output_1, output_2], axis=1)
+        output_combined, np.stack([output, output], axis=0)
     )
 
 
