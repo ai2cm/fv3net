@@ -160,9 +160,8 @@ def main(args):
     one_step_predictions = np.array(one_step_prediction_time_series)[
         args.n_synchronize : -1
     ]
-
     time_means_to_calculate = {
-        "time_mean_prediction": target_time_series,
+        "time_mean_prediction": one_step_predictions,
         "time_mean_error": one_step_predictions - target,
         "time_mean_persistence_error": persistence - target,
         "time_mean_mse": (one_step_predictions - target) ** 2,
