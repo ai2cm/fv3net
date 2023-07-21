@@ -73,7 +73,7 @@ def _get_predictions_over_batch(
 ):
     prediction_time_series = []
     n_timesteps = states_with_overlap_time_series[0].shape[0]
-    for t in range(n_timesteps - 1):
+    for t in range(n_timesteps):
         state = [
             variable_time_series[t]
             for variable_time_series in states_with_overlap_time_series
@@ -82,8 +82,8 @@ def _get_predictions_over_batch(
         predict_kwargs = {}
         if hybrid_inputs_time_series is not None:
             predict_kwargs["hybrid_input"] = [
-                variable_time_series[t + 1]
-                for variable_time_series in hybrid_inputs_time_series
+                variable_time_series
+                for variable_time_series in hybrid_inputs_time_series[t]
             ]
         prediction = model.predict(**predict_kwargs)
         prediction_time_series.append(prediction)
@@ -107,6 +107,7 @@ def _get_states_without_overlap(
         states_without_overlap_time_series.append(
             var_time_series[:, overlap:-overlap, overlap:-overlap, :]
         )
+    # dims (t, var, x, y, z)
     return np.stack(states_without_overlap_time_series, axis=1)
 
 
@@ -133,6 +134,9 @@ def main(args):
             hybrid_inputs_time_series = get_ordered_X(
                 batch_data, model.hybrid_variables
             )
+            hybrid_inputs_time_series = _get_states_without_overlap(
+                hybrid_inputs_time_series, overlap=model.rank_divider.overlap
+            )
         else:
             hybrid_inputs_time_series = None
         batch_predictions = _get_predictions_over_batch(
@@ -154,19 +158,21 @@ def main(args):
 
     # _get_predictions_over_batch predicts up to n_timesteps-1
     one_step_predictions = np.array(one_step_prediction_time_series)[
-        args.n_synchronize :
+        args.n_synchronize : -1
     ]
 
-    ds_prediction = _time_mean_dataset(
-        model.input_variables, target_time_series, "time_mean_prediction"
-    )
-    ds_error = _time_mean_dataset(
-        model.input_variables, one_step_predictions - target, "time_mean_error"
-    )
-    ds_persistence_error = _time_mean_dataset(
-        model.input_variables, persistence - target, "time_mean_persistence_error"
-    )
-    ds = xr.merge([ds_prediction, ds_persistence_error, ds_error])
+    time_means_to_calculate = {
+        "time_mean_prediction": target_time_series,
+        "time_mean_error": one_step_predictions - target,
+        "time_mean_persistence_error": persistence - target,
+        "time_mean_mse": (one_step_predictions - target) ** 2,
+        "time_mean_persistence_mse": (persistence - target) ** 2,
+    }
+    diags_ = []
+    for key, data in time_means_to_calculate.items():
+        diags_.append(_time_mean_dataset(model.input_variables, data, key))
+
+    ds = xr.merge(diags_)
 
     output_file = os.path.join(args.output_path, "offline_diags.nc")
 
