@@ -368,6 +368,20 @@ class OverlapRankXYDivider(RankXYDivider):
         slices = super()._get_subdomain_slice(subdomain_index)
         return self._update_slices_with_overlap(slices)
 
+    def trim_halo_from_rank_data(self, data: np.ndarray) -> np.ndarray:
+        """
+        Remove halo points (the overlap) from the rank data.
+        """
+
+        _check_feature_dims_consistent(data.shape, self._rank_extent_for_check)
+        no_overlap_slice = slice(self.overlap, -self.overlap)
+        slices = [no_overlap_slice, no_overlap_slice]
+        slices = self._maybe_append_feature_value(slices, slice(None))
+        slices = self._add_potential_leading_dim_to_slices(data.shape, slices)
+        print(slices)
+
+        return data[tuple(slices)]
+
     def merge_all_subdomains(self, data):
         raise NotImplementedError("Merging overlapped subdomains is not supported.")
 

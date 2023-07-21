@@ -40,7 +40,7 @@ def test_check_feature_dims_consistent():
         _check_feature_dims_consistent(data_shape, feature_shape)
 
 
-def get_4x4_rank_domain(overlap: int = None):
+def get_4x4_rank_domain():
     return np.arange(16).reshape((4, 4))
 
 
@@ -244,12 +244,35 @@ def test_dump_load(cls, kwargs):
         assert divider == loaded
 
 
+@pytest.mark.parametrize(
+    "ntimes, z_features",
+    [(0, None), (1, None), (2, None), (0, 1), (0, 2), (1, 1), (2, 2)],
+)
+def test_trim_overlap_rank(ntimes, z_features):
+    overlap = 1
+    rank_data = get_4x4_rank_domain()
+    trimmed = rank_data[overlap:-overlap, overlap:-overlap]
+    if ntimes > 0:
+        rank_data = np.array([rank_data + i for i in range(ntimes)])
+        trimmed = np.array([trimmed + i for i in range(ntimes)])
+    if z_features is not None:
+        rank_data = np.stack([rank_data] * z_features, axis=-1)
+        trimmed = np.stack([trimmed] * z_features, axis=-1)
+
+    divider = OverlapRankXYDivider(
+        (2, 2), (4, 4), overlap=overlap, z_feature=z_features
+    )
+    result = divider.trim_halo_from_rank_data(rank_data)
+
+    np.testing.assert_equal(result, trimmed)
+
+
 # TODO: used as a direct comparison, delete when no longer needed
 def test_subdomain_decomp_against_original_RankDivider():
     original = RankDivider((2, 2), ["x", "y"], (4, 4), overlap=1)
     new = OverlapRankXYDivider((2, 2), (4, 4), overlap=1)
 
-    rank_domain = get_4x4_rank_domain(overlap=1)
+    rank_domain = get_4x4_rank_domain()
 
     # returns flat_feature, subdomain
     orig_sub_flat = original.flatten_subdomains_to_columns(

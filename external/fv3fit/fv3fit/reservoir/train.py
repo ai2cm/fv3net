@@ -1,7 +1,10 @@
 import logging
 from joblib import Parallel, delayed
 import fv3fit
-from fv3fit.reservoir.readout import BatchLinearRegressor
+from fv3fit.reservoir.readout import (
+    BatchLinearRegressor,
+    combine_readouts_from_subdomain_regressors,
+)
 import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union
@@ -14,7 +17,6 @@ from . import (
     HybridReservoirComputingModel,
     Reservoir,
     ReservoirTrainingConfig,
-    ReservoirComputingReadout,
 )
 from .domain2 import OverlapRankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
@@ -124,19 +126,7 @@ def train_reservoir_model(
             ]
             Parallel(n_jobs=hyperparameters.n_jobs, backend="threading")(jobs)
 
-    subdomain_readout_coeffs = []
-    subdomain_intercepts = []
-    for r, regressor in enumerate(subdomain_regressors):
-        logger.info(
-            f"Solving for readout weights: readout {r+1}/{len(subdomain_regressors)}"
-        )
-        coefs_, intercepts_ = regressor.get_weights()
-        subdomain_readout_coeffs.append(coefs_)
-        subdomain_intercepts.append(intercepts_)
-
-    readout = ReservoirComputingReadout(
-        np.array(subdomain_readout_coeffs), np.array(subdomain_intercepts)
-    )
+    readout = combine_readouts_from_subdomain_regressors(subdomain_regressors)
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
 

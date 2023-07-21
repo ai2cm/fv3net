@@ -1,9 +1,12 @@
 import fsspec
 import numpy as np
 import os
+import logging
 from typing import Optional, Sequence
 
 from .config import BatchLinearRegressorHyperparameters
+
+logger = logging.getLogger(__name__)
 
 
 class NotFittedError(Exception):
@@ -118,8 +121,9 @@ def combine_readouts_from_subdomain_regressors(
     regressors: Sequence[BatchLinearRegressor],
 ):
     all_coefficients, all_intercepts = [], []
-    for r in regressors:
-        coefs_, intercept = r.get_weights()
+    for i, reg in enumerate(regressors):
+        logger.info(f"Solving for readout weights: readout {i + 1}/{len(regressors)}")
+        coefs_, intercept = reg.get_weights()
         all_coefficients.append(coefs_)
         all_intercepts.append(intercept)
 
