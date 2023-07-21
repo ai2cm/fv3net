@@ -65,14 +65,14 @@ class RankXYDivider:
         return self._x_subdomain_extent, self._y_subdomain_extent
 
     @property
-    def _rank_extent_all_features(self):
-        # Fed into partitioner for slicing, no overlap should ever be used
+    def _rank_extent_for_partitioner(self):
+        # Fed into partitioner for slicing, no overlap should ever be given
         return self._maybe_append_feature_value(self.rank_extent, self._z_feature)
 
     @property
-    def _rank_extent_for_check(self):
-        # used for data consistency check, maybe has overlap depending on class
-        return self._rank_extent_all_features
+    def _rank_extent_all_features(self):
+        # used for data consistency check, maybe has overlap in another class
+        return self._rank_extent_for_partitioner
 
     @property
     def _rank_dims_all_features(self):
@@ -129,7 +129,7 @@ class RankXYDivider:
 
     def _get_subdomain_slice(self, subdomain_index):
         rank_dims = self._rank_dims_all_features
-        rank_extent = self._rank_extent_all_features
+        rank_extent = self._rank_extent_for_partitioner
         return self._partitioner.subtile_slice(subdomain_index, rank_dims, rank_extent)
 
     def _add_potential_leading_dim_to_slices(self, data_shape, dim_slices):
@@ -158,7 +158,7 @@ class RankXYDivider:
                 "[0, {self.n_subdomains})"
             )
 
-        _check_feature_dims_consistent(data.shape, self._rank_extent_for_check)
+        _check_feature_dims_consistent(data.shape, self._rank_extent_all_features)
         dim_slices = self._get_subdomain_slice(subdomain_index)
         dim_slices = self._add_potential_leading_dim_to_slices(data.shape, dim_slices)
 
@@ -339,7 +339,7 @@ class OverlapRankXYDivider(RankXYDivider):
         return RankXYDivider(self.subdomain_layout, self.rank_extent, self._z_feature,)
 
     @property
-    def _rank_extent_for_check(self):
+    def _rank_extent_all_features(self):
         # Uses overlap extent to check data consistency
         return self._maybe_append_feature_value(
             self.overlap_rank_extent, self._z_feature
@@ -373,7 +373,7 @@ class OverlapRankXYDivider(RankXYDivider):
         Remove halo points (the overlap) from the rank data.
         """
 
-        _check_feature_dims_consistent(data.shape, self._rank_extent_for_check)
+        _check_feature_dims_consistent(data.shape, self._rank_extent_all_features)
         no_overlap_slice = slice(self.overlap, -self.overlap)
         slices = [no_overlap_slice, no_overlap_slice]
         slices = self._maybe_append_feature_value(slices, slice(None))
