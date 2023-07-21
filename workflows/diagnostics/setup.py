@@ -54,7 +54,11 @@ setup(
     include_package_data=True,
     name="fv3net-diagnostics",
     packages=find_namespace_packages(
-        include=["fv3net.diagnostics.prognostic_run", "fv3net.diagnostics.offline"]
+        include=[
+            "fv3net.diagnostics.prognostic_run",
+            "fv3net.diagnostics.offline",
+            "fv3net.diagnostics.reservoir",
+        ]
     ),
     version="0.1.0",
 )
