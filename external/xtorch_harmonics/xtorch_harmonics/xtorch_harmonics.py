@@ -23,8 +23,6 @@ QUADRATURE_FUNCTIONS = {
     LEGENDRE_GAUSS_GRID: torch_harmonics.quadrature.legendre_gauss_weights,
     LOBATTO_GRID: torch_harmonics.quadrature.lobatto_weights,
 }
-LON_DIM = "grid_xt"
-LAT_DIM = "grid_yt"
 
 T_XarrayObject = TypeVar("T_XarrayObject", xr.DataArray, xr.Dataset)
 T_Grid = Literal[EQUIANGULAR_GRID, LEGENDRE_GAUSS_GRID, LOBATTO_GRID]
@@ -165,10 +163,10 @@ def _roundtrip_dataset(
 
 def roundtrip(
     obj: T_XarrayObject,
+    lat_dim: Hashable,
+    lon_dim: Hashable,
     forward_grid: T_Grid = LEGENDRE_GAUSS_GRID,
     inverse_grid: T_Grid = LEGENDRE_GAUSS_GRID,
-    lat_dim: Hashable = LAT_DIM,
-    lon_dim: Hashable = LON_DIM,
     unsafe: bool = False,
 ) -> T_XarrayObject:
     """
@@ -181,16 +179,16 @@ def roundtrip(
 
     Args:
         obj: xr.DataArray or xr.Dataset
+        lat_dim: Hashable
+            Name of latitude dimension.
+        lon_dim: Hashable
+            Name of longitude dimension.
         forward_grid: str
             Grid to assume in forward transform (default 'legendre-gauss').
             Options are 'equiangular', 'legendre-gauss', and 'lobatto'.
         inverse_grid: str (default 'legendre-gauss')
             Grid to assume in inverse transform (default 'legendre-gauss').
             Options are 'equiangular', 'legendre-gauss', and 'lobatto'.
-        lat_dim: Hashable
-            Name of latitude dimension (default 'grid_yt').
-        lon_dim: Hashable
-            Name of longitude dimension (default 'grid_xt').
         unsafe: bool (default False)
             Whether to turn off guardrails that check whether the input
             quadrature points are consistent with the forward_grid.

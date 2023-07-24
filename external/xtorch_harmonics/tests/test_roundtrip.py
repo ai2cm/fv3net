@@ -10,7 +10,6 @@ from xtorch_harmonics.xtorch_harmonics import (
     LOBATTO_GRID,
     VALID_GRIDS,
 )
-from xtorch_harmonics.xtorch_harmonics import LAT_DIM, LON_DIM
 from xtorch_harmonics.xtorch_harmonics import (
     _validate_quadrature_latitudes,
     _validate_quadrature_longitudes,
@@ -22,6 +21,7 @@ from xtorch_harmonics.xtorch_harmonics import roundtrip
 
 HARMONIC_DIM = "harmonic"
 N_LAT, N_LON = 9, 18
+LON_DIM, LAT_DIM = "grid_xt", "grid_yt"
 
 
 def real_spherical_harmonic(lat, lon, m, n):
@@ -82,9 +82,9 @@ def test_roundtrip_constant_dataarray(forward_grid, inverse_grid):
 
     if forward_grid != inverse_grid:
         with pytest.warns(UserWarning, match="Modifying latitude coordinate"):
-            result = roundtrip(da, forward_grid=forward_grid, inverse_grid=inverse_grid)
+            result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid=forward_grid, inverse_grid=inverse_grid)
     else:
-        result = roundtrip(da, forward_grid=forward_grid, inverse_grid=inverse_grid)
+        result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid=forward_grid, inverse_grid=inverse_grid)
 
     expected_latitude = compute_quadrature_latitudes(da.sizes[LAT_DIM], inverse_grid)
     expected = da.assign_coords({LAT_DIM: expected_latitude})
@@ -94,7 +94,7 @@ def test_roundtrip_constant_dataarray(forward_grid, inverse_grid):
 @pytest.mark.parametrize("dtype", [np.float16, np.float32, np.float64])
 def test_roundtrip_dataarray_preserves_dtype(dtype):
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM).astype(dtype)
-    result = roundtrip(da)
+    result = roundtrip(da, LAT_DIM, LON_DIM)
     assert result.dtype == da.dtype
 
 
@@ -112,7 +112,7 @@ def test_roundtrip_real_spherical_harmonic_dataarray(grid, rtol):
     # This also tests the use of roundtrip on DataArrays with more than two
     # dimensions; da has dimensions ["grid_yt", "grid_xt", "m", "n"].
     da = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
-    result = roundtrip(da, forward_grid=grid, inverse_grid=grid)
+    result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid)
     xr.testing.assert_allclose(result, da, rtol=rtol)
 
 
@@ -124,7 +124,7 @@ def test_roundtrip_real_spherical_harmonic_dataarray(grid, rtol):
 def test_roundtrip_dataarray_dask(chunks):
     da = real_spherical_harmonic_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     da = da.chunk(chunks)
-    result = roundtrip(da)
+    result = roundtrip(da, LAT_DIM, LON_DIM)
 
     # Assert that all non-horizontal chunks are preserved, and the result is
     # contiguously chunked along horizontal dimensions.
@@ -144,28 +144,21 @@ def test_roundtrip_dataarray_dask(chunks):
 def test_roundtrip_dataarray_keep_attrs():
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     da = da.assign_attrs(bar="baz")
-    result = roundtrip(da)
+    result = roundtrip(da, LAT_DIM, LON_DIM)
     assert da.attrs == result.attrs
-
-
-def test_roundtrip_dataarray_specified_horizontal_dims():
-    lat_dim, lon_dim = "lat", "lon"
-    da = constant_dataarray(LEGENDRE_GAUSS_GRID, lat_dim, lon_dim)
-    result = roundtrip(da, lat_dim=lat_dim, lon_dim=lon_dim)
-    assert result.dims == (lat_dim, lon_dim)
 
 
 def test_roundtrip_dataarray_incompatible_forward_inverse_grids():
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     with pytest.raises(ValueError, match="Provided forward and inverse grids"):
-        roundtrip(da, forward_grid=LEGENDRE_GAUSS_GRID, inverse_grid=LOBATTO_GRID)
+        roundtrip(da, LAT_DIM, LON_DIM, forward_grid=LEGENDRE_GAUSS_GRID, inverse_grid=LOBATTO_GRID)
 
 
 def test_roundtrip_dataarray_incomplete_horizontal_dims():
     lat_dim, lon_dim = "lat", "lon"
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, lat_dim, lon_dim)
     with pytest.raises(ValueError, match="Input DataArray must have"):
-        roundtrip(da)
+        roundtrip(da, LAT_DIM, LON_DIM)
 
 
 @pytest.mark.parametrize(
@@ -182,10 +175,10 @@ def test_latitude_quadrature_point_validation(input_grid, forward_grid, inverse_
 
     if unsafe:
         with pytest.warns(UserWarning, match="Modifying latitude"):
-            roundtrip(da, forward_grid, inverse_grid, unsafe=unsafe)
+            roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid, unsafe=unsafe)
     else:
         with pytest.raises(AssertionError, match="Latitude coordinate"):
-            roundtrip(da, forward_grid, inverse_grid, unsafe=unsafe)
+            roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid, unsafe=unsafe)
 
 
 @pytest.mark.parametrize("unsafe", [False, True])
@@ -194,10 +187,10 @@ def test_longitude_quadrature_point_validation(unsafe):
     da = da.assign_coords({LON_DIM: np.sin(da[LON_DIM])})
 
     if unsafe:
-        roundtrip(da, unsafe=unsafe)
+        roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
     else:
         with pytest.raises(AssertionError, match="Longitude coordinate"):
-            roundtrip(da, unsafe=unsafe)
+            roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
 
 
 @pytest.mark.parametrize("unsafe", [False, True])
@@ -205,10 +198,10 @@ def test_validation_warnings_without_coordinates(unsafe):
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     da = da.drop_vars([LAT_DIM, LON_DIM])
     if unsafe:
-        roundtrip(da, unsafe=unsafe)
+        roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
     else:
         with pytest.warns(None) as record:
-            roundtrip(da, unsafe=unsafe)
+            roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
 
         latitude_warning, longitude_warning = record
         assert issubclass(latitude_warning.category, UserWarning)
@@ -246,14 +239,13 @@ def test__validate_quadrature_longitudes(lon, raises, match):
 
 
 def test_roundtrip_dataset():
-    lat_dim, lon_dim = "lat_dim", "lon_dim"
     grid = LOBATTO_GRID
-    foo = real_spherical_harmonic_dataarray(grid, lat_dim, lon_dim)
-    bar = foo.copy(deep=True).rename("bar").isel({lat_dim: 0})
+    foo = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
+    bar = foo.copy(deep=True).rename("bar").isel({LAT_DIM: 0})
     ds = xr.merge([foo, bar])
     ds = ds.assign_attrs(a="b")
     roundtripped = roundtrip(
-        ds, forward_grid=grid, inverse_grid=grid, lat_dim=lat_dim, lon_dim=lon_dim,
+        ds, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid,
     )
 
     # Check that foo was modified and bar was left unchanged.
