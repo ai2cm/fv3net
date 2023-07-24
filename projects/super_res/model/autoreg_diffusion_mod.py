@@ -93,7 +93,7 @@ def gaussian_pyramids(input, base_sigma = 1, m = 5):
     output = [input]
     N, C, H, W = input.shape
     
-    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma)).unsqueeze(0)
+    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))#.unsqueeze(0)
     
     for i in range(m):
         
@@ -644,9 +644,9 @@ class GaussianDiffusion(nn.Module):
         self.model = model
         
         self.umodel = net(upscale=8, in_chans=1, img_size=48, window_size=8,
-        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6, 6, 6], embed_dim=240,
-        num_heads=[8, 8, 8, 8, 8, 8, 8, 8, 8],
-        mlp_ratio=2, upsampler='nearest+conv', resi_connection='3conv')
+        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6], embed_dim=200,
+        num_heads=[8, 8, 8, 8, 8, 8, 8],
+        mlp_ratio=2, upsampler='pixelshuffle', resi_connection='3conv')
         
         self.flow = flow
         self.upsample = nn.UpsamplingBilinear2d(scale_factor=8)
@@ -879,9 +879,9 @@ class GaussianDiffusion(nn.Module):
         return ret
 
     @torch.no_grad()
-    def sample(self, lres, hres, return_all_timesteps = False):
+    def sample(self, lres, return_all_timesteps = False):
         
-        b, f, c, h, w, image_size, channels = *hres.shape, self.image_size, self.channels
+        b, f, c, h, w = lres.shape
         
         ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
         ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
@@ -909,9 +909,13 @@ class GaussianDiffusion(nn.Module):
         
         warped = scale_space_warp(ures_flow, flow)
         
-        res = sample_fn((b*(f-2),c,h,w), l_cond, context, return_all_timesteps = return_all_timesteps)
+        res = sample_fn((b*(f-2),c,8*h,8*w), l_cond, context, return_all_timesteps = return_all_timesteps)
         sres = warped + res
         sres = rearrange(sres, '(b t) c h w -> b t c h w', b = b)
+
+        warped = rearrange(warped, '(b t) c h w -> b t c h w', b = b)
+        res = rearrange(res, '(b t) c h w -> b t c h w', b = b)
+        flow = rearrange(flow, '(b t) c h w -> b t c h w', b = b)
         
         return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
 
@@ -1003,7 +1007,14 @@ class GaussianDiffusion(nn.Module):
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
 
         loss = loss * extract(self.p2_loss_weight, t, loss.shape)
-        return loss.mean()
+
+        loss1 = self.loss_fn(ures, hres, reduction = 'none')
+        loss1 = reduce(loss1, 'b ... -> b (...)', 'mean')
+
+        loss2 = self.loss_fn(x_start, warped, reduction = 'none')
+        loss2 = reduce(loss2, 'b ... -> b (...)', 'mean')
+
+        return loss.mean() + loss1.mean() + loss2.mean()
 
     #def forward(self, data, *args, **kwargs):
     def forward(self, lres, hres, *args, **kwargs):
@@ -1219,7 +1230,8 @@ class Trainer(object):
                                 if i >= self.val_num_of_batch:
                                     break
                                     
-                                videos, base, res, flows = self.ema.ema_model.sample(lres, hres)
+                                videos, base, res, flows = self.ema.ema_model.sample(lres)
+                                
                                 psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
                                 
                                 accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
