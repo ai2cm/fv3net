@@ -44,39 +44,66 @@ def compute_quadrature_longitudes(n_lon: int) -> np.ndarray:
     return (bounds[:-1] + bounds[1:]) / 2
 
 
+def _validate_quadrature_longitudes(lon: np.ndarray) -> None:
+    """Assert that longitudes are equally spaced and global.
+    
+    This validation function permits longitude coordinates that are increasing
+    or decreasing, and longitude coordinates whose bounds start at values other
+    than zero degrees.
+    """
+    n_lon, = lon.shape
+    dlons = np.diff(lon)
+    dlon = dlons[0]
+    assert np.isclose(dlons, dlon).all(), (
+        f"Longitude coordinate {lon} is not equally spaced, and must be equally "
+        f"spaced for a valid roundtrip."
+    )
+
+    span = np.abs(dlon * n_lon)
+    assert np.isclose(span, 360.0), (
+        f"Longitude coordinate {lon} does not span 360 degrees, and must span "
+        f"360 degrees for a valid roundtrip."
+    )
+
+
+def _validate_quadrature_latitudes(lat: np.ndarray, forward_grid: T_Grid) -> None:
+    """Assert that latitudes match the expected quadrature latitudes for the
+    given forward_grid.
+    
+    This validation function permits that latitudes be monotonically increasing
+    or monotonically decreasing, both of which enable valid roundtrips.
+    """
+    n_lat, = lat.shape
+    expected = compute_quadrature_latitudes(n_lat, forward_grid)
+
+    assert np.allclose(lat.data, expected) or np.allclose(lat.data, expected[::-1]), (
+        f"Latitude coordinate {lat} does not match the expected quadrature points "
+        f"for the provided forward grid {forward_grid!r}."
+    )
+
+
 def _validate_quadrature_points(
     obj: T_XarrayObject, forward_grid: T_Grid, lat_dim: Hashable, lon_dim: Hashable
 ):
-    n_lat = obj.sizes[lat_dim]
-    n_lon = obj.sizes[lon_dim]
-
-    expected_latitudes = compute_quadrature_latitudes(n_lat, forward_grid)
-    expected_longitudes = compute_quadrature_longitudes(n_lon)
-
-    try:
-        if lat_dim in obj.coords:
-            np.testing.assert_allclose(obj[lat_dim].data, expected_latitudes)
-            # TODO: could warn or raise if lat_dim not in obj.coords.
-    except AssertionError:
-        raise ValueError(
-            f"Latitude coordinate {obj[lat_dim]} does not match the expected "
-            f"quadrature points for the provided forward grid {forward_grid!r}."
+    if lat_dim in obj.coords:
+        _validate_quadrature_latitudes(obj[lat_dim].values, forward_grid)
+    else:
+        warnings.warn(
+            "No latitude coordinate exists; proceeding without validating quadrature "
+            "points along the latitude dimension.",
+            UserWarning,
+            stacklevel=2
         )
 
-    try:
-        if lon_dim in obj.coords:
-            # TODO: I suppose for this check we really only need to ensure that
-            # points are equally spaced and global.  Whether they exactly align
-            # with a regular grid from 0 to 360 degrees E is not necessarily
-            # relevant.
-            np.testing.assert_allclose(obj[lon_dim].data, expected_longitudes)
-            # TODO: could warn or raise if lon_dim not in obj.coords.
-    except AssertionError:
-        raise ValueError(
-            f"Longitude coordinate {obj[lon_dim]} does not match the expected "
-            f"quadrature points for the provided forward grid {forward_grid!r}."
+    if lon_dim in obj.coords:
+        _validate_quadrature_longitudes(obj[lon_dim].values)
+    else:
+        warnings.warn(
+            "No longitude coordinate exists; proceeding without validating quadrature "
+            "points along the longitude dimension.",
+            UserWarning,
+            stacklevel=2
         )
-
 
 def _roundtrip_numpy(
     array: np.array, forward_grid: T_Grid, inverse_grid: T_Grid
@@ -86,7 +113,7 @@ def _roundtrip_numpy(
     forward_transform = torch_harmonics.RealSHT(n_lat, n_lon, grid=forward_grid)
     inverse_transform = torch_harmonics.InverseRealSHT(n_lat, n_lon, grid=inverse_grid)
     roundtripped = inverse_transform(forward_transform(tensor))
-    return np.array(roundtripped.type(torch.float))
+    return np.array(roundtripped).astype(array.dtype)
 
 
 def _roundtrip_dataarray(
@@ -107,7 +134,7 @@ def _roundtrip_dataarray(
         input_core_dims=[[lat_dim, lon_dim]],
         output_core_dims=[[lat_dim, lon_dim]],
         dask="parallelized",
-        output_dtypes=[np.float32],
+        output_dtypes=[da.dtype],
         keep_attrs=True,
         kwargs={"forward_grid": forward_grid, "inverse_grid": inverse_grid},
     )
