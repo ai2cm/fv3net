@@ -44,12 +44,12 @@ def compute_quadrature_longitudes(n_lon: int) -> np.ndarray:
 
 def _validate_quadrature_longitudes(lon: np.ndarray) -> None:
     """Assert that longitudes are equally spaced and global.
-    
+
     This validation function permits longitude coordinates that are increasing
     or decreasing, and longitude coordinates whose bounds start at values other
     than zero degrees.
     """
-    n_lon, = lon.shape
+    (n_lon,) = lon.shape
     dlons = np.diff(lon)
     dlon = dlons[0]
     assert np.isclose(dlons, dlon).all(), (
@@ -67,11 +67,11 @@ def _validate_quadrature_longitudes(lon: np.ndarray) -> None:
 def _validate_quadrature_latitudes(lat: np.ndarray, forward_grid: T_Grid) -> None:
     """Assert that latitudes match the expected quadrature latitudes for the
     given forward_grid.
-    
+
     This validation function permits that latitudes be monotonically increasing
     or monotonically decreasing, both of which enable valid roundtrips.
     """
-    n_lat, = lat.shape
+    (n_lat,) = lat.shape
     expected = compute_quadrature_latitudes(n_lat, forward_grid)
 
     assert np.allclose(lat.data, expected) or np.allclose(lat.data, expected[::-1]), (
@@ -90,7 +90,7 @@ def _validate_quadrature_points(
             "No latitude coordinate exists; proceeding without validating quadrature "
             "points along the latitude dimension.",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
     if lon_dim in obj.coords:
@@ -100,8 +100,9 @@ def _validate_quadrature_points(
             "No longitude coordinate exists; proceeding without validating quadrature "
             "points along the longitude dimension.",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
+
 
 def _roundtrip_numpy(
     array: np.array, forward_grid: T_Grid, inverse_grid: T_Grid

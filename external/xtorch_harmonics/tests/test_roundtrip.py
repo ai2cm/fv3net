@@ -82,9 +82,17 @@ def test_roundtrip_constant_dataarray(forward_grid, inverse_grid):
 
     if forward_grid != inverse_grid:
         with pytest.warns(UserWarning, match="Modifying latitude coordinate"):
-            result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid=forward_grid, inverse_grid=inverse_grid)
+            result = roundtrip(
+                da,
+                LAT_DIM,
+                LON_DIM,
+                forward_grid=forward_grid,
+                inverse_grid=inverse_grid,
+            )
     else:
-        result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid=forward_grid, inverse_grid=inverse_grid)
+        result = roundtrip(
+            da, LAT_DIM, LON_DIM, forward_grid=forward_grid, inverse_grid=inverse_grid
+        )
 
     expected_latitude = compute_quadrature_latitudes(da.sizes[LAT_DIM], inverse_grid)
     expected = da.assign_coords({LAT_DIM: expected_latitude})
@@ -151,7 +159,13 @@ def test_roundtrip_dataarray_keep_attrs():
 def test_roundtrip_dataarray_incompatible_forward_inverse_grids():
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     with pytest.raises(ValueError, match="Provided forward and inverse grids"):
-        roundtrip(da, LAT_DIM, LON_DIM, forward_grid=LEGENDRE_GAUSS_GRID, inverse_grid=LOBATTO_GRID)
+        roundtrip(
+            da,
+            LAT_DIM,
+            LON_DIM,
+            forward_grid=LEGENDRE_GAUSS_GRID,
+            inverse_grid=LOBATTO_GRID,
+        )
 
 
 def test_roundtrip_dataarray_incomplete_horizontal_dims():
@@ -170,7 +184,9 @@ def test_roundtrip_dataarray_incomplete_horizontal_dims():
     ],
 )
 @pytest.mark.parametrize("unsafe", [False, True])
-def test_latitude_quadrature_point_validation(input_grid, forward_grid, inverse_grid, unsafe):
+def test_latitude_quadrature_point_validation(
+    input_grid, forward_grid, inverse_grid, unsafe
+):
     da = constant_dataarray(input_grid, LAT_DIM, LON_DIM)
 
     if unsafe:
@@ -210,7 +226,9 @@ def test_validation_warnings_without_coordinates(unsafe):
         assert "No longitude" in str(longitude_warning.message)
 
 
-@pytest.mark.parametrize("forward_grid", [EQUIANGULAR_GRID, LEGENDRE_GAUSS_GRID, LOBATTO_GRID])
+@pytest.mark.parametrize(
+    "forward_grid", [EQUIANGULAR_GRID, LEGENDRE_GAUSS_GRID, LOBATTO_GRID]
+)
 def test__validate_quadrature_latitudes(forward_grid):
     lat = compute_quadrature_latitudes(N_LAT, forward_grid)
     _validate_quadrature_latitudes(lat, forward_grid)
@@ -221,14 +239,14 @@ def test__validate_quadrature_latitudes(forward_grid):
 
 
 @pytest.mark.parametrize(
-    ("lon", "raises", "match"), 
+    ("lon", "raises", "match"),
     [
         (np.array([45, 135, 225, 315]), False, None),
         (np.array([-135, -45, 45, 135]), False, None),
         (np.array([-135, -45, 45]), True, "span 360 degrees"),
-        (np.array([-135, 45, 135]), True, "equally spaced")
+        (np.array([-135, 45, 135]), True, "equally spaced"),
     ],
-    ids=lambda x: str(x)
+    ids=lambda x: str(x),
 )
 def test__validate_quadrature_longitudes(lon, raises, match):
     if raises:
