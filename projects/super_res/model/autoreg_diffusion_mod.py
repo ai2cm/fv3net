@@ -41,6 +41,20 @@ ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
 # helpers functions
 
+def calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size):
+    truth_cdf = np.zeros((256, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+    for i in range(256):
+        truth_cdf[i, :, :, :, :, :, :] = (truth <= i).astype('uint8')
+    pred_cdf = np.zeros((256, num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+    for j in range(256):
+        pred_cdf[j, :, :, :, :, :, :, :] = (pred <= j).astype('uint8')
+    red_pred_cdf = pred_cdf.mean(1)
+    temp = np.square(red_pred_cdf - truth_cdf)
+    temp_dz = temp.sum(0)
+    temp_dz_dd = temp_dz.mean(axis = (3, 4, 5))
+    temp_dz_dd_dt = temp_dz_dd.mean(2)
+    return temp_dz_dd_dt.mean()
+
 def save_image(tensor, path):
     im = Image.fromarray((tensor[:,:,:3] * 255).astype(np.uint8))
     im.save(path)
@@ -1229,9 +1243,21 @@ class Trainer(object):
                                 
                                 if i >= self.val_num_of_batch:
                                     break
-                                    
-                                videos, base, res, flows = self.ema.ema_model.sample(lres)
+
+                                num_samples = 5
+                                num_videos_per_batch = 2
+                                num_frames = 5
+                                img_size = 384
+                                img_channels = 1
+
+                                truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                truth[0,:,:,:,:,:] = (hres[:,2:,:,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
+                                for k in range(num_samples):
+                                    videos, base, res, flows = self.ema.ema_model.sample(lres)
+                                    pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
                                 
+                                crps_index = calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size)
                                 psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
                                 
                                 accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
@@ -1241,6 +1267,7 @@ class Trainer(object):
                                 accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
+                                accelerator.log({"crps": crps_index}, step=self.step)
                                 
                             milestone = self.step // self.save_and_sample_every
                             
