@@ -20,12 +20,18 @@ class SynchronziationTracker:
     def count(self, n_samples: int):
         self.n_steps_synchronized += n_samples
 
-    def trim_synchronization_samples_if_needed(self, arr):
-        steps_past_sync = self.n_steps_synchronized - self.n_synchronize
-        if steps_past_sync > len(arr):
-            return arr
+    def trim_synchronization_samples_if_needed(self, arr: np.ndarray) -> np.ndarray:
+        """ Removes samples from the input array if they fall within the
+        synchronization range.
+        """
+        if self.completed_synchronization is True:
+            steps_past_sync = self.n_steps_synchronized - self.n_synchronize
+            if steps_past_sync > len(arr):
+                return arr
+            else:
+                return arr[-steps_past_sync:]
         else:
-            return arr[-steps_past_sync:]
+            return np.array([])
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
