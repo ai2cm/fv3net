@@ -28,13 +28,18 @@ T_XarrayObject = TypeVar("T_XarrayObject", xr.DataArray, xr.Dataset)
 T_Grid = Literal[EQUIANGULAR_GRID, LEGENDRE_GAUSS_GRID, LOBATTO_GRID]
 
 
-def compute_quadrature_latitudes(n_lat: int, grid: T_Grid) -> np.ndarray:
+def compute_quadrature_latitudes(
+    n_lat: int, grid: T_Grid, decreasing=False
+) -> np.ndarray:
     if grid not in QUADRATURE_FUNCTIONS:
         raise ValueError(f"Unrecognized grid {grid!r}.")
 
     quadrature_function = QUADRATURE_FUNCTIONS[grid]
     nodes, _ = quadrature_function(n_lat)
-    return np.rad2deg(np.arcsin(nodes))
+    latitudes = np.rad2deg(np.arcsin(nodes))
+    if decreasing:
+        latitudes = latitudes[::-1]
+    return latitudes
 
 
 def compute_quadrature_longitudes(n_lon: int) -> np.ndarray:
@@ -72,9 +77,14 @@ def _validate_quadrature_latitudes(lat: np.ndarray, forward_grid: T_Grid) -> Non
     or monotonically decreasing, both of which enable valid roundtrips.
     """
     (n_lat,) = lat.shape
-    expected = compute_quadrature_latitudes(n_lat, forward_grid)
+    expected_increasing = compute_quadrature_latitudes(n_lat, forward_grid)
+    expected_decreasing = compute_quadrature_latitudes(
+        n_lat, forward_grid, decreasing=True
+    )
 
-    assert np.allclose(lat.data, expected) or np.allclose(lat.data, expected[::-1]), (
+    assert np.allclose(lat.data, expected_increasing) or np.allclose(
+        lat.data, expected_decreasing
+    ), (
         f"Latitude coordinate {lat} does not match the expected quadrature points "
         f"for the provided forward grid {forward_grid!r}."
     )
@@ -162,6 +172,24 @@ def _roundtrip_dataset(
     return xr.merge(results).assign_attrs(ds.attrs)
 
 
+def _replace_latitude_coordinate(
+    obj: T_XarrayObject,
+    roundtripped: T_XarrayObject,
+    lat_dim: Hashable,
+    inverse_grid: T_Grid,
+) -> T_XarrayObject:
+    warnings.warn(
+        "Modifying latitude coordinate since forward_grid does not match "
+        "inverse_grid.",
+        UserWarning,
+        stacklevel=3,
+    )
+    n_lat = obj.sizes[lat_dim]
+    decreasing = obj.indexes[lat_dim].is_monotonic_decreasing
+    latitudes = compute_quadrature_latitudes(n_lat, inverse_grid, decreasing)
+    return roundtripped.assign_coords({lat_dim: latitudes})
+
+
 def roundtrip(
     obj: T_XarrayObject,
     lat_dim: Hashable,
@@ -223,12 +251,8 @@ def roundtrip(
     roundtripped = roundtrip_function(obj, forward_grid, inverse_grid, lat_dim, lon_dim)
 
     if forward_grid != inverse_grid and lat_dim in obj.coords:
-        warnings.warn(
-            "Modifying latitude coordinate since forward_grid does not match "
-            "inverse_grid.",
-            UserWarning,
-            stacklevel=2,
+        roundtripped = _replace_latitude_coordinate(
+            obj, roundtripped, lat_dim, inverse_grid
         )
-        latitudes = compute_quadrature_latitudes(obj.sizes[lat_dim], inverse_grid)
-        roundtripped = roundtripped.assign_coords({lat_dim: latitudes})
+
     return roundtripped

@@ -41,14 +41,14 @@ def real_spherical_harmonic(lat, lon, m, n):
     return result.real
 
 
-def horizontal_grid(grid, n_lat=N_LAT, n_lon=N_LON):
-    lat = compute_quadrature_latitudes(n_lat, grid)
+def horizontal_grid(grid, n_lat=N_LAT, n_lon=N_LON, decreasing_latitude=False):
+    lat = compute_quadrature_latitudes(n_lat, grid, decreasing=decreasing_latitude)
     lon = compute_quadrature_longitudes(n_lon)
     return lat, lon
 
 
-def constant_dataarray(grid, lat_dim, lon_dim, name="foo"):
-    lat, lon = horizontal_grid(grid)
+def constant_dataarray(grid, lat_dim, lon_dim, decreasing_latitude=False, name="foo"):
+    lat, lon = horizontal_grid(grid, decreasing_latitude=decreasing_latitude)
     data = np.ones((N_LAT, N_LON))
     return xr.DataArray(data, dims=[lat_dim, lon_dim], coords=[lat, lon], name=name)
 
@@ -77,26 +77,24 @@ def real_spherical_harmonic_dataarray(grid, lat_dim, lon_dim, name="foo"):
 
 
 @pytest.mark.parametrize(("forward_grid", "inverse_grid"), VALID_GRIDS)
-def test_roundtrip_constant_dataarray(forward_grid, inverse_grid):
-    da = constant_dataarray(forward_grid, LAT_DIM, LON_DIM)
+@pytest.mark.parametrize("decreasing_latitude", [False, True])
+def test_roundtrip_constant_dataarray(forward_grid, inverse_grid, decreasing_latitude):
+    da = constant_dataarray(
+        forward_grid, LAT_DIM, LON_DIM, decreasing_latitude=decreasing_latitude
+    )
 
     if forward_grid != inverse_grid:
         with pytest.warns(UserWarning, match="Modifying latitude coordinate"):
-            result = roundtrip(
-                da,
-                LAT_DIM,
-                LON_DIM,
-                forward_grid=forward_grid,
-                inverse_grid=inverse_grid,
-            )
+            result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid,)
     else:
-        result = roundtrip(
-            da, LAT_DIM, LON_DIM, forward_grid=forward_grid, inverse_grid=inverse_grid
-        )
+        result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid)
 
-    expected_latitude = compute_quadrature_latitudes(da.sizes[LAT_DIM], inverse_grid)
+    expected_latitude = compute_quadrature_latitudes(
+        da.sizes[LAT_DIM], inverse_grid, decreasing_latitude
+    )
     expected = da.assign_coords({LAT_DIM: expected_latitude})
     xr.testing.assert_allclose(result, expected)
+    assert da.indexes[LAT_DIM].is_monotonic_decreasing == decreasing_latitude
 
 
 @pytest.mark.parametrize("dtype", [np.float16, np.float32, np.float64])
