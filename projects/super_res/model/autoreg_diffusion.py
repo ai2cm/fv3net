@@ -1,12 +1,9 @@
 import os
 import math
-import copy
-import shutil
 from pathlib import Path
 from random import random
 from functools import partial
 from collections import namedtuple
-from multiprocessing import cpu_count
 from joblib import Parallel, delayed
 
 import numpy as np
@@ -14,15 +11,12 @@ import numpy as np
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-#from torch.utils.tensorboard import SummaryWriter
 import wandb
 
 import piq
 
 from kornia import filters
 from torch.optim import Adam
-from torchvision import transforms as T, utils
 
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
@@ -36,13 +30,8 @@ from tqdm.auto import tqdm
 from ema_pytorch import EMA
 
 import flow_vis
-import matplotlib.pyplot as plt
 
 from accelerate import Accelerator
-
-#from denoising_diffusion_pytorch.version import __version__
-
-from .network_swinir import SwinIR as net
 
 # constants
 
@@ -1057,40 +1046,6 @@ class GaussianDiffusion(nn.Module):
         #return self.p_losses(img, t, *args, **kwargs)
         return self.p_losses(stack, hres, lres, t, *args, **kwargs)
 
-# dataset classes
-
-# class Dataset(Dataset):
-#     def __init__(
-#         self,
-#         folder,
-#         image_size,
-#         exts = ['jpg', 'jpeg', 'png', 'tiff'],
-#         augment_horizontal_flip = False,
-#         convert_image_to = None
-#     ):
-#         super().__init__()
-#         self.folder = folder
-#         self.image_size = image_size
-#         self.paths = [p for ext in exts for p in Path(f'{folder}').glob(f'**/*.{ext}')]
-
-#         maybe_convert_fn = partial(convert_image_to_fn, convert_image_to) if exists(convert_image_to) else nn.Identity()
-
-#         self.transform = T.Compose([
-#             T.Lambda(maybe_convert_fn),
-#             T.Resize(image_size),
-#             T.RandomHorizontalFlip() if augment_horizontal_flip else nn.Identity(),
-#             T.CenterCrop(image_size),
-#             T.ToTensor()
-#         ])
-
-#     def __len__(self):
-#         return len(self.paths)
-
-#     def __getitem__(self, index):
-#         path = self.paths[index]
-#         img = Image.open(path)
-#         return self.transform(img)
-
 # trainer class
 
 class Trainer(object):
@@ -1143,9 +1098,6 @@ class Trainer(object):
 
         self.model = diffusion_model
 
-        #assert has_int_squareroot(num_samples), 'number of samples must have an integer square root'
-        
-        #self.num_samples = num_samples
         self.save_and_sample_every = save_and_sample_every
 
         self.batch_size = train_batch_size
@@ -1153,25 +1105,6 @@ class Trainer(object):
 
         self.train_num_steps = train_num_steps
         self.image_size = diffusion_model.image_size
-
-        # dataset and dataloader
-
-        #self.ds = Dataset(folder, self.image_size, augment_horizontal_flip = augment_horizontal_flip, convert_image_to = convert_image_to)
-        #dl = DataLoader(self.ds, batch_size = train_batch_size, shuffle = True, pin_memory = True, num_workers = cpu_count())
-
-        #dl = self.accelerator.prepare(dl)
-        #self.dl = cycle(dl)
-        
-        #train_dl = self.accelerator.prepare(train_dl)
-        #self.train_dl = cycle(train_dl)
-
-        #val_dl = self.accelerator.prepare(val_dl)
-        #self.val_dl = cycle(val_dl)
-        
-        #if os.path.isdir(tensorboard_dir):
-        #    shutil.rmtree(tensorboard_dir)
-        
-        #self.writer = SummaryWriter(tensorboard_dir)
 
         self.val_num_of_batch = val_num_of_batch
         

@@ -1,14 +1,14 @@
 from ml_collections import config_dict
 
-batch_size = 4
+#batch_size = 4
 config = config_dict.ConfigDict()
 
 config.dim = 64
-config.dim_mults = (1, 1, 2, 2, 4, 4)
+config.dim_mults = (1, 1, 2, 2, 3, 4)
 config.learned_sinusoidal_cond = True,
 config.random_fourier_features = True,
 config.learned_sinusoidal_dim = 32
-config.diffusion_steps = 1400
+config.diffusion_steps = 1500
 config.sampling_steps = 6
 config.loss = "l1"
 config.objective = "pred_v"
