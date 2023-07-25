@@ -5,7 +5,7 @@ import torch
 import torch_harmonics
 import xarray as xr
 
-from typing import Hashable, Literal, TypeVar
+from typing import Callable, Hashable, Literal, TypeVar
 
 
 EQUIANGULAR_GRID = "equiangular"
@@ -25,7 +25,7 @@ QUADRATURE_FUNCTIONS = {
 }
 
 T_XarrayObject = TypeVar("T_XarrayObject", xr.DataArray, xr.Dataset)
-T_Grid = Literal[EQUIANGULAR_GRID, LEGENDRE_GAUSS_GRID, LOBATTO_GRID]
+T_Grid = Literal["equiangular", "legendre-gauss", "lobatto"]
 
 
 def compute_quadrature_latitudes(
@@ -194,8 +194,8 @@ def roundtrip(
     obj: T_XarrayObject,
     lat_dim: Hashable,
     lon_dim: Hashable,
-    forward_grid: T_Grid = LEGENDRE_GAUSS_GRID,
-    inverse_grid: T_Grid = LEGENDRE_GAUSS_GRID,
+    forward_grid: T_Grid = "legendre-gauss",
+    inverse_grid: T_Grid = "legendre-gauss",
     unsafe: bool = False,
 ) -> T_XarrayObject:
     """
@@ -225,6 +225,7 @@ def roundtrip(
     Returns:
         xr.DataArray or xr.Dataset
     """
+    roundtrip_function: Callable
     if (forward_grid, inverse_grid) not in VALID_GRIDS:
         raise ValueError(
             f"Provided forward and inverse grids ({forward_grid!r}, {inverse_grid!r}) "
