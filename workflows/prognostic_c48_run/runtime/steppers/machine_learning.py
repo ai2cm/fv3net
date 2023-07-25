@@ -1,6 +1,7 @@
 """Code for machine Learning in prognostic runs
 """
 import dataclasses
+import hashlib
 import logging
 import os
 from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, Tuple, cast
@@ -19,6 +20,35 @@ __all__ = ["MachineLearningConfig", "PureMLStepper", "open_model"]
 logger = logging.getLogger(__name__)
 
 NameDict = Mapping[Hashable, Hashable]
+ModelPaths = Sequence[str]
+
+
+def _short_hash(s: str):
+    return hashlib.md5(s.encode("utf-8")).hexdigest()[:8]
+
+
+def download_models(model_paths: ModelPaths, local_base_path: str) -> Sequence[str]:
+    """Download models to local path and return the local paths"""
+    local_model_paths = []
+    for remote_path in model_paths:
+        local_path = os.path.join(local_base_path, _short_hash(remote_path))
+        os.makedirs(local_path)
+        fs = vcm.cloud.get_fs(remote_path)
+        fs.get(remote_path, local_path, recursive=True)
+        local_model_paths.append(local_path)
+    return local_model_paths
+
+
+class RankModelConfig:
+    def __init__(self, models: Mapping[int, ModelPaths]):
+        self.models = models
+
+    def download_rank_models(self, local_base_path: str, rank: int):
+        rank_models = self.models.get(rank, [])
+        rank_models_local_paths = download_models(
+            model_paths=rank_models, local_base_path=local_base_path
+        )
+        return rank_models_local_paths
 
 
 @dataclasses.dataclass
@@ -40,6 +70,7 @@ class MachineLearningConfig:
         scaling: if given, scale the outputs by the given factor. This is a manually
             defined alteration of the model, and should not be used for
             normalization.
+        rank_models: optional mapping for loading specific models to each rank.
 
     Example::
 
@@ -52,7 +83,7 @@ class MachineLearningConfig:
 
     """
 
-    model: Sequence[str] = dataclasses.field(default_factory=list)
+    model: ModelPaths = dataclasses.field(default_factory=list)
     diagnostic_ml: bool = False
     input_standard_names: Mapping[Hashable, Hashable] = dataclasses.field(
         default_factory=dict
@@ -62,6 +93,7 @@ class MachineLearningConfig:
     )
     use_mse_conserving_humidity_limiter: bool = True
     scaling: Mapping[str, float] = dataclasses.field(default_factory=dict)
+    rank_models: Mapping[int, ModelPaths] = dataclasses.field(default_factory=dict)
 
 
 def non_negative_sphum(
@@ -188,19 +220,6 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
         rename_out = config.output_standard_names
         models.append(RenamingAdapter(model, rename_in, rename_out))
     return MultiModelAdapter(models, scaling=config.scaling)
-
-
-def download_model(config: MachineLearningConfig, path: str) -> Sequence[str]:
-    """Download models to local path and return the local paths"""
-    remote_model_paths = config.model
-    local_model_paths = []
-    for i, remote_path in enumerate(remote_model_paths):
-        local_path = os.path.join(path, str(i))
-        os.makedirs(local_path)
-        fs = vcm.cloud.get_fs(remote_path)
-        fs.get(remote_path, local_path, recursive=True)
-        local_model_paths.append(local_path)
-    return local_model_paths
 
 
 def predict(model: MultiModelAdapter, state: State) -> State:
