@@ -1191,6 +1191,9 @@ class Trainer(object):
         accelerator = self.accelerator
         device = accelerator.device
 
+        cmap = mpl.colormaps['RdBu_r']
+        
+
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
             while self.step < self.train_num_steps:
@@ -1259,6 +1262,22 @@ class Trainer(object):
                                 
                                 crps_index = calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size)
                                 psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
+
+                                videos_time_mean = videos.mean(dim = 1)
+                                hres_time_mean = hres[:,2:,:,:,:].mean(dim = 1)
+                                bias = videos_time_mean - hres_time_mean
+
+                                norm = mpl.colors.Normalize(vmin = bias.min(), vmax = bias.max())
+                                sm = smap(norm, cmap)
+                                bias_color = sm.to_rgba(bias[:,0,:,:].cpu().numpy())
+
+                                nn_upscale = F.interpolate(lres[:,2:,:,:,:], scale_factor = 8, mode = 'nearest-exact')
+                                diff_output = torch.flatten(videos - nn_upscale).detach().cpu().numpy()
+                                diff_target = torch.flatten(hres[:,2:,:,:,:] - nn_upscale).detach().cpu().numpy()
+                                vmin = min(diff_output.min(), diff_target.min())
+                                vmax = max(diff_output.max(), diff_target.max())
+                                bins = np.linspace(vmin, vmax, 100 + 1)
+                                hist = np.histogram(diff_output, bins = bins)[0]
                                 
                                 accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
@@ -1266,6 +1285,8 @@ class Trainer(object):
                                 accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
+                                accelerator.log({"difference_histogram": wandb.Histogram(np_histogram = hist)}, step=self.step)
                                 accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
                                 accelerator.log({"crps": crps_index}, step=self.step)
                                 
