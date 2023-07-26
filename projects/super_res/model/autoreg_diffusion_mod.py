@@ -24,6 +24,7 @@ from einops.layers.torch import Rearrange
 from PIL import Image
 
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable as smap
 
 from tqdm.auto import tqdm
@@ -1192,7 +1193,7 @@ class Trainer(object):
         device = accelerator.device
 
         cmap = mpl.colormaps['RdBu_r']
-        
+        fcmap = mpl.colormaps['gray_r']
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
@@ -1248,7 +1249,7 @@ class Trainer(object):
                                     break
 
                                 num_samples = 5
-                                num_videos_per_batch = 2
+                                num_videos_per_batch = 1
                                 num_frames = 5
                                 img_size = 384
                                 img_channels = 1
@@ -1266,10 +1267,12 @@ class Trainer(object):
                                 videos_time_mean = videos.mean(dim = 1)
                                 hres_time_mean = hres[:,2:,:,:,:].mean(dim = 1)
                                 bias = videos_time_mean - hres_time_mean
-
                                 norm = mpl.colors.Normalize(vmin = bias.min(), vmax = bias.max())
                                 sm = smap(norm, cmap)
-                                bias_color = sm.to_rgba(bias[:,0,:,:].cpu().numpy())
+                                b_c = []
+                                for l in range(num_videos_per_batch):
+                                    b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
+                                bias_color = np.stack(b_c, axis = 0)
 
                                 nn_upscale = F.interpolate(lres[:,2:,:,:,:], scale_factor = 8, mode = 'nearest-exact')
                                 diff_output = torch.flatten(videos - nn_upscale).detach().cpu().numpy()
@@ -1277,16 +1280,41 @@ class Trainer(object):
                                 vmin = min(diff_output.min(), diff_target.min())
                                 vmax = max(diff_output.max(), diff_target.max())
                                 bins = np.linspace(vmin, vmax, 100 + 1)
-                                hist = np.histogram(diff_output, bins = bins)[0]
+                                hist_o = np.histogram(diff_output, bins = bins)
+                                hist_t = np.histogram(diff_target, bins = bins)
+
+                                fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+                                ax.hist(
+                                    diff_output, bins=bins, alpha=0.5, label="Output", histtype="step", density=True
+                                )
+                                ax.hist(
+                                    diff_target, bins=bins, alpha=0.5, label="Target", histtype="step", density=True
+                                )
+                                ax.set_xlim(vmin, vmax)
+                                ax.legend()
+                                ax.set_xlabel("Difference from gridcell mean")
+                                ax.set_ylabel("Density")
+                                ax.set_yscale("log")
+                                
+                                flow_d = np.zeros((1, num_samples, 3, img_size, img_size))
+                                for m in range(num_samples):
+                                    flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
+
+                                flow_s = np.zeros((1, num_samples, 3, img_size, img_size))
+                                sm = smap(None, fcmap)
+                                for m in range(num_samples):
+                                    flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
                                 
                                 accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                #accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
-                                accelerator.log({"difference_histogram": wandb.Histogram(np_histogram = hist)}, step=self.step)
+                                accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
                                 accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
                                 accelerator.log({"crps": crps_index}, step=self.step)
                                 
