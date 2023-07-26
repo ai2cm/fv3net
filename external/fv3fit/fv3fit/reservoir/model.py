@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence, cast
+from typing import Iterable, Hashable, Sequence, cast, Optional
 import xarray as xr
 import yaml
 
@@ -45,6 +45,7 @@ class HybridReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         rank_divider: RankDivider,
         autoencoder: ReloadableTransfomer,
+        output_autoencoder: Optional[ReloadableTransfomer] = None,
         square_half_hidden_state: bool = False,
     ):
         self.reservoir_model = ReservoirComputingModel(
@@ -55,6 +56,7 @@ class HybridReservoirComputingModel(Predictor):
             square_half_hidden_state=square_half_hidden_state,
             rank_divider=rank_divider,
             autoencoder=autoencoder,
+            output_autoencoder=output_autoencoder,
         )
         self.input_variables = input_variables
         self.hybrid_variables = hybrid_variables
@@ -62,13 +64,14 @@ class HybridReservoirComputingModel(Predictor):
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
-        self.autoencoder = autoencoder
+        self.input_autoencoder = autoencoder
+        self.output_autoencoder = output_autoencoder or autoencoder
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
         encoded_hybrid_input = encode_columns(
-            input_arrs=hybrid_input, transformer=self.autoencoder
+            input_arrs=hybrid_input, transformer=self.input_autoencoder
         )
         if encoded_hybrid_input.shape[:2] != tuple(
             self.rank_divider.rank_extent_without_overlap
@@ -95,7 +98,7 @@ class HybridReservoirComputingModel(Predictor):
         prediction = self.rank_divider.merge_subdomains(flat_prediction)
         decoded_prediction = decode_columns(
             encoded_output=prediction,
-            transformer=self.autoencoder,
+            transformer=self.output_autoencoder,
             xy_shape=self.rank_divider.rank_extent_without_overlap,
         )
         return decoded_prediction
@@ -135,7 +138,8 @@ class HybridReservoirComputingModel(Predictor):
             readout=pure_reservoir_model.readout,
             square_half_hidden_state=pure_reservoir_model.square_half_hidden_state,
             rank_divider=pure_reservoir_model.rank_divider,
-            autoencoder=pure_reservoir_model.autoencoder,
+            autoencoder=pure_reservoir_model.input_autoencoder,
+            output_autoencoder=pure_reservoir_model.output_autoencoder,
             hybrid_variables=hybrid_variables,
         )
 
@@ -200,6 +204,7 @@ class ReservoirComputingModel(Predictor):
         readout: ReservoirComputingReadout,
         rank_divider: RankDivider,
         autoencoder: ReloadableTransfomer,
+        output_autoencoder: Optional[ReloadableTransfomer] = None,
         square_half_hidden_state: bool = False,
     ):
         """_summary_
@@ -219,7 +224,8 @@ class ReservoirComputingModel(Predictor):
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
-        self.autoencoder = autoencoder
+        self.input_autoencoder = autoencoder
+        self.output_autoencoder = output_autoencoder or autoencoder
 
     def process_state_to_readout_input(self):
         if self.square_half_hidden_state is True:
@@ -238,7 +244,7 @@ class ReservoirComputingModel(Predictor):
         prediction = self.rank_divider.merge_subdomains(flat_prediction)
         decoded_prediction = decode_columns(
             encoded_output=prediction,
-            transformer=self.autoencoder,
+            transformer=self.output_autoencoder,
             xy_shape=self.rank_divider.rank_extent_without_overlap,
         )
         return decoded_prediction
@@ -253,7 +259,7 @@ class ReservoirComputingModel(Predictor):
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         # input array is in native x, y, z_feature coordinates
         encoded_xy_input_arrs = encode_columns(
-            prediction_with_overlap, self.autoencoder
+            prediction_with_overlap, self.input_autoencoder
         )
         encoded_flattened_subdomains = self.rank_divider.flatten_subdomains_to_columns(
             encoded_xy_input_arrs, with_overlap=True
@@ -281,8 +287,15 @@ class ReservoirComputingModel(Predictor):
             f.write(yaml.dump(metadata))
 
         self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
-        if self.autoencoder is not None:
-            fv3fit.dump(self.autoencoder, os.path.join(path, self._AUTOENCODER_SUBDIR))
+        fv3fit.dump(
+            self.input_autoencoder,
+            os.path.join(path, self._AUTOENCODER_SUBDIR, "input"),
+        )
+        if self.output_autoencoder is not None:
+            fv3fit.dump(
+                self.output_autoencoder,
+                os.path.join(path, self._AUTOENCODER_SUBDIR, "output"),
+            )
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
@@ -298,8 +311,16 @@ class ReservoirComputingModel(Predictor):
 
         autoencoder = cast(
             ReloadableTransfomer,
-            fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
+            fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR, "input")),
         )
+        try:
+            output_autoencoder = cast(
+                ReloadableTransfomer,
+                fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR, "output")),
+            )
+        except (KeyError):
+            output_autoencoder = None  # type: ignore
+
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
@@ -308,4 +329,5 @@ class ReservoirComputingModel(Predictor):
             square_half_hidden_state=metadata["square_half_hidden_state"],
             rank_divider=rank_divider,
             autoencoder=autoencoder,
+            output_autoencoder=output_autoencoder,
         )
