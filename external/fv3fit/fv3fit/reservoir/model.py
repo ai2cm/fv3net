@@ -35,6 +35,7 @@ def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
 @io.register("hybrid-reservoir")
 class HybridReservoirComputingModel(Predictor):
     _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
+    _AUTOENCODER_SUBDIR = "autoencoder"
 
     def __init__(
         self,
@@ -46,6 +47,7 @@ class HybridReservoirComputingModel(Predictor):
         rank_divider: RankDivider,
         autoencoder: ReloadableTransfomer,
         output_autoencoder: Optional[ReloadableTransfomer] = None,
+        hybrid_autoencoder: Optional[ReloadableTransfomer] = None,
         square_half_hidden_state: bool = False,
     ):
         self.reservoir_model = ReservoirComputingModel(
@@ -65,13 +67,15 @@ class HybridReservoirComputingModel(Predictor):
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
         self.input_autoencoder = autoencoder
-        self.output_autoencoder = output_autoencoder or autoencoder
+        self.output_autoencoder = output_autoencoder
+        self.hybrid_autoencoder = hybrid_autoencoder
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
+        hybrid_autoencoder = self.hybrid_autoencoder or self.input_autoencoder
         encoded_hybrid_input = encode_columns(
-            input_arrs=hybrid_input, transformer=self.input_autoencoder
+            input_arrs=hybrid_input, transformer=hybrid_autoencoder
         )
         if encoded_hybrid_input.shape[:2] != tuple(
             self.rank_divider.rank_extent_without_overlap
@@ -96,9 +100,11 @@ class HybridReservoirComputingModel(Predictor):
         )
         flat_prediction = self.readout.predict(flattened_readout_input).reshape(-1)
         prediction = self.rank_divider.merge_subdomains(flat_prediction)
+
+        output_autoencoder = self.output_autoencoder or self.input_autoencoder
         decoded_prediction = decode_columns(
             encoded_output=prediction,
-            transformer=self.output_autoencoder,
+            transformer=output_autoencoder,
             xy_shape=self.rank_divider.rank_extent_without_overlap,
         )
         return decoded_prediction
@@ -125,12 +131,26 @@ class HybridReservoirComputingModel(Predictor):
         self.reservoir_model.dump(path)
         with fsspec.open(os.path.join(path, self._HYBRID_VARIABLES_NAME), "w") as f:
             f.write(yaml.dump({"hybrid_variables": self.hybrid_variables}))
+        if self.hybrid_autoencoder is not None:
+            fv3fit.dump(
+                self.hybrid_autoencoder,
+                os.path.join(path, self._AUTOENCODER_SUBDIR, "hybrid"),
+            )
 
     @classmethod
     def load(cls, path: str) -> "HybridReservoirComputingModel":
         pure_reservoir_model = ReservoirComputingModel.load(path)
         with fsspec.open(os.path.join(path, cls._HYBRID_VARIABLES_NAME), "r") as f:
             hybrid_variables = yaml.safe_load(f)["hybrid_variables"]
+
+        try:
+            hybrid_autoencoder = cast(
+                ReloadableTransfomer,
+                fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR, "hybrid")),
+            )
+        except (KeyError):
+            hybrid_autoencoder = None  # type: ignore
+
         return cls(
             input_variables=pure_reservoir_model.input_variables,
             output_variables=pure_reservoir_model.output_variables,
@@ -140,6 +160,7 @@ class HybridReservoirComputingModel(Predictor):
             rank_divider=pure_reservoir_model.rank_divider,
             autoencoder=pure_reservoir_model.input_autoencoder,
             output_autoencoder=pure_reservoir_model.output_autoencoder,
+            hybrid_autoencoder=hybrid_autoencoder,
             hybrid_variables=hybrid_variables,
         )
 
@@ -225,7 +246,7 @@ class ReservoirComputingModel(Predictor):
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
         self.input_autoencoder = autoencoder
-        self.output_autoencoder = output_autoencoder or autoencoder
+        self.output_autoencoder = output_autoencoder
 
     def process_state_to_readout_input(self):
         if self.square_half_hidden_state is True:
@@ -242,9 +263,10 @@ class ReservoirComputingModel(Predictor):
         readout_input = self.process_state_to_readout_input()
         flat_prediction = self.readout.predict(readout_input).reshape(-1)
         prediction = self.rank_divider.merge_subdomains(flat_prediction)
+        output_autoencoder = self.output_autoencoder or self.input_autoencoder
         decoded_prediction = decode_columns(
             encoded_output=prediction,
-            transformer=self.output_autoencoder,
+            transformer=output_autoencoder,
             xy_shape=self.rank_divider.rank_extent_without_overlap,
         )
         return decoded_prediction

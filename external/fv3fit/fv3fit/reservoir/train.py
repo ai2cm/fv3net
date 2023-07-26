@@ -4,7 +4,7 @@ import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, List, Union
+from typing import Optional, List, Union, cast
 from .. import Predictor
 from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
@@ -31,6 +31,16 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
+def _get_standard_normalizing_transformer(variables, sample_batch):
+    variable_data = get_ordered_X(sample_batch, variables)
+    variable_data_stacked = [
+        stack_array_preserving_last_dim(arr).numpy() for arr in variable_data
+    ]
+    return build_concat_and_scale_only_autoencoder(
+        variables=variables, X=variable_data_stacked
+    )
+
+
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -42,15 +52,36 @@ def train_reservoir_model(
     sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     if hyperparameters.autoencoder_path is not None:
-        autoencoder: ReloadableTransfomer = fv3fit.load(
-            hyperparameters.autoencoder_path
-        )  # type: ignore
+        input_autoencoder = cast(
+            ReloadableTransfomer, fv3fit.load(hyperparameters.autoencoder_path)
+        )
     else:
-        sample_X_stacked = [
-            stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
-        ]
-        autoencoder = build_concat_and_scale_only_autoencoder(
-            variables=hyperparameters.input_variables, X=sample_X_stacked
+        input_autoencoder = _get_standard_normalizing_transformer(
+            hyperparameters.input_variables, sample_batch
+        )
+
+    if hyperparameters.hybrid_variables is not None:
+        if hyperparameters.hybrid_autoencoder_path is not None:
+            hybrid_autoencoder = cast(
+                ReloadableTransfomer,
+                fv3fit.load(hyperparameters.hybrid_autoencoder_path),
+            )
+        else:
+            hybrid_autoencoder = _get_standard_normalizing_transformer(
+                hyperparameters.hybrid_variables, sample_batch
+            )
+
+    # If output variables are different from inputs, need to have a separate
+    # autoencoder for decoding outputs
+    if set(hyperparameters.output_variables) != set(hyperparameters.input_variables):
+        if hyperparameters.autoencoder_path is not None:
+            raise ValueError(
+                "Output variables != input variables, cannot use the same "
+                f"autoencoder {hyperparameters.autoencoder_path} for both. "
+                "This feature will be added in the future."
+            )
+        output_autoencoder = _get_standard_normalizing_transformer(
+            hyperparameters.output_variables, sample_batch
         )
 
     subdomain_config = hyperparameters.subdomain
@@ -67,7 +98,8 @@ def train_reservoir_model(
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.subdomain_size_with_overlap * autoencoder.n_latent_dims,
+        input_size=rank_divider.subdomain_size_with_overlap
+        * input_autoencoder.n_latent_dims,
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -81,7 +113,7 @@ def train_reservoir_model(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=input_autoencoder,
         )
 
         if b < hyperparameters.n_batches_burn:
@@ -98,7 +130,7 @@ def train_reservoir_model(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
-                autoencoder=autoencoder,
+                autoencoder=hybrid_autoencoder,
             )
         else:
             hybrid_time_series = None
@@ -109,6 +141,15 @@ def train_reservoir_model(
             hyperparameters.square_half_hidden_state,
             hybrid_time_series=hybrid_time_series,
         )
+
+        if hyperparameters.input_variables != hyperparameters.output_variables:
+            _, output_time_series_without_overlap = process_batch_Xy_data(
+                variables=hyperparameters.output_variables,
+                batch_data=batch_data,
+                rank_divider=rank_divider,
+                autoencoder=output_autoencoder,
+            )
+            readout_output = output_time_series_without_overlap[:-1]
 
         if b >= hyperparameters.n_batches_burn:
             logger.info(f"Fitting on batch {b+1}")
@@ -142,7 +183,8 @@ def train_reservoir_model(
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=input_autoencoder,
+            output_autoencoder=output_autoencoder,
         )
     else:
         model = HybridReservoirComputingModel(
@@ -153,7 +195,9 @@ def train_reservoir_model(
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=input_autoencoder,
+            output_autoencoder=output_autoencoder,
+            hybrid_autoencoder=hybrid_autoencoder,
         )
     return model
 

@@ -94,6 +94,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     autoencoder_path: Optional[str] = None
+    hybrid_autoencoder_path: Optional[str] = None
     hybrid_variables: Optional[Sequence[str]] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
