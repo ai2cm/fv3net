@@ -6,7 +6,12 @@ import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union, cast
 from .. import Predictor
-from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
+from .utils import (
+    square_even_terms,
+    process_batch_Xy_data,
+    get_ordered_X,
+    SynchronziationTracker,
+)
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
@@ -108,6 +113,9 @@ def train_reservoir_model(
         BatchLinearRegressor(hyperparameters.readout_hyperparameters)
         for r in range(rank_divider.n_subdomains)
     ]
+    sync_tracker = SynchronziationTracker(
+        n_synchronize=hyperparameters.n_timesteps_synchronize
+    )
     for b, batch_data in enumerate(train_batches):
         time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
@@ -116,14 +124,12 @@ def train_reservoir_model(
             autoencoder=input_autoencoder,
         )
 
-        if b < hyperparameters.n_batches_burn:
-            logger.info(f"Synchronizing on batch {b+1}")
-
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
         reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
+        sync_tracker.count(len(reservoir_state_time_series))
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
             _, hybrid_time_series = process_batch_Xy_data(
@@ -151,7 +157,13 @@ def train_reservoir_model(
             )
             readout_output = output_time_series_without_overlap[:-1]
 
-        if b >= hyperparameters.n_batches_burn:
+        if sync_tracker.completed_synchronization:
+            readout_input = sync_tracker.trim_synchronization_samples_if_needed(
+                readout_input
+            )
+            readout_output = sync_tracker.trim_synchronization_samples_if_needed(
+                readout_output
+            )
             logger.info(f"Fitting on batch {b+1}")
             _fit_batch_over_subdomains(
                 X_batch=readout_input,
