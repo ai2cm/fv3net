@@ -203,7 +203,7 @@ class RankDivider:
         metadata = {
             "subdomain_layout": self.subdomain_layout,
             "rank_dims": self.rank_dims,
-            "rank_extent": self.rank_extent,
+            "rank_extent": tuple(self.rank_extent),
             "overlap": self.overlap,
         }
         with fsspec.open(path, "w") as f:
