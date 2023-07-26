@@ -99,10 +99,11 @@ class ReservoirTrainingConfig(Hyperparameters):
 
     def __post_init__(self):
         if set(self.output_variables).issubset(self.input_variables) is False:
-            raise ValueError(
-                f"Output variables {self.output_variables} must be a subset of "
-                f"input variables {self.input_variables}."
-            )
+            if len(set(self.output_variables).intersection(self.input_variables)) > 0:
+                raise ValueError(
+                    f"Output variables {self.output_variables} must either be a subset "
+                    f"of input variables {self.input_variables} or mutually exclusive."
+                )
         if self.hybrid_variables is not None:
             hybrid_and_input_vars_intersection = set(
                 self.hybrid_variables
@@ -119,7 +120,9 @@ class ReservoirTrainingConfig(Hyperparameters):
             hybrid_vars = list(self.hybrid_variables)  # type: ignore
         else:
             hybrid_vars = []
-        return set(list(self.input_variables) + hybrid_vars)
+        return set(
+            list(self.input_variables) + list(self.output_variables) + hybrid_vars
+        )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
