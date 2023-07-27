@@ -8,7 +8,6 @@ from typing import (
     Sequence,
     Set,
     cast,
-    Tuple,
 )
 import fv3fit
 import xarray as xr
@@ -107,52 +106,17 @@ def predict(model: MultiModelAdapter, state: State, dt: float) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
-def non_negative_sphum(
-    sphum: xr.DataArray, dQ1: xr.DataArray, dQ2: xr.DataArray, dt: float
-) -> Tuple[xr.DataArray, xr.DataArray]:
-    delta = dQ2 * dt
-    reduction_ratio = (-sphum) / (dt * dQ2)  # type: ignore
-    dQ1_updated = xr.where(sphum + delta >= 0, dQ1, reduction_ratio * dQ1)
-    dQ2_updated = xr.where(sphum + delta >= 0, dQ2, reduction_ratio * dQ2)
-    return dQ1_updated, dQ2_updated
-
-
-def update_moisture_tendency_to_ensure_non_negative_humidity(
-    sphum: xr.DataArray, q2: xr.DataArray, dt: float
-) -> xr.DataArray:
-    return xr.where(sphum + q2 * dt >= 0, q2, -sphum / dt)
-
-
-def update_temperature_tendency_to_conserve_mse(
-    q1: xr.DataArray, q2_old: xr.DataArray, q2_new: xr.DataArray
-) -> xr.DataArray:
-    mse_tendency = vcm.moist_static_energy_tendency(q1, q2_old)
-    q1_new = vcm.temperature_tendency(mse_tendency, q2_new)
-    return q1_new
-
-
-def non_negative_sphum_mse_conserving(
-    sphum: xr.DataArray, q2: xr.DataArray, dt: float, q1: Optional[xr.DataArray] = None
-) -> Tuple[xr.DataArray, Optional[xr.DataArray]]:
-    q2_new = update_moisture_tendency_to_ensure_non_negative_humidity(sphum, q2, dt)
-    if q1 is not None:
-        q1_new = update_temperature_tendency_to_conserve_mse(q1, q2, q2_new)
-    else:
-        q1_new = None
-    return q2_new, q1_new
-
-
 def enforce_non_negative_humidity(
     prediction: dict, state: State, dt: float, mse_conserving_limiter: bool = True,
 ):
     dQ1_initial = prediction.get("dQ1", xr.zeros_like(state[SPHUM]))
     dQ2_initial = prediction.get("dQ2", xr.zeros_like(state[SPHUM]))
     if mse_conserving_limiter:
-        dQ2_updated, dQ1_updated = non_negative_sphum_mse_conserving(
+        dQ2_updated, dQ1_updated = vcm.non_negative_sphum_mse_conserving(
             state[SPHUM], dQ2_initial, dt, q1=dQ1_initial,
         )
     else:
-        dQ1_updated, dQ2_updated = non_negative_sphum(
+        dQ1_updated, dQ2_updated = vcm.non_negative_sphum(
             state[SPHUM], dQ1_initial, dQ2_initial, dt,
         )
     if "dQ1" in prediction:
