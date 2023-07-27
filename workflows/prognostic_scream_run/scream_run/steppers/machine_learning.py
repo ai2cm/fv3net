@@ -11,9 +11,10 @@ from typing import (
 )
 import fv3fit
 import xarray as xr
-
+import vcm
 
 State = MutableMapping[Hashable, xr.DataArray]
+SPHUM = "qv"
 
 
 @dataclasses.dataclass
@@ -26,6 +27,8 @@ class MachineLearningConfig:
         scaling: if given, scale the outputs by the given factor. This is a manually
             defined alteration of the model, and should not be used for
             normalization.
+        mse_conserving_limiter (optional): whether to use MSE-conserving humidity
+                limiter. Defaults to True.
     Example::
 
         MachineLearningConfig(
@@ -38,6 +41,7 @@ class MachineLearningConfig:
     models: Sequence[str] = dataclasses.field(default_factory=list)
     diagnostic_ml: bool = False
     scaling: Mapping[str, float] = dataclasses.field(default_factory=dict)
+    mse_conserving_limiter: bool = True
 
 
 class MultiModelAdapter:
@@ -45,17 +49,21 @@ class MultiModelAdapter:
         self,
         models: Iterable[fv3fit.Predictor],
         scaling: Optional[Mapping[str, float]] = None,
+        mse_conserving_limiter: bool = True,
     ):
         """
         Args:
             models: models for which to combine predictions
             scaling: if given, scale the predictions by the given factor
+            mse_conserving_limiter (optional): whether to use MSE-conserving humidity
+                limiter. Defaults to True.
         """
         self.models = models
         if scaling is None:
             self._scaling: Mapping[str, float] = {}
         else:
             self._scaling = scaling
+        self.mse_conserving_limiter = mse_conserving_limiter
 
     @property
     def input_variables(self) -> Set[str]:
@@ -80,12 +88,39 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     for path in model_paths:
         model = cast(fv3fit.Predictor, fv3fit.load(path))
         models.append(model)
-    return MultiModelAdapter(models, scaling=config.scaling)
+    return MultiModelAdapter(
+        models,
+        scaling=config.scaling,
+        mse_conserving_limiter=config.mse_conserving_limiter,
+    )
 
 
-def predict(model: MultiModelAdapter, state: State) -> State:
+def predict(model: MultiModelAdapter, state: State, dt: float) -> State:
     """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
     output = model.predict(ds)
+    output = enforce_non_negative_humidity(
+        output, state, dt, model.mse_conserving_limiter
+    )
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
+
+
+def enforce_non_negative_humidity(
+    prediction: dict, state: State, dt: float, mse_conserving_limiter: bool = True,
+):
+    dQ1_initial = prediction.get("dQ1", xr.zeros_like(state[SPHUM]))
+    dQ2_initial = prediction.get("dQ2", xr.zeros_like(state[SPHUM]))
+    if mse_conserving_limiter:
+        dQ2_updated, dQ1_updated = vcm.non_negative_sphum_mse_conserving(
+            state[SPHUM], dQ2_initial, dt, q1=dQ1_initial,
+        )
+    else:
+        dQ1_updated, dQ2_updated = vcm.non_negative_sphum(
+            state[SPHUM], dQ1_initial, dQ2_initial, dt,
+        )
+    if "dQ1" in prediction:
+        prediction.update({"dQ1": dQ1_updated})
+    if "dQ2" in prediction:
+        prediction.update({"dQ2": dQ2_updated})
+    return prediction

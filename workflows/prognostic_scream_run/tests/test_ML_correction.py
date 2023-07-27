@@ -41,7 +41,7 @@ def test_mock_scream_ml_prediction():
     )
     predictor.set_outputs(**outputs)
     model = MultiModelAdapter([predictor])
-    output = predict(model, data)
+    output = predict(model, data, dt=1.0)
     assert output["dQ1"].values.all() == pytest.approx(0.0)
     assert output["dQ2"].values.all() == pytest.approx(0.0)
     assert output["dQ1"].dims == ("ncol", "z")
