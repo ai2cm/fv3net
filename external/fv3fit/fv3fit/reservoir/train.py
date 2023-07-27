@@ -88,7 +88,8 @@ def train_reservoir_model(
         output_autoencoder = _get_standard_normalizing_transformer(
             hyperparameters.output_variables, sample_batch
         )
-
+    else:
+        output_autoencoder = input_autoencoder
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
