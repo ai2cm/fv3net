@@ -1285,36 +1285,6 @@ def _area_and_fice_weighted_mean(
     ).fillna(0.0)
 
 
-def _minimum_over_dominant_sfc_type(
-    data_var: xr.DataArray,
-    coarsening_factor: int,
-    is_dominant_surface_type: xr.DataArray,
-    **unused_kwargs,
-) -> xr.DataArray:
-    return block_coarsen(
-        data_var.where(is_dominant_surface_type),
-        coarsening_factor,
-        x_dim=X_DIM,
-        y_dim=Y_DIM,
-        method="min",
-    )
-
-
-def _maximum_over_dominant_sfc_type(
-    data_var: xr.DataArray,
-    coarsening_factor: int,
-    is_dominant_surface_type: xr.DataArray,
-    **unused_kwargs,
-) -> xr.DataArray:
-    return block_coarsen(
-        data_var.where(is_dominant_surface_type),
-        coarsening_factor,
-        x_dim=X_DIM,
-        y_dim=Y_DIM,
-        method="max",
-    )
-
-
 def _area_or_area_and_fice_weighted_mean(
     data_var: xr.DataArray,
     coarsening_factor: int,
@@ -1376,9 +1346,9 @@ SFC_DATA_COARSENING_METHOD: Mapping[Hashable, Callable] = {
     "slope": _mode_over_dominant_sfc_type,
     "sheleg": _area_and_sncovr_weighted_mean,
     "hice": _area_and_fice_weighted_mean,
-    "shdmin": _minimum_over_dominant_sfc_type,
-    "shdmax": _maximum_over_dominant_sfc_type,
-    "snoalb": _maximum_over_dominant_sfc_type,
+    "shdmin": _area_weighted_mean_over_dominant_sfc_type,
+    "shdmax": _area_weighted_mean_over_dominant_sfc_type,
+    "snoalb": _area_weighted_mean_over_dominant_sfc_type,
     "tisfc": _area_or_area_and_fice_weighted_mean,
 }
 
