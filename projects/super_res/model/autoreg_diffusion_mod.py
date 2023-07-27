@@ -34,7 +34,7 @@ import flow_vis
 
 from accelerate import Accelerator
 
-from .network_swinir import SwinIR as net
+from .network_swinir import SwinIR as context_net
 
 # constants
 
@@ -658,7 +658,7 @@ class GaussianDiffusion(nn.Module):
 
         self.model = model
         
-        self.umodel = net(upscale=8, in_chans=1, img_size=48, window_size=8,
+        self.umodel = context_net(upscale=8, in_chans=1, img_size=48, window_size=8,
         img_range=1., depths=[6, 6, 6, 6, 6, 6, 6], embed_dim=200,
         num_heads=[8, 8, 8, 8, 8, 8, 8],
         mlp_ratio=2, upsampler='pixelshuffle', resi_connection='3conv')
@@ -1078,7 +1078,7 @@ class Trainer(object):
         #augment_horizontal_flip = True,
         train_lr = 1e-4,
         train_num_steps = 100000,
-        ema_update_every = 10,
+        ema_update_every = 1,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
         save_and_sample_every = 1,
