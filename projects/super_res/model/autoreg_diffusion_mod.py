@@ -909,12 +909,14 @@ class GaussianDiffusion(nn.Module):
         r = torch.roll(l, -1, 1)
         ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
         l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+        #l_cond = rearrange(ures[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
         m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
         m1 = torch.roll(m1, -2, 1)
+        #m1 = torch.roll(l, -2, 1)
         
         stack = torch.cat((l, r, m1), 2)
         stack = stack[:, :(f-2), :, :, :]
@@ -967,7 +969,6 @@ class GaussianDiffusion(nn.Module):
         else:
             raise ValueError(f'invalid loss type {self.loss_type}')
 
-    #def p_losses(self, x_start, t, noise = None):
     def p_losses(self, stack, hres, lres, ures, t, noise = None):
         
         b, f, c, h, w = hres.shape
@@ -983,6 +984,7 @@ class GaussianDiffusion(nn.Module):
         x_start = x_start - warped
         
         l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+        #l_cond = rearrange(ures[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         
         b, c, h, w = x_start.shape
         
@@ -1031,21 +1033,17 @@ class GaussianDiffusion(nn.Module):
 
         return loss.mean() + loss1.mean() + loss2.mean()
 
-    #def forward(self, data, *args, **kwargs):
     def forward(self, lres, hres, *args, **kwargs):
         
-        #b, c, h, w, device, img_size, = *img.shape, img.device, self.image_size
         b, f, c, h, w, device, img_size = *hres.shape, hres.device, self.image_size
         
         assert h == img_size and w == img_size, f'height and width of image must be {img_size}'
         
-        #t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
         t = torch.randint(0, self.num_timesteps, (b*(f-2),), device=device).long()
 
         ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
         ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
         
-        #img = self.normalize(img)
         lres = self.normalize(lres)
         hres = self.normalize(hres)
         ures = self.normalize(ures)
@@ -1056,14 +1054,13 @@ class GaussianDiffusion(nn.Module):
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
-        #m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = 7)
         m1 = rearrange(m1, '(b t) c h w -> b t c h w', b = b)
         m1 = torch.roll(m1, -2, 1)
+        #m1 = torch.roll(l, -2, 1)
 
         stack = torch.cat((l, r, m1), 2)
         stack = stack[:, :(f-2), :, :, :]
         
-        #return self.p_losses(img, t, *args, **kwargs)
         return self.p_losses(stack, hres, lres, ures, t, *args, **kwargs)
 
 # trainer class
@@ -1081,10 +1078,10 @@ class Trainer(object):
         #augment_horizontal_flip = True,
         train_lr = 1e-4,
         train_num_steps = 100000,
-        ema_update_every = 1,
+        ema_update_every = 10,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
-        save_and_sample_every = 10,
+        save_and_sample_every = 1,
         #num_samples = 25,
         eval_folder = './evaluate',
         results_folder = './results',
@@ -1195,6 +1192,14 @@ class Trainer(object):
         cmap = mpl.colormaps['RdBu_r']
         fcmap = mpl.colormaps['gray_r']
 
+        c384_min = np.load('data/only_precip/c384_min.npy')
+        c384_max = np.load('data/only_precip/c384_max.npy')
+        c384_logmin = np.load('data/only_precip/c384_logmin.npy')
+
+        c48_min = np.load('data/only_precip/c48_min.npy')
+        c48_max = np.load('data/only_precip/c48_max.npy')
+        c48_logmin = np.load('data/only_precip/c48_logmin.npy')
+
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
             while self.step < self.train_num_steps:
@@ -1274,14 +1279,21 @@ class Trainer(object):
                                     b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
                                 bias_color = np.stack(b_c, axis = 0)
 
-                                nn_upscale = F.interpolate(lres[:,2:,:,:,:], scale_factor = 8, mode = 'nearest-exact')
-                                diff_output = torch.flatten(videos - nn_upscale).detach().cpu().numpy()
-                                diff_target = torch.flatten(hres[:,2:,:,:,:] - nn_upscale).detach().cpu().numpy()
+                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                target = np.exp(target) + c384_logmin - 1e-14
+
+                                output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                output = np.exp(output) + c384_logmin - 1e-14
+
+                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                                coarse = np.exp(coarse) + c48_logmin - 1e-14
+
+                                nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
+                                diff_output = (output - nn_upscale).flatten()
+                                diff_target = (target - nn_upscale).flatten()
                                 vmin = min(diff_output.min(), diff_target.min())
                                 vmax = max(diff_output.max(), diff_target.max())
                                 bins = np.linspace(vmin, vmax, 100 + 1)
-                                hist_o = np.histogram(diff_output, bins = bins)
-                                hist_t = np.histogram(diff_target, bins = bins)
 
                                 fig, ax = plt.subplots(1, 1, figsize=(6, 4))
                                 ax.hist(
@@ -1292,9 +1304,26 @@ class Trainer(object):
                                 )
                                 ax.set_xlim(vmin, vmax)
                                 ax.legend()
-                                ax.set_xlabel("Difference from gridcell mean")
                                 ax.set_ylabel("Density")
                                 ax.set_yscale("log")
+
+                                output1 = output.flatten()
+                                target1 = target.flatten()
+                                vmin1 = min(output1.min(), target1.min())
+                                vmax1 = max(output1.max(), target1.max())
+                                bins1 = np.linspace(vmin1, vmax1, 100 + 1)
+
+                                fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
+                                ax1.hist(
+                                    output1, bins=bins1, alpha=0.5, label="Output", histtype="step", density=True
+                                )
+                                ax1.hist(
+                                    target1, bins=bins1, alpha=0.5, label="Target", histtype="step", density=True
+                                )
+                                ax1.set_xlim(vmin1, vmax1)
+                                ax1.legend()
+                                ax1.set_ylabel("Density")
+                                ax1.set_yscale("log")
                                 
                                 flow_d = np.zeros((1, num_samples, 3, img_size, img_size))
                                 for m in range(num_samples):
@@ -1310,11 +1339,11 @@ class Trainer(object):
                                 accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                #accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
                                 accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
+                                accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
                                 accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
                                 accelerator.log({"crps": crps_index}, step=self.step)
                                 

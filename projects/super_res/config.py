@@ -14,8 +14,8 @@ config.loss = "l1"
 config.objective = "pred_v"
 config.lr = 8e-5
 config.steps = 5000000
-config.grad_acc = 2
-config.val_num_of_batch = 2
+config.grad_acc = 1
+config.val_num_of_batch = 1
 config.save_and_sample_every = 5000
 config.ema_decay = 0.995
 config.amp = False
@@ -35,7 +35,8 @@ config.data_config = config_dict.ConfigDict({
     #"img_channel": 2,
     "img_channel": 1,
     "img_size": 384,
-    "logscale": True
+    "logscale": True,
+    "quick": True
 })
 
 config.data_name = f"{config.data_config['dataset_name']}-{config.data_config['channels']}-{config.objective}-{config.loss}-d{config.dim}-t{config.diffusion_steps}{config.additional_note}"
