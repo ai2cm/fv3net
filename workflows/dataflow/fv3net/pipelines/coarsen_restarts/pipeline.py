@@ -129,6 +129,11 @@ def main(argv):
         ),
     )
     parser.add_argument(
+        "toa_pressure",
+        type=float,
+        help="Pressure at the top of the atmosphere in units of Pascals.",
+    )
+    parser.add_argument(
         "source_resolution", type=int, help="Source data cubed-sphere grid resolution.",
     )
     parser.add_argument(
@@ -149,12 +154,6 @@ def main(argv):
             "Add subdirectory with C{target-resolution} to the specified "
             "destination directory. "
         ),
-    )
-    parser.add_argument(
-        "--toa_pressure",
-        type=float,
-        default=vcm.calc.thermo.constants.TOA_PRESSURE,
-        help="Pressure at the top of the atmosphere in units of Pascals.",
     )
     parser.add_argument(
         "--coarsen-agrid-winds",
