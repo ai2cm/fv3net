@@ -475,6 +475,7 @@ scikit_learn:
   model:
   - gs://ml-model
   output_standard_names: {}
+  rank_models: {}
   scaling: {}
   use_mse_conserving_humidity_limiter: true
 tendency_prescriber: null
