@@ -104,9 +104,9 @@ def _get_states_without_overlap(
     states_without_overlap_time_series = []
     for var_time_series in states_with_overlap_time_series:
         # dims in array var_time_series are (t, x, y, z)
-        states_without_overlap_time_series.append(
-            var_time_series[:, overlap:-overlap, overlap:-overlap, :]
-        )
+        if overlap > 0:
+            var_time_series = var_time_series[:, overlap:-overlap, overlap:-overlap, :]
+        states_without_overlap_time_series.append(var_time_series)
     # dims (t, var, x, y, z)
     return np.stack(states_without_overlap_time_series, axis=1)
 
@@ -134,6 +134,7 @@ def main(args):
             hybrid_inputs_time_series = get_ordered_X(
                 batch_data, model.hybrid_variables
             )
+
             hybrid_inputs_time_series = _get_states_without_overlap(
                 hybrid_inputs_time_series, overlap=model.rank_divider.overlap
             )
