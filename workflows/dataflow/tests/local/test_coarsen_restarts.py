@@ -5,6 +5,7 @@ import xarray as xr
 
 from fv3net.pipelines.coarsen_restarts.pipeline import main
 from typing import Optional, Set
+from vcm.calc.thermo.constants import TOA_PRESSURE
 
 
 OUTPUT_CATEGORY_NAMES = {
@@ -94,12 +95,13 @@ def test_regression_coarsen_restarts(
 ):
     grid_spec_path = str(restart_dir.join("grid_spec"))
     src_path = str(restart_dir)
+    toa_pressure = TOA_PRESSURE
     in_res = "48"
     out_res = "6"
     time = "20160101.000000"
     dest = str(restart_dir.join("output"))
 
-    args = [src_path, grid_spec_path, in_res, out_res, dest]
+    args = [src_path, grid_spec_path, toa_pressure, in_res, out_res, dest]
     if coarsen_agrid_winds:
         args.append("--coarsen-agrid-winds")
 

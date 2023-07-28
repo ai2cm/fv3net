@@ -7,7 +7,6 @@ import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 
-import vcm.calc.thermo.constants
 import vcm.cubedsphere
 from fv3net.pipelines.common import FunctionSource, WriteToNetCDFs, list_timesteps
 
