@@ -149,12 +149,16 @@ def train_reservoir_model(
             hybrid_time_series=hybrid_time_series,
         )
 
-        if hyperparameters.input_variables != hyperparameters.output_variables:
+        if set(hyperparameters.input_variables) != (hyperparameters.output_variables):
             _, output_time_series_without_overlap = process_batch_Xy_data(
                 variables=hyperparameters.output_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
                 autoencoder=output_autoencoder,
+            )
+            logger.info(
+                f"Using output_variables {hyperparameters.output_variables}, "
+                f"which differ from input_variables {hyperparameters.input_variables}"
             )
             readout_output = output_time_series_without_overlap[:-1]
 
@@ -191,7 +195,7 @@ def train_reservoir_model(
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
@@ -202,7 +206,7 @@ def train_reservoir_model(
     else:
         model = HybridReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
             hybrid_variables=hyperparameters.hybrid_variables,
             reservoir=reservoir,
             readout=readout,
