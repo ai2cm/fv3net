@@ -7,6 +7,7 @@ import pytest
 import xarray as xr
 
 from pathlib import Path
+from vcm.calc.thermo.constants import TOA_PRESSURE
 from vcm.cubedsphere.coarsen_restarts import (
     coarsen_restarts_on_sigma,
     coarsen_restarts_on_pressure,
@@ -112,7 +113,11 @@ def test_coarsen_restarts(tag):
     restart_data, grid_data = generate_synthetic_data(restart_schemas, grid_spec_schema)
 
     func, kwargs = REGRESSION_TESTS[tag]
-    result = func(FACTOR, grid_data, restart_data, **kwargs)
+    if func == coarsen_restarts_on_sigma:
+        # coarsen_restarts_on_sigma does not require the toa_pressure as an argument
+        result = func(FACTOR, grid_data, restart_data, **kwargs)
+    else:
+        result = func(FACTOR, grid_data, TOA_PRESSURE, restart_data, **kwargs)
     result = {category: ds for category, ds in result.items()}
 
     # To reset the reference data, run this module as a script:

@@ -212,8 +212,8 @@ def hydrostatic_dz(
     T: xr.DataArray,
     q: xr.DataArray,
     delp: xr.DataArray,
+    toa_pressure: float,
     dim: str = COORD_Z_CENTER,
-    toa_pressure: float = TOA_PRESSURE,
 ) -> xr.DataArray:
     """Compute layer thickness assuming hydrostatic balance.
 
@@ -221,10 +221,8 @@ def hydrostatic_dz(
         T: temperature
         q: specific humidity
         delp: pressure thickness
+        toa_pressure: pressure at the top of the model in units of Pascals.
         dim (optional): name of vertical dimension. Defaults to "pfull".
-        toa_pressure (optional): pressure at the top of the model in units of
-            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
-            level FV3GFS configuration.
 
     Returns:
         layer thicknesses dz

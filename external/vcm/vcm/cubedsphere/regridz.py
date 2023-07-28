@@ -11,7 +11,6 @@ except ModuleNotFoundError:
 from ..calc.thermo.vertically_dependent import (
     pressure_at_interface,
     pressure_at_midpoint_log,
-    TOA_PRESSURE,
 )
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
@@ -33,12 +32,12 @@ def regrid_to_area_weighted_pressure(
     ds: xr.Dataset,
     delp: xr.DataArray,
     area: xr.DataArray,
+    toa_pressure: float,
     coarsening_factor: int,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
     extrapolate: bool = False,
-    toa_pressure: float = TOA_PRESSURE,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of cell-centered quantities to coarsened
     pressure levels.
@@ -47,6 +46,8 @@ def regrid_to_area_weighted_pressure(
         ds: input Dataset
         delp: pressure thicknesses
         area: area weights
+        toa_pressure: pressure at the top of the model in units of
+            Pascals
         coarsening_factor: coarsening-factor for pressure levels
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_2"
@@ -56,9 +57,6 @@ def regrid_to_area_weighted_pressure(
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
             setting by default).
-        toa_pressure (optional): pressure at the top of the model in units of
-            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
-            level FV3GFS configuration.
 
     Returns:
         tuple of regridded input Dataset and area masked wherever coarse
@@ -72,11 +70,11 @@ def regrid_to_area_weighted_pressure(
         delp,
         delp_coarse,
         area,
+        toa_pressure,
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
         extrapolate=extrapolate,
-        toa_pressure=toa_pressure,
     )
 
 
@@ -84,13 +82,13 @@ def regrid_to_edge_weighted_pressure(
     ds: xr.Dataset,
     delp: xr.DataArray,
     length: xr.DataArray,
+    toa_pressure: float,
     coarsening_factor: int,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_OUTER,
     z_dim: str = RESTART_Z_CENTER,
     edge: str = "x",
     extrapolate: bool = False,
-    toa_pressure: float = TOA_PRESSURE,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of edge-valued quantities to coarsened
     pressure levels.
@@ -99,6 +97,8 @@ def regrid_to_edge_weighted_pressure(
         ds: input Dataset
         delp: pressure thicknesses
         length: edge length weights
+        toa_pressure: pressure at the top of the model in units of
+            Pascals.
         coarsening_factor: coarsening-factor for pressure levels
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_1"
@@ -109,9 +109,6 @@ def regrid_to_edge_weighted_pressure(
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
             setting by default).
-        toa_pressure (optional): pressure at the top of the model in units of
-            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
-            level FV3GFS configuration.
 
     Returns:
         tuple of regridded input Dataset and length masked wherever coarse
@@ -141,11 +138,11 @@ def regrid_to_edge_weighted_pressure(
         delp_staggered,
         delp_staggered_coarse,
         length,
+        toa_pressure,
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
         extrapolate=extrapolate,
-        toa_pressure=toa_pressure,
     )
 
 
@@ -154,11 +151,11 @@ def _regrid_given_delp(
     delp_fine,
     delp_coarse,
     weights,
+    toa_pressure,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
     extrapolate: bool = False,
-    toa_pressure: float = TOA_PRESSURE,
 ):
     """Given a fine and coarse delp, do vertical regridding to coarse pressure levels
     and mask weights below fine surface pressure.
