@@ -3,3 +3,6 @@
 
 # microphysics experiments
 **/experiment-logs.txt
+
+# superres experiments
+only_precip/*

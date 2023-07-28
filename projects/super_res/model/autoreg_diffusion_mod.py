@@ -24,6 +24,7 @@ from einops.layers.torch import Rearrange
 from PIL import Image
 
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable as smap
 
 from tqdm.auto import tqdm
@@ -33,11 +34,27 @@ import flow_vis
 
 from accelerate import Accelerator
 
+from .network_swinir import SwinIR as context_net
+
 # constants
 
 ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
 # helpers functions
+
+def calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size):
+    truth_cdf = np.zeros((256, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+    for i in range(256):
+        truth_cdf[i, :, :, :, :, :, :] = (truth <= i).astype('uint8')
+    pred_cdf = np.zeros((256, num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+    for j in range(256):
+        pred_cdf[j, :, :, :, :, :, :, :] = (pred <= j).astype('uint8')
+    red_pred_cdf = pred_cdf.mean(1)
+    temp = np.square(red_pred_cdf - truth_cdf)
+    temp_dz = temp.sum(0)
+    temp_dz_dd = temp_dz.mean(axis = (3, 4, 5))
+    temp_dz_dd_dt = temp_dz_dd.mean(2)
+    return temp_dz_dd_dt.mean()
 
 def save_image(tensor, path):
     im = Image.fromarray((tensor[:,:,:3] * 255).astype(np.uint8))
@@ -90,7 +107,8 @@ def gaussian_pyramids(input, base_sigma = 1, m = 5):
     
     output = [input]
     N, C, H, W = input.shape
-    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))
+    
+    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))#.unsqueeze(0)
     
     for i in range(m):
         
@@ -640,6 +658,11 @@ class GaussianDiffusion(nn.Module):
 
         self.model = model
         
+        self.umodel = context_net(upscale=8, in_chans=1, img_size=48, window_size=8,
+        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6], embed_dim=200,
+        num_heads=[8, 8, 8, 8, 8, 8, 8],
+        mlp_ratio=2, upsampler='pixelshuffle', resi_connection='3conv')
+        
         self.flow = flow
         self.upsample = nn.UpsamplingBilinear2d(scale_factor=8)
         
@@ -828,7 +851,7 @@ class GaussianDiffusion(nn.Module):
     @torch.no_grad()
     #def ddim_sample(self, shape, return_all_timesteps = False):
     def ddim_sample(self, shape, l_cond, context, return_all_timesteps = False):
-        
+        print('here!!!')
         batch, device, total_timesteps, sampling_timesteps, eta, objective = shape[0], self.betas.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
 
         times = torch.linspace(-1, total_timesteps - 1, steps = sampling_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
@@ -871,60 +894,47 @@ class GaussianDiffusion(nn.Module):
         return ret
 
     @torch.no_grad()
-    #def sample(self, batch_size = 16, return_all_timesteps = False):
-    def sample(self, lres, hres, return_all_timesteps = False):
+    def sample(self, lres, return_all_timesteps = False):
         
-        b, f, c, h, w, image_size, channels = *hres.shape, self.image_size, self.channels
-        print(b,f,c,h,w)
+        b, f, c, h, w = lres.shape
+        
+        ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
+        
         lres = self.normalize(lres)
-        hres = self.normalize(hres)
+        ures = self.normalize(ures)
         sample_fn = self.p_sample_loop if not self.is_ddim_sampling else self.ddim_sample
         
-        l = hres.clone()[:, :1, :, :, :]
-        r = hres.clone()[:, 1:2, :, :, :]
-        hres_flow = rearrange(hres[:, 1:2, :, :, :], 'b t c h w -> (b t) c h w')
+        l = ures.clone()
+        r = torch.roll(l, -1, 1)
+        ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
         l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+        #l_cond = rearrange(ures[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
         m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
         m1 = torch.roll(m1, -2, 1)
-        m1 = m1[:, :(f-2), :, :, :]
+        #m1 = torch.roll(l, -2, 1)
         
-        ans = []
-        base = []
-        nsteps = []
-        flows = []
+        stack = torch.cat((l, r, m1), 2)
+        stack = stack[:, :(f-2), :, :, :]
+        stack = rearrange(stack, 'b t c h w -> (b t) c h w')
         
-        for i in range(f-2):
-            
-            stack = torch.cat((l, r, m1[:, i:i+1, :, :, :]), 2)
+        flow, context = self.flow(stack)
         
-            stack = rearrange(stack, 'b t c h w -> (b t) c h w')
+        warped = scale_space_warp(ures_flow, flow)
+        
+        res = sample_fn((b*(f-2),c,8*h,8*w), l_cond, context, return_all_timesteps = return_all_timesteps)
+        sres = warped + res
+        sres = rearrange(sres, '(b t) c h w -> b t c h w', b = b)
 
-            flow, context = self.flow(stack)
-            
-            warped = scale_space_warp(hres_flow, flow)
-            batch_size = b
-            #res = sample_fn((batch_size, c, image_size, image_size), l_cond[i::(f-2), :, :, :], context, return_all_timesteps = return_all_timesteps)
-            
-            res = sample_fn((batch_size, c, h, w), l_cond[i::(f-2), :, :, :], context, return_all_timesteps = return_all_timesteps)
-            hres_flow = warped + res
-            
-            #hres_flow = warped + res[:, -1, :, :, :]
-            
-            l = r
-            r = rearrange(hres_flow, '(b t) c h w -> b t c h w', t = 1)
-            
-            ans.append(hres_flow)
-            base.append(warped)
-            #nsteps.append(torch.cat(torch.unbind(res, 1), 3))
-            nsteps.append(res)
-            flows.append(flow)
-            
-        return self.unnormalize(torch.stack(ans, 1)), self.unnormalize(torch.stack(base, 1)), self.unnormalize(torch.stack(nsteps, 1)), self.unnormalize(torch.stack(flows, 1))
-        #return sample_fn((batch_size, channels, image_size, image_size), return_all_timesteps = return_all_timesteps)
+        warped = rearrange(warped, '(b t) c h w -> b t c h w', b = b)
+        res = rearrange(res, '(b t) c h w -> b t c h w', b = b)
+        flow = rearrange(flow, '(b t) c h w -> b t c h w', b = b)
+        
+        return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
 
     @torch.no_grad()
     def interpolate(self, x1, x2, t = None, lam = 0.5):
@@ -959,22 +969,22 @@ class GaussianDiffusion(nn.Module):
         else:
             raise ValueError(f'invalid loss type {self.loss_type}')
 
-    #def p_losses(self, x_start, t, noise = None):
-    def p_losses(self, stack, hres, lres, t, noise = None):
+    def p_losses(self, stack, hres, lres, ures, t, noise = None):
         
         b, f, c, h, w = hres.shape
         
         stack = rearrange(stack, 'b t c h w -> (b t) c h w')
-        hres_flow = rearrange(hres[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
+        ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
         
         flow, context = self.flow(stack)
-        #print(flow.shape, hres_flow.shape)
-        warped = scale_space_warp(hres_flow, flow)
+        
+        warped = scale_space_warp(ures_flow, flow)
         
         x_start = rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         x_start = x_start - warped
         
         l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+        #l_cond = rearrange(ures[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         
         b, c, h, w = x_start.shape
         
@@ -1014,37 +1024,44 @@ class GaussianDiffusion(nn.Module):
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
 
         loss = loss * extract(self.p2_loss_weight, t, loss.shape)
-        return loss.mean()
 
-    #def forward(self, data, *args, **kwargs):
+        loss1 = self.loss_fn(ures, hres, reduction = 'none')
+        loss1 = reduce(loss1, 'b ... -> b (...)', 'mean')
+
+        loss2 = self.loss_fn(x_start, warped, reduction = 'none')
+        loss2 = reduce(loss2, 'b ... -> b (...)', 'mean')
+
+        return loss.mean() + loss1.mean() + loss2.mean()
+
     def forward(self, lres, hres, *args, **kwargs):
         
-        #b, c, h, w, device, img_size, = *img.shape, img.device, self.image_size
         b, f, c, h, w, device, img_size = *hres.shape, hres.device, self.image_size
         
         assert h == img_size and w == img_size, f'height and width of image must be {img_size}'
         
-        #t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
         t = torch.randint(0, self.num_timesteps, (b*(f-2),), device=device).long()
 
-        #img = self.normalize(img)
+        ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
+        
         lres = self.normalize(lres)
         hres = self.normalize(hres)
+        ures = self.normalize(ures)
         
-        l = hres.clone()
+        l = ures.clone()
         r = torch.roll(l, -1, 1)
 
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
-        m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
+        m1 = rearrange(m1, '(b t) c h w -> b t c h w', b = b)
         m1 = torch.roll(m1, -2, 1)
+        #m1 = torch.roll(l, -2, 1)
 
         stack = torch.cat((l, r, m1), 2)
         stack = stack[:, :(f-2), :, :, :]
         
-        #return self.p_losses(img, t, *args, **kwargs)
-        return self.p_losses(stack, hres, lres, t, *args, **kwargs)
+        return self.p_losses(stack, hres, lres, ures, t, *args, **kwargs)
 
 # trainer class
 
@@ -1064,7 +1081,7 @@ class Trainer(object):
         ema_update_every = 1,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
-        save_and_sample_every = 10,
+        save_and_sample_every = 1,
         #num_samples = 25,
         eval_folder = './evaluate',
         results_folder = './results',
@@ -1172,6 +1189,17 @@ class Trainer(object):
         accelerator = self.accelerator
         device = accelerator.device
 
+        cmap = mpl.colormaps['RdBu_r']
+        fcmap = mpl.colormaps['gray_r']
+
+        c384_min = np.load('data/only_precip/c384_min.npy')
+        c384_max = np.load('data/only_precip/c384_max.npy')
+        c384_logmin = np.load('data/only_precip/c384_logmin.npy')
+
+        c48_min = np.load('data/only_precip/c48_min.npy')
+        c48_max = np.load('data/only_precip/c48_max.npy')
+        c48_logmin = np.load('data/only_precip/c48_logmin.npy')
+
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
             while self.step < self.train_num_steps:
@@ -1224,17 +1252,100 @@ class Trainer(object):
                                 
                                 if i >= self.val_num_of_batch:
                                     break
-                                    
-                                videos, base, res, flows = self.ema.ema_model.sample(lres, hres)
+
+                                num_samples = 5
+                                num_videos_per_batch = 1
+                                num_frames = 5
+                                img_size = 384
+                                img_channels = 1
+
+                                truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                truth[0,:,:,:,:,:] = (hres[:,2:,:,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
+                                for k in range(num_samples):
+                                    videos, base, res, flows = self.ema.ema_model.sample(lres)
+                                    pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
+                                
+                                crps_index = calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size)
                                 psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
+
+                                videos_time_mean = videos.mean(dim = 1)
+                                hres_time_mean = hres[:,2:,:,:,:].mean(dim = 1)
+                                bias = videos_time_mean - hres_time_mean
+                                norm = mpl.colors.Normalize(vmin = bias.min(), vmax = bias.max())
+                                sm = smap(norm, cmap)
+                                b_c = []
+                                for l in range(num_videos_per_batch):
+                                    b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
+                                bias_color = np.stack(b_c, axis = 0)
+
+                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                target = np.exp(target) + c384_logmin - 1e-14
+
+                                output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                output = np.exp(output) + c384_logmin - 1e-14
+
+                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                                coarse = np.exp(coarse) + c48_logmin - 1e-14
+
+                                nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
+                                diff_output = (output - nn_upscale).flatten()
+                                diff_target = (target - nn_upscale).flatten()
+                                vmin = min(diff_output.min(), diff_target.min())
+                                vmax = max(diff_output.max(), diff_target.max())
+                                bins = np.linspace(vmin, vmax, 100 + 1)
+
+                                fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+                                ax.hist(
+                                    diff_output, bins=bins, alpha=0.5, label="Output", histtype="step", density=True
+                                )
+                                ax.hist(
+                                    diff_target, bins=bins, alpha=0.5, label="Target", histtype="step", density=True
+                                )
+                                ax.set_xlim(vmin, vmax)
+                                ax.legend()
+                                ax.set_ylabel("Density")
+                                ax.set_yscale("log")
+
+                                output1 = output.flatten()
+                                target1 = target.flatten()
+                                vmin1 = min(output1.min(), target1.min())
+                                vmax1 = max(output1.max(), target1.max())
+                                bins1 = np.linspace(vmin1, vmax1, 100 + 1)
+
+                                fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
+                                ax1.hist(
+                                    output1, bins=bins1, alpha=0.5, label="Output", histtype="step", density=True
+                                )
+                                ax1.hist(
+                                    target1, bins=bins1, alpha=0.5, label="Target", histtype="step", density=True
+                                )
+                                ax1.set_xlim(vmin1, vmax1)
+                                ax1.legend()
+                                ax1.set_ylabel("Density")
+                                ax1.set_yscale("log")
+                                
+                                flow_d = np.zeros((1, num_samples, 3, img_size, img_size))
+                                for m in range(num_samples):
+                                    flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
+
+                                flow_s = np.zeros((1, num_samples, 3, img_size, img_size))
+                                sm = smap(None, fcmap)
+                                for m in range(num_samples):
+                                    flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
                                 
                                 accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
+                                accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
+                                accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
                                 accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
+                                accelerator.log({"crps": crps_index}, step=self.step)
                                 
                             milestone = self.step // self.save_and_sample_every
                             

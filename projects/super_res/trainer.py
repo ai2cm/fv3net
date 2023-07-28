@@ -1,6 +1,6 @@
 import os
 
-from model.autoreg_diffusion import Unet, Flow, GaussianDiffusion, Trainer
+from model.autoreg_diffusion_mod import Unet, Flow, GaussianDiffusion, Trainer
 from data.load_data import load_data
 from config import config
 

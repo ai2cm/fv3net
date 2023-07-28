@@ -8,14 +8,14 @@ config.dim_mults = (1, 1, 2, 2, 4, 4)
 config.learned_sinusoidal_cond = True,
 config.random_fourier_features = True,
 config.learned_sinusoidal_dim = 32
-config.diffusion_steps = 1400
+config.diffusion_steps = 1500
 config.sampling_steps = 6
 config.loss = "l1"
 config.objective = "pred_v"
 config.lr = 8e-5
 config.steps = 5000000
 config.grad_acc = 2
-config.val_num_of_batch = 2
+config.val_num_of_batch = 5
 config.save_and_sample_every = 5000
 config.ema_decay = 0.995
 config.amp = False
@@ -26,7 +26,7 @@ config.results_folder = "./results"
 config.tensorboard_dir = "./tensorboard"
 config.milestone = 1
 
-config.batch_size = 2
+config.batch_size = 4
 config.data_config = config_dict.ConfigDict({
     "dataset_name": "c384",
     "length": 7,
