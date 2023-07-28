@@ -11,6 +11,7 @@ except ModuleNotFoundError:
 from ..calc.thermo.vertically_dependent import (
     pressure_at_interface,
     pressure_at_midpoint_log,
+    TOA_PRESSURE,
 )
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
@@ -37,6 +38,7 @@ def regrid_to_area_weighted_pressure(
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
     extrapolate: bool = False,
+    toa_pressure: float = TOA_PRESSURE,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of cell-centered quantities to coarsened
     pressure levels.
@@ -54,6 +56,9 @@ def regrid_to_area_weighted_pressure(
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
             setting by default).
+        toa_pressure (optional): pressure at the top of the model in units of
+            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
+            level FV3GFS configuration.
 
     Returns:
         tuple of regridded input Dataset and area masked wherever coarse
@@ -71,6 +76,7 @@ def regrid_to_area_weighted_pressure(
         y_dim=y_dim,
         z_dim=z_dim,
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
 
@@ -84,6 +90,7 @@ def regrid_to_edge_weighted_pressure(
     z_dim: str = RESTART_Z_CENTER,
     edge: str = "x",
     extrapolate: bool = False,
+    toa_pressure: float = TOA_PRESSURE,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of edge-valued quantities to coarsened
     pressure levels.
@@ -102,6 +109,9 @@ def regrid_to_edge_weighted_pressure(
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
             setting by default).
+        toa_pressure (optional): pressure at the top of the model in units of
+            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
+            level FV3GFS configuration.
 
     Returns:
         tuple of regridded input Dataset and length masked wherever coarse
@@ -135,6 +145,7 @@ def regrid_to_edge_weighted_pressure(
         y_dim=y_dim,
         z_dim=z_dim,
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
 
@@ -147,6 +158,7 @@ def _regrid_given_delp(
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
     extrapolate: bool = False,
+    toa_pressure: float = TOA_PRESSURE,
 ):
     """Given a fine and coarse delp, do vertical regridding to coarse pressure levels
     and mask weights below fine surface pressure.
@@ -155,10 +167,16 @@ def _regrid_given_delp(
         delp_coarse, delp_fine, x_dim=x_dim, y_dim=y_dim
     )
     phalf_coarse_on_fine = pressure_at_interface(
-        delp_coarse_on_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+        delp_coarse_on_fine,
+        dim_center=z_dim,
+        dim_outer=RESTART_Z_OUTER,
+        toa_pressure=toa_pressure,
     )
     phalf_fine = pressure_at_interface(
-        delp_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+        delp_fine,
+        dim_center=z_dim,
+        dim_outer=RESTART_Z_OUTER,
+        toa_pressure=toa_pressure,
     )
 
     ds_regrid = xr.zeros_like(ds)
@@ -167,7 +185,9 @@ def _regrid_given_delp(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
-    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim)
+    pfull_coarse_on_fine = pressure_at_midpoint_log(
+        delp_coarse_on_fine, dim=z_dim, toa_pressure=toa_pressure
+    )
     masked_weights = _mask_weights(
         weights,
         pfull_coarse_on_fine,

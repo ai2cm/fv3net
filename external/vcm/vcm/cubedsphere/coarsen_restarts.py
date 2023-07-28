@@ -155,6 +155,7 @@ def coarsen_restarts_on_pressure(
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     extrapolate: bool = False,
+    toa_pressure: float = TOA_PRESSURE,
 ) -> Mapping[str, xr.Dataset]:
     """Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
@@ -172,6 +173,9 @@ def coarsen_restarts_on_pressure(
             is at least greater than the coarse layer midpoint's pressure.
             Otherwise do not allow any nearest-neighbor extrapolation (the
             setting by default).
+        toa_pressure (optional): pressure at the top of the model in units of
+            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
+            level FV3GFS configuration.
 
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
@@ -195,6 +199,7 @@ def coarsen_restarts_on_pressure(
         coarsening_factor,
         coarsen_agrid_winds,
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
     coarsened["fv_srf_wnd.res"] = _coarse_grain_fv_srf_wnd(
@@ -213,6 +218,7 @@ def coarsen_restarts_on_pressure(
         ),
         coarsening_factor,
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
     coarsened["sfc_data"] = _coarse_grain_sfc_data_complex(
@@ -224,7 +230,7 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["fv_core.res"] = _impose_hydrostatic_balance(
-        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"], toa_pressure=toa_pressure
     )
 
     for category in CATEGORY_LIST:
@@ -239,6 +245,7 @@ def coarsen_restarts_via_blended_method(
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     mass_weighted: bool = True,
+    toa_pressure: float = TOA_PRESSURE,
 ) -> Mapping[str, xr.Dataset]:
     """Coarsen a complete set of restart files using the blended pressure-level
     / model-level coarse-graining method for 3D fields and the 'complex' surface
@@ -256,6 +263,9 @@ def coarsen_restarts_via_blended_method(
             mass-weighted for the vertical velocity, temperature, and mixing
             ratio tracers and area-weighted for all other 3D variables, or
             area-weighted for all 3D variables.
+        toa_pressure (optional): pressure at the top of the model in units of
+            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
+            level FV3GFS configuration.
 
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
@@ -279,6 +289,7 @@ def coarsen_restarts_via_blended_method(
         coarsening_factor,
         coarsen_agrid_winds,
         mass_weighted,
+        toa_pressure=toa_pressure,
     )
 
     coarsened["fv_srf_wnd.res"] = _coarse_grain_fv_srf_wnd(
@@ -297,6 +308,7 @@ def coarsen_restarts_via_blended_method(
         ),
         coarsening_factor,
         mass_weighted,
+        toa_pressure=toa_pressure,
     )
 
     coarsened["sfc_data"] = _coarse_grain_sfc_data_complex(
@@ -308,7 +320,7 @@ def coarsen_restarts_via_blended_method(
     )
 
     coarsened["fv_core.res"] = _impose_hydrostatic_balance(
-        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"], toa_pressure=toa_pressure
     )
 
     for category in CATEGORY_LIST:
@@ -425,6 +437,7 @@ def _coarse_grain_fv_core_on_pressure(
     coarsening_factor,
     coarsen_agrid_winds=False,
     extrapolate=False,
+    toa_pressure=TOA_PRESSURE,
 ):
     """Coarse grain a set of fv_core restart files, averaging on surfaces of
     constant pressure (except for delp, DZ and phis which are averaged on model
@@ -451,6 +464,9 @@ def _coarse_grain_fv_core_on_pressure(
         fine-grid columns whose surface pressure is at least greater than the
         coarse layer midpoint's pressure.  Otherwise do not allow any
         nearest-neighbor extrapolation (the setting by default).
+    toa_pressure : float
+        pressure at the top of the model in units of Pascals.  Defaults to 300 Pa,
+        the top of model pressure in the 79 level FV3GFS configuration.
 
     Returns
     -------
@@ -476,6 +492,7 @@ def _coarse_grain_fv_core_on_pressure(
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_CENTER,
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
     dx_pressure_regridded, masked_dx = regrid_to_edge_weighted_pressure(
@@ -487,6 +504,7 @@ def _coarse_grain_fv_core_on_pressure(
         y_dim=FV_CORE_Y_OUTER,
         edge="x",
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
     dy_pressure_regridded, masked_dy = regrid_to_edge_weighted_pressure(
@@ -498,6 +516,7 @@ def _coarse_grain_fv_core_on_pressure(
         y_dim=FV_CORE_Y_CENTER,
         edge="y",
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
     area_weighted = weighted_block_average(
@@ -686,6 +705,7 @@ def _coarse_grain_fv_core_via_blended_method(
     coarsening_factor,
     coarsen_agrid_winds=False,
     mass_weighted=True,
+    toa_pressure=TOA_PRESSURE,
 ):
     """Coarse grain a set of fv_core restart files via the blended pressure-level
     / model-level approach.
@@ -709,25 +729,52 @@ def _coarse_grain_fv_core_via_blended_method(
     mass_weighted : bool
         Whether to weight temperature and vertical velocity using mass instead
         of area during the model-level coarsening process (default True)
+    toa_pressure : float
+        pressure at the top of the model in units of Pascals.  Defaults to 300 Pa,
+        the top of model pressure in the 79 level FV3GFS configuration.
 
     Returns
     -------
     xr.Dataset
     """
     pressure_level = _coarse_grain_fv_core_on_pressure(
-        ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds
+        ds,
+        delp,
+        area,
+        dx,
+        dy,
+        coarsening_factor,
+        coarsen_agrid_winds,
+        toa_pressure=toa_pressure,
     )
     model_level = _coarse_grain_fv_core(
         ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds, mass_weighted
     )
     weights_agrid = _compute_blending_weights_agrid(
-        delp, area, coarsening_factor, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER
+        delp,
+        area,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
+        toa_pressure=toa_pressure,
     )
     weights_dgrid_u = _compute_blending_weights_dgrid(
-        delp, dx, coarsening_factor, "x", x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_OUTER
+        delp,
+        dx,
+        coarsening_factor,
+        "x",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
+        toa_pressure=toa_pressure,
     )
     weights_dgrid_v = _compute_blending_weights_dgrid(
-        delp, dy, coarsening_factor, "y", x_dim=FV_CORE_X_OUTER, y_dim=FV_CORE_Y_CENTER
+        delp,
+        dy,
+        coarsening_factor,
+        "y",
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
+        toa_pressure=toa_pressure,
     )
     names_2d_agrid = _2d_fv_core_names_agrid(ds)
     names_3d_agrid = _3d_fv_core_names_agrid(ds, coarsen_agrid_winds)
@@ -743,7 +790,7 @@ def _coarse_grain_fv_core_via_blended_method(
 
 
 def _coarse_grain_fv_tracer_via_blended_method(
-    ds, delp, area, coarsening_factor, mass_weighted=True
+    ds, delp, area, coarsening_factor, mass_weighted=True, toa_pressure=TOA_PRESSURE
 ):
     """Coarse grain a set of fv_tracer restart files via the blended
     pressure-level / model-level approach.
@@ -761,13 +808,16 @@ def _coarse_grain_fv_tracer_via_blended_method(
     mass_weighted: bool
         Whether to weight mixing ratios and TKE by mass during the model-level
         coarsening process.
+    toa_pressure : float
+        pressure at the top of the model in units of Pascals.  Defaults to 300 Pa,
+        the top of model pressure in the 79 level FV3GFS configuration.
 
     Returns
     -------
     xr.Dataset
     """
     pressure_level = _coarse_grain_fv_tracer_on_pressure(
-        ds, delp, area, coarsening_factor
+        ds, delp, area, coarsening_factor, toa_pressure=toa_pressure
     )
     model_level = _coarse_grain_fv_tracer(
         ds, delp, area, coarsening_factor, mass_weighted
@@ -778,6 +828,7 @@ def _coarse_grain_fv_tracer_via_blended_method(
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
         y_dim=FV_TRACER_Y_CENTER,
+        toa_pressure=toa_pressure,
     )
     return blend(weights, pressure_level, model_level)
 
@@ -861,7 +912,7 @@ def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor, mass_weighted=Tru
 
 
 def _coarse_grain_fv_tracer_on_pressure(
-    ds, delp, area, coarsening_factor, extrapolate=False
+    ds, delp, area, coarsening_factor, extrapolate=False, toa_pressure=TOA_PRESSURE
 ):
     """Coarse grain a set of fv_tracer restart files, averaging on surfaces of
     constant pressure.
@@ -881,6 +932,9 @@ def _coarse_grain_fv_tracer_on_pressure(
         fine-grid columns whose surface pressure is at least greater than the
         coarse layer midpoint's pressure.  Otherwise do not allow any
         nearest-neighbor extrapolation (the setting by default).
+    toa_pressure : float
+        pressure at the top of the model in units of Pascals.  Defaults to 300 Pa,
+        the top of model pressure in the 79 level FV3GFS configuration.
 
     Returns
     -------
@@ -897,6 +951,7 @@ def _coarse_grain_fv_tracer_on_pressure(
         x_dim=FV_TRACER_X_CENTER,
         y_dim=FV_TRACER_Y_CENTER,
         extrapolate=extrapolate,
+        toa_pressure=toa_pressure,
     )
 
     area_weighted = weighted_block_average(
@@ -944,7 +999,9 @@ def _coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def _impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
+def _impose_hydrostatic_balance(
+    ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER, toa_pressure: float = TOA_PRESSURE
+):
     """Compute layer thicknesses assuming hydrostatic balance and adjust
     surface geopotential in order to maintain same model top height.
 
@@ -952,6 +1009,9 @@ def _impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
         ds_fv_core (xr.Dataset): fv_core restart category Dataset
         ds_fv_tracer (xr.Dataset): fv_tracer restart category Dataset
         dim (str): vertical dimension name (default "zaxis_1")
+        toa_pressure (optional): pressure at the top of the model in units of
+            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
+            level FV3GFS configuration.
 
     Returns:
         xr.Dataset: ds_fv_core with hydrostatic DZ and adjusted phis
@@ -965,6 +1025,7 @@ def _impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
         ds_fv_tracer["sphum"].rename({FV_TRACER_Y_CENTER: FV_CORE_Y_CENTER}),
         ds_fv_core["delp"],
         dim=dim,
+        toa_pressure=toa_pressure,
     )
     return ds_fv_core.assign(DZ=dz, phis=dz_and_top_to_phis(height_top, dz, dim=dim))
 

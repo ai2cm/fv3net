@@ -209,7 +209,11 @@ def surface_pressure_from_delp(
 
 
 def hydrostatic_dz(
-    T: xr.DataArray, q: xr.DataArray, delp: xr.DataArray, dim: str = COORD_Z_CENTER
+    T: xr.DataArray,
+    q: xr.DataArray,
+    delp: xr.DataArray,
+    dim: str = COORD_Z_CENTER,
+    toa_pressure: float = TOA_PRESSURE,
 ) -> xr.DataArray:
     """Compute layer thickness assuming hydrostatic balance.
 
@@ -218,11 +222,16 @@ def hydrostatic_dz(
         q: specific humidity
         delp: pressure thickness
         dim (optional): name of vertical dimension. Defaults to "pfull".
+        toa_pressure (optional): pressure at the top of the model in units of
+            Pascals.  Defaults to 300 Pa, the top of model pressure in the 79
+            level FV3GFS configuration.
 
     Returns:
         layer thicknesses dz
     """
-    pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
+    pi = pressure_at_interface(
+        delp, dim_center=dim, dim_outer=dim, toa_pressure=toa_pressure
+    )
     tv = T * (1 + (_RVGAS / _RDGAS - 1) * q)
     dlogp = np.log(pi).diff(dim)
     return -dlogp * _RDGAS * tv / _GRAVITY
