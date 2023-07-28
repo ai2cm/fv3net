@@ -154,7 +154,7 @@ def main(argv):
         "--toa_pressure",
         type=float,
         default=vcm.calc.thermo.constants.TOA_PRESSURE,
-        help="Pressure at the top of the model in units of Pascals.",
+        help="Pressure at the top of the atmosphere in units of Pascals.",
     )
     parser.add_argument(
         "--coarsen-agrid-winds",

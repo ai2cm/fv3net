@@ -46,7 +46,7 @@ def regrid_to_area_weighted_pressure(
         ds: input Dataset
         delp: pressure thicknesses
         area: area weights
-        toa_pressure: pressure at the top of the model in units of
+        toa_pressure: pressure at the top of the atmosphere in units of
             Pascals
         coarsening_factor: coarsening-factor for pressure levels
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
@@ -97,7 +97,7 @@ def regrid_to_edge_weighted_pressure(
         ds: input Dataset
         delp: pressure thicknesses
         length: edge length weights
-        toa_pressure: pressure at the top of the model in units of
+        toa_pressure: pressure at the top of the atmosphere in units of
             Pascals.
         coarsening_factor: coarsening-factor for pressure levels
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"

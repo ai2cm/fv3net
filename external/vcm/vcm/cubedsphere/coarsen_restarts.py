@@ -163,7 +163,7 @@ def coarsen_restarts_on_pressure(
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
             of 8.
         grid_spec: Dataset containing the variables area, dx, dy.
-        toa_pressure: pressure at the top of the model in units of Pascals.
+        toa_pressure: pressure at the top of the atmosphere in units of Pascals.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
@@ -252,7 +252,7 @@ def coarsen_restarts_via_blended_method(
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a
             factor of 8.
         grid_spec: Dataset containing the variables area, dx, dy.
-        toa_pressure: pressure at the top of the model in units of Pascals.
+        toa_pressure: pressure at the top of the atmosphere in units of Pascals.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
@@ -451,7 +451,7 @@ def _coarse_grain_fv_core_on_pressure(
     dy : xr.DataArray
         y edge lengths
     toa_pressure : float
-        Pressure at the top of the model in units of Pascals.
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     coarsen_agrid_winds : bool
@@ -717,7 +717,7 @@ def _coarse_grain_fv_core_via_blended_method(
     dy : xr.DataArray
         y edge lengths
     toa_pressure : float
-        Pressure at the top of the model in units of Pascals.
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     coarsen_agrid_winds : bool
@@ -790,7 +790,7 @@ def _coarse_grain_fv_tracer_via_blended_method(
     area : xr.DataArray
         Area weights
     toa_pressure : float
-        Pressure at the top of the model in units of Pascals.
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     mass_weighted: bool
@@ -911,7 +911,7 @@ def _coarse_grain_fv_tracer_on_pressure(
     area : xr.DataArray
         Area weights
     toa_pressure : float
-        Pressure at the top of the model in units of Pascals.
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     extrapolate : bool
@@ -992,8 +992,8 @@ def _impose_hydrostatic_balance(
     Args:
         ds_fv_core (xr.Dataset): fv_core restart category Dataset
         ds_fv_tracer (xr.Dataset): fv_tracer restart category Dataset
-        toa_pressure (float): pressure at the top of the model in units of
-            Pascals
+        toa_pressure (float): pressure at the top of the atmosphere in units
+            of Pascals
         dim (str): vertical dimension name (default "zaxis_1")
 
     Returns:
