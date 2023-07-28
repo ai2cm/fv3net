@@ -101,69 +101,42 @@ def normalize_to_neg_one_to_one(img):
 def unnormalize_to_zero_to_one(t):
     return (t + 1) * 0.5
 
-# ssf modules
+# flow modules
 
-def gaussian_pyramids(input, base_sigma = 1, m = 5):
-    
-    output = [input]
-    N, C, H, W = input.shape
-    
-    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))#.unsqueeze(0)
-    
-    for i in range(m):
-        
-        input = filters.filter2d(input, kernel)
-        
-        if i == 0:
-            
-            output.append(input)
-        
-        else:
-            
-            tmp = input
-            
-            for j in range(i):
-                
-                tmp = F.interpolate(tmp, scale_factor = 2., mode = 'bilinear', align_corners = True)
-                
-            output.append(tmp)
-        
-        input = F.interpolate(input, scale_factor = 0.5)
-    
-    return torch.stack(output, 2)
+def flow_warp(x, flow, interp_mode='bilinear', padding_mode='border', align_corners=True):
+    """Warp an image or feature map with optical flow.
 
-def scale_space_warp(input, flow):
-    
-    N, C, H, W = input.shape
-    
-    assert flow.shape == (N, 3, H, W)
-    
-    flow = flow.unsqueeze(0)
-    #multi_scale = gaussian_pyramids(input, self.base_scale, self.gaussian_dim)
-    multi_scale = gaussian_pyramids(input, 1.0, 5)
-    
-    h = torch.arange(H, device=input.device, dtype=input.dtype)
-    w = torch.arange(W, device=input.device, dtype=input.dtype)
-    d = torch.zeros(1, device=input.device, dtype=input.dtype)
-    
-    grid = torch.stack(torch.meshgrid(d, h, w)[::-1], -1).unsqueeze(0)
-    grid = grid.expand(N, -1, -1, -1, -1)
-    flow = flow.permute(1, 0, 3, 4, 2)  # N, 1, H, W, 3
+    Args:
+        x (Tensor): Tensor with size (n, c, h, w).
+        flow (Tensor): Tensor with size (n, h, w, 2), normal value.
+        interp_mode (str): 'nearest' or 'bilinear' or 'nearest4'. Default: 'bilinear'.
+        padding_mode (str): 'zeros' or 'border' or 'reflection'.
+            Default: 'zeros'.
+        align_corners (bool): Before pytorch 1.3, the default value is
+            align_corners=True. After pytorch 1.3, the default value is
+            align_corners=False. Here, we use the True as default.
 
-    # reparameterization
-    # var_channel = (flow[..., -1].exp())**2
-    # var_space = [0.] + [(2.**i * self.base_scale)**2 for i in range(self.gaussian_dim)]
-    # d_offset = var_to_position(var_channel, var_space).unsqueeze(-1)
-    d_offset = flow[..., -1].clamp(min=-1.0, max=1.0).unsqueeze(-1)
 
-    flow = torch.cat((flow[..., :2], d_offset), -1)
-    flow_grid = flow + grid
-    flow_grid[..., 0] = 2.0 * flow_grid[..., 0] / max(W - 1.0, 1.0) - 1.0
-    flow_grid[..., 1] = 2.0 * flow_grid[..., 1] / max(H - 1.0, 1.0) - 1.0
-    
-    warped = F.grid_sample(multi_scale, flow_grid, padding_mode = "border", align_corners = True).squeeze(2)
-    
-    return warped
+    Returns:
+        Tensor: Warped image or feature map.
+    """
+    n, _, h, w = x.size()
+    # create mesh grid
+    grid_y, grid_x = torch.meshgrid(torch.arange(0, h, dtype=x.dtype, device=x.device),
+                                    torch.arange(0, w, dtype=x.dtype, device=x.device))
+    grid = torch.stack((grid_x, grid_y), 2).float()  # W(x), H(y), 2
+    grid.requires_grad = False
+
+    vgrid = grid + flow
+
+    # scale grid to [-1,1]
+    vgrid_x = 2.0 * vgrid[:, :, :, 0] / max(w - 1, 1) - 1.0
+    vgrid_y = 2.0 * vgrid[:, :, :, 1] / max(h - 1, 1) - 1.0
+    vgrid_scaled = torch.stack((vgrid_x, vgrid_y), dim=3)
+
+    output = F.grid_sample(x, vgrid_scaled, mode=interp_mode, padding_mode=padding_mode, align_corners=align_corners)
+
+    return output
 
 # small helper modules
 
@@ -589,7 +562,10 @@ class Flow(nn.Module):
         x = torch.cat((x, r), dim = 1)
 
         x = self.final_res_block(x)
-        return self.final_conv(x), context
+        x = F.tanh(self.final_conv(x))
+
+        return x, context
+        #return self.final_conv(x), context
 
 # gaussian diffusion trainer class
 
@@ -924,7 +900,8 @@ class GaussianDiffusion(nn.Module):
         
         flow, context = self.flow(stack)
         
-        warped = scale_space_warp(ures_flow, flow)
+        flow = self.unnormalize(flow)
+        warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
         
         res = sample_fn((b*(f-2),c,8*h,8*w), l_cond, context, return_all_timesteps = return_all_timesteps)
         sres = warped + res
@@ -932,9 +909,9 @@ class GaussianDiffusion(nn.Module):
 
         warped = rearrange(warped, '(b t) c h w -> b t c h w', b = b)
         res = rearrange(res, '(b t) c h w -> b t c h w', b = b)
-        flow = rearrange(flow, '(b t) c h w -> b t c h w', b = b)
+        flow = rearrange(flow, '(b t) c h w -> b t c h w', t = f-2)
         
-        return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
+        return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), flow
 
     @torch.no_grad()
     def interpolate(self, x1, x2, t = None, lam = 0.5):
@@ -978,7 +955,8 @@ class GaussianDiffusion(nn.Module):
         
         flow, context = self.flow(stack)
         
-        warped = scale_space_warp(ures_flow, flow)
+        flow = self.unnormalize(flow)
+        warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
         
         x_start = rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         x_start = x_start - warped
@@ -1031,7 +1009,7 @@ class GaussianDiffusion(nn.Module):
         loss2 = self.loss_fn(x_start, warped, reduction = 'none')
         loss2 = reduce(loss2, 'b ... -> b (...)', 'mean')
 
-        return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*1.0
+        return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*0.3
 
     def forward(self, lres, hres, *args, **kwargs):
         
@@ -1190,7 +1168,6 @@ class Trainer(object):
         device = accelerator.device
 
         cmap = mpl.colormaps['RdBu_r']
-        fcmap = mpl.colormaps['gray_r']
 
         c384_min = np.load('data/only_precip/c384_min.npy')
         c384_max = np.load('data/only_precip/c384_max.npy')
@@ -1327,20 +1304,14 @@ class Trainer(object):
                                 
                                 flow_d = np.zeros((1, num_frames, 3, img_size, img_size))
                                 for m in range(num_frames):
-                                    flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
+                                    flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
 
-                                flow_s = np.zeros((1, num_frames, 3, img_size, img_size))
-                                sm = smap(None, fcmap)
-                                for m in range(num_frames):
-                                    flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
-                                
                                 accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
                                 accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
                                 accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
                                 accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
