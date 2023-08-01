@@ -16,45 +16,6 @@ from . import io
 from .predictor import Predictor
 
 
-@io.register("dummy_model")
-class DummyModel(Predictor):
-    """ Loads and calls a model's predict method but just
-    returns the input. Used for testing resource usage in the
-    prognostic run.
-    """
-
-    _CONFIG_FILENAME = "dummy_model.yaml"
-
-    def __init__(self, model: Predictor):
-        self.model = model
-        super().__init__(
-            input_variables=model.input_variables,
-            output_variables=model.output_variables,
-        )
-
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        """Calls model's predict method to test timing, but
-        just returns the input data.
-        """
-        self.model.predict(X)
-        return X
-
-    def dump(self, path):
-        raise NotImplementedError(
-            "no dump method yet for this class, you can define one manually "
-            "using instructions at "
-            "http://vulcanclimatemodeling.com/docs/fv3fit/dummy-models.html"
-        )
-
-    @classmethod
-    def load(cls, path: str) -> "DummyModel":
-        """Load a serialized model from a directory."""
-        with fsspec.open(os.path.join(path, cls._CONFIG_FILENAME), "r") as f:
-            config = yaml.safe_load(f)
-        model = cast(Predictor, io.load(config["model"]))
-        return cls(model)
-
-
 @io.register("combined_output_model")
 class CombinedOutputModel(Predictor):
     _CONFIG_FILENAME = "combined_output_model.yaml"
