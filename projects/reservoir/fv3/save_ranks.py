@@ -13,6 +13,11 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Shift hybrid data by this number of timesteps.
+# -1 is common use case for saving the next timestep's ML prediction at
+# the same sample index as reservoir input.
+TIME_SHIFT_HYBRID_DATA = -1
+
 
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -76,7 +81,7 @@ def _get_parser() -> argparse.ArgumentParser:
         help="Sample interval for timesteps.",
     )
     parser.add_argument(
-        "--additional-paths",
+        "--hybrid-data-paths",
         type=str,
         nargs="+",
         default=[],
@@ -110,9 +115,15 @@ if __name__ == "__main__":
         raise ValueError("--variables must be provided via list of string names.")
 
     data = intake.open_zarr(args.data_path).to_dask()
-    if len(args.additional_paths) > 0:
-        for path in args.additional_paths:
-            data = data.merge(intake.open_zarr(path).to_dask())
+    rename_hybrid_time_shifted_vars = {}
+    if len(args.hybrid_data_paths) > 0:
+        for path in args.hybrid_data_paths:
+            _hybrid_data = intake.open_zarr(path).to_dask()
+            _hybrid_data = _hybrid_data.shift(time=TIME_SHIFT_HYBRID_DATA)
+            rename_hybrid_time_shifted_vars.update(
+                {var: f"{var}_at_next_time_step" for var in _hybrid_data.data_vars}
+            )
+            data = data.merge(_hybrid_data)
 
     tstart = (
         data.time.values[0]
@@ -125,8 +136,10 @@ if __name__ == "__main__":
         else vcm.parse_datetime_from_str(args.stop_time)
     )
 
-    data = data[args.variables].sel(
-        time=slice(tstart, tstop, args.time_sample_interval)
+    data = (
+        data[args.variables]
+        .sel(time=slice(tstart, tstop, args.time_sample_interval))
+        .rename(rename_hybrid_time_shifted_vars)
     )
     dims, extent = get_ordered_dims_extent(dict(data.dims))
 
@@ -151,7 +164,6 @@ if __name__ == "__main__":
         data_time_slice = data.sel(time=time_chunk).load()
         for r in save_ranks:
             output_dir = os.path.join(args.output_path, f"rank_{r}")
-            "{:04d}".format(t)
             rank_output_path = os.path.join(output_dir, "{:04d}.nc".format(t))
             rank_data = cubedsphere_divider.get_rank_data(
                 data_time_slice, rank=r, overlap=args.overlap
