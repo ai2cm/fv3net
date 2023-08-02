@@ -4,7 +4,7 @@ import os
 from typing import Iterable, Hashable, Sequence, cast
 import xarray as xr
 import yaml
-
+import pdb
 import fv3fit
 from fv3fit import Predictor
 from .readout import ReservoirComputingReadout
@@ -14,6 +14,9 @@ from fv3fit._shared import io
 from .utils import square_even_terms
 from .transformers import ReloadableTransfomer, encode_columns, decode_columns
 from ._reshaping import flatten_2d_keeping_columns_contiguous
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
@@ -138,12 +141,32 @@ class HybridReservoirComputingModel(Predictor):
             autoencoder=pure_reservoir_model.autoencoder,
             hybrid_variables=hybrid_variables,
         )
-
-
+    
+@io.register("hybrid-dataset-adapter")
 class HybridDatasetAdapter:
-    def __init__(self, model: HybridReservoirComputingModel) -> None:
+    def __init__(
+            self,
+            input_variables: Iterable[Hashable],
+            output_variables: Iterable[Hashable],
+            model: HybridReservoirComputingModel
+            ) -> None:
         self.model = model
+        self.input_variables = list(set(input_variables).union(model.hybrid_variables))
+        self.output_variables = output_variables
 
+
+    def dump(self, path: str) -> None:
+        self.model.dump(path)
+
+    @classmethod
+    def load(cls, path: str) -> "HybridDatasetAdapter":
+        model = HybridReservoirComputingModel.load(path)
+        return cls(
+            input_variables= model.input_variables,
+            output_variables=model.output_variables,
+            model=model
+        )
+    
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # TODO: potentially use in train.py instead of special functions there
         xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
@@ -348,3 +371,87 @@ class DummyModel(Predictor):
             config = yaml.safe_load(f)
         model = cast(HybridReservoirComputingModel, io.load(config["model"]))
         return cls(model)
+
+
+
+
+@io.register("reservoir-dataset-adapter")
+class ReservoirDatasetAdapter:
+    def __init__(
+            self,
+            input_variables: Iterable[Hashable],
+            output_variables: Iterable[Hashable],
+            model: ReservoirComputingModel
+            ) -> None:
+        self.model = model
+        self.input_variables = input_variables
+        self.output_variables = output_variables
+
+
+    def dump(self, path: str) -> None:
+        self.model.dump(path)
+
+    @classmethod
+    def load(cls, path: str) -> "ReservoirDatasetAdapter":
+        model = ReservoirComputingModel.load(path)
+        adapter = cls(
+            input_variables= model.input_variables,
+            output_variables=model.output_variables,
+            model=model
+        )
+        adapter.reset_state()
+        return adapter
+    
+    def predict(self, inputs: xr.Dataset) -> xr.Dataset:
+        prediction_arr = self.model.predict()
+        output_ds = self._output_array_to_ds(prediction_arr, output_dims=list(inputs.dims))
+        logger.info("output ds: ", output_ds)
+        logger.info("input ds: ", inputs)
+        return output_ds
+
+    def increment_state(self, inputs: xr.Dataset):
+        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
+        self.model.increment_state(xy_input_arrs)
+
+    def reset_state(self):
+        self.model.reset_state()
+
+
+    def _ndarray_to_dataarray(self, arr: np.ndarray) -> xr.DataArray:
+        dims = [*self.model.rank_divider.rank_dims] 
+        if len(arr.shape) == 3 and arr.shape[-1] > 1:
+            dims.append("z")
+        return xr.DataArray(data=arr, dims=dims)
+
+    def _output_array_to_ds(
+        self, outputs: Sequence[np.ndarray], output_dims: Sequence[str]
+    ) -> xr.Dataset:
+        ds = xr.Dataset(
+            {
+                var: self._ndarray_to_dataarray(output)
+                for var, output in zip(self.model.output_variables, outputs)
+            }
+        ).transpose(*output_dims)
+        """
+        ds = xr.Dataset(
+            {
+                var: (dims, outputs[i])
+                for i, var in enumerate(self.model.output_variables)
+            }
+        )
+        """
+        return ds
+    
+    def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence[np.ndarray]:
+        # Converts from xr dataset to sequence of variable ndarrays expected by encoder
+        # Make sure the xy dimensions match the rank divider
+        transposed_inputs = _transpose_xy_dims(
+            ds=inputs, rank_dims=self.model.rank_divider.rank_dims
+        )
+        input_arrs = []
+        for variable in self.model.input_variables:
+            da = transposed_inputs[variable]
+            if "z" not in da.dims:
+                da = da.expand_dims("z", axis=-1)
+            input_arrs.append(da.values)
+        return input_arrs
