@@ -1031,7 +1031,7 @@ class GaussianDiffusion(nn.Module):
         loss2 = self.loss_fn(x_start, warped, reduction = 'none')
         loss2 = reduce(loss2, 'b ... -> b (...)', 'mean')
 
-        return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*1.0
+        return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*0.3
 
     def forward(self, lres, hres, *args, **kwargs):
         
@@ -1138,7 +1138,9 @@ class Trainer(object):
 
         self.results_folder.mkdir(exist_ok=True, parents=True)
         
-        self.eval_folder = eval_folder
+        self.eval_folder = Path(eval_folder)
+
+        self.eval_folder.mkdir(exist_ok=True, parents=True)
 
         # step counter state
 
@@ -1362,159 +1364,30 @@ class Trainer(object):
         
         self.ema.ema_model.eval()
 
-        cmap = mpl.colormaps['viridis']
-        sm = smap(None, cmap)
+        c384_norm= torch.from_numpy(np.load("data/only_precip/c384_norm.npy"))
+        c48_norm = torch.from_numpy(np.load("data/only_precip/c48_norm.npy"))
 
         with torch.no_grad():
 
-            for k, batch in enumerate(self.val_dl):
+            for tile in range(6):
 
-                lres = batch['LR'].to(device)
-                hres = batch['HR'].to(device)
-                
-                if k >= self.val_num_of_batch:
-                    break
-                
-                limit = lres.shape[1]
-                if limit < 8:
-                    
-                    #videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres, True)
-                    videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres)
+                st = 0
+                en = 27
+                count = 0
 
-                    torch.save(videos, os.path.join(self.eval_folder) + "/gen.pt")
-                    torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr.pt")
-                    torch.save(lres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_lr.pt")
+                while en < c48_norm.shape[1]:
 
-                    for i, b in enumerate(videos.clamp(0, 1)):
-                        if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-                            os.makedirs(os.path.join(self.eval_folder, "generated"))
-                        Parallel(n_jobs=4)(
-                            delayed(save_image)(sm.to_rgba(f[0,:,:]), os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-                            for j, f in enumerate(b.cpu())
-                        )
+                    print(tile, st)
 
-                    #videos = torch.log(videos.clamp(0.0, 1.0) + 1)
-                    #hres = torch.log(hres + 1)
-                
-                    #for i, b in enumerate(videos.clamp(0, 1)):
-                    # for i, b in enumerate(videos):
-                    #     if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-                    #         os.makedirs(os.path.join(self.eval_folder, "generated"))
-                    #     Parallel(n_jobs=4)(
-                    #         delayed(save_image)(f, os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-                    #         for j, f in enumerate(b.cpu())
-                    #     )
-                          
-#                     for i, b in enumerate(nsteps.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "residual")):
-#                             os.makedirs(os.path.join(self.eval_folder, "residual"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "residual") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                          
-#                     for i, b in enumerate(base.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "warped")):
-#                             os.makedirs(os.path.join(self.eval_folder, "warped"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "warped") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                        
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "flows") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                
-                    for i, b in enumerate(hres[:,2:,:,:,:].clamp(0, 1)):
-                        if not os.path.isdir(os.path.join(self.eval_folder, "truth")):
-                            os.makedirs(os.path.join(self.eval_folder, "truth"))
-                        Parallel(n_jobs=4)(
-                            delayed(save_image)(sm.to_rgba(f[0,:,:]), os.path.join(self.eval_folder, "truth") + f"/{k}-{i}-{j}.png")
-                            for j, f in enumerate(b.cpu())
-                        )
-                
-#                 else:
-                    
-#                     videos, base, nsteps, flows = self.ema.ema_model.sample(lres[:,:7,:,:], hres[:,:7,:,:], True)
-                    
-#                     st = 5
-#                     ed = st + 7
-                    
-#                     while ed < limit:
-                        
-#                         vi, ba, ns, fl = self.ema.ema_model.sample(lres[:,st:ed,:,:], hres[:,st:ed,:,:], True)
-#                         st += 5
-#                         ed += 5
-#                         videos = torch.cat((videos, vi), 1)
-#                         #base = torch.cat((base, ba), 1)
-#                         #nsteps = torch.cat((nsteps, ns), 1)
-#                         #flows = torch.cat((flows, fl), 1)
-                    
-#                     for i, b in enumerate(videos.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-#                             os.makedirs(os.path.join(self.eval_folder, "generated"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                
-#                     for i, b in enumerate(hres[:,2:,:,:,:].clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "truth")):
-#                             os.makedirs(os.path.join(self.eval_folder, "truth"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "truth") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                        
-# #                     for i, b in enumerate(nsteps.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "residual")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "residual"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "residual") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                          
-# #                     for i, b in enumerate(base.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "warped")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "warped"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "warped") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                        
-# #                     for i, b in enumerate(flows.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "flows")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "flows"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "flows") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                        
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows_d")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows_d"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(plt.imsave)(os.path.join(self.eval_folder, "flows_d") + f"/{k}-{i}-{j}.png", flow_vis.flow_to_color(f.permute(1,2,0).cpu().numpy()[:,:,:2], convert_to_bgr = False))
-#                             for j, f in enumerate(b.cpu())
-#                         )
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows_s")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows_s"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(plt.imsave)(os.path.join(self.eval_folder, "flows_s") + f"/{k}-{i}-{j}.png", f.permute(1,2,0).cpu().numpy()[:,:,2], cmap = 'gray_r')
-#                             for j, f in enumerate(b.cpu())
-#                         )
+                    lres = c48_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
+                    hres = c384_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
+
+                    videos, base, res, flows = self.ema.ema_model.sample(lres)
+
+                    torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
+                    torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
+                    torch.save(lres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))
+
+                    st += 25
+                    en += 25
+                    count += 1

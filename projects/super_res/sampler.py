@@ -1,6 +1,6 @@
 import os
 
-from model.autoreg_diffusion import Unet, Flow, GaussianDiffusion, Trainer
+from model.autoreg_diffusion_mod import Unet, Flow, GaussianDiffusion, Trainer
 from data.load_data import load_data
 from config_infer import config
 
@@ -31,17 +31,10 @@ diffusion = GaussianDiffusion(
     objective = config.objective
 ).cuda()
 
-train_dl, val_dl = load_data(
-        config.data_config,
-        config.batch_size,
-        pin_memory = True,
-        num_workers = 4,
-    )
-
 trainer = Trainer(
     diffusion,
-    train_dl,
-    val_dl,
+    None,
+    None,
     train_batch_size = config.batch_size,
     train_lr = config.lr,
     train_num_steps = config.steps,
