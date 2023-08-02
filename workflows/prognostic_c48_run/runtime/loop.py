@@ -451,31 +451,29 @@ class TimeLoop(
 
     def _open_model(self, ml_config: MachineLearningConfig):
         self._log_info("Downloading ML Model")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # for global ML models, download once on rank 0 and broadcast
-            if self.rank == 0:
-                local_model_paths = download_models(ml_config.model, tmpdir)
-            else:
-                local_model_paths = None  # type: ignore
-            local_model_paths = self.comm.bcast(local_model_paths, root=0)
+        with self._timer.clock("ml_model_loading"):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # for global ML models, download once on rank 0 and broadcast
+                if self.rank == 0:
+                    local_model_paths = download_models(ml_config.model, tmpdir)
+                else:
+                    local_model_paths = None  # type: ignore
+                local_model_paths = self.comm.bcast(local_model_paths, root=0)
 
-            # for rank-specific ML models, download to each rank
-            if ml_config.rank_models is not None:
-                local_rank_model_paths = download_models(
-                    model_paths=ml_config.rank_models.get(self.rank, []),
-                    local_base_path=tmpdir,
+                # for rank-specific ML models, download to each rank
+                if ml_config.rank_models is not None:
+                    local_rank_model_paths = download_models(
+                        model_paths=ml_config.rank_models.get(self.rank, []),
+                        local_base_path=tmpdir,
+                    )
+                setattr(
+                    ml_config,
+                    "model",
+                    local_model_paths + local_rank_model_paths,  # type: ignore
                 )
-            setattr(
-                ml_config,
-                "model",
-                local_model_paths + local_rank_model_paths,  # type: ignore
-            )
-            logger.info(
-                f"Model Downloaded From Remote on rank {self.rank}: {local_model_paths}"
-            )
-            model = open_model(ml_config)
-            MPI.COMM_WORLD.barrier()
-        self._log_info("Model Loaded")
+                model = open_model(ml_config)
+                MPI.COMM_WORLD.barrier()
+            self._log_info("Model Loaded")
         return model
 
     @property
