@@ -95,7 +95,7 @@ def test_regression_coarsen_restarts(
 ):
     grid_spec_path = str(restart_dir.join("grid_spec"))
     src_path = str(restart_dir)
-    toa_pressure = TOA_PRESSURE
+    toa_pressure = str(TOA_PRESSURE)
     in_res = "48"
     out_res = "6"
     time = "20160101.000000"
