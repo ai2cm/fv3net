@@ -111,15 +111,13 @@ def _get_states_without_overlap(
     return np.stack(states_without_overlap_time_series, axis=1)
 
 
-def main(args):
-    model: ReservoirModel = fv3fit.load(args.reservoir_model_path)
-    with fsspec.open(args.validation_config_path, "r") as f:
-        val_data_config = yaml.safe_load(f)
-    val_batches = _load_batches(
-        path=val_data_config["url"],
-        variables=_get_variables_to_load(model),
-        nfiles=val_data_config.get("nfiles", None),
-    )
+
+def generate_time_series(
+        model,
+        val_batches,
+        n_synchronize,
+):
+
     # Initialize hidden state
     model.reset_state()
 
@@ -165,7 +163,7 @@ def main(args):
             )
 
     target_time_series = np.concatenate(target_time_series, axis=0)[
-        args.n_synchronize :
+        n_synchronize :
     ]
 
     persistence = target_time_series[:-1]
@@ -173,8 +171,25 @@ def main(args):
 
     # _get_predictions_over_batch predicts up to n_timesteps-1
     one_step_predictions = np.array(one_step_prediction_time_series)[
-        args.n_synchronize : -1
+        n_synchronize : -1
     ]
+    return one_step_predictions, persistence, target 
+
+
+def main(args):
+    model: ReservoirModel = fv3fit.load(args.reservoir_model_path)
+    with fsspec.open(args.validation_config_path, "r") as f:
+        val_data_config = yaml.safe_load(f)
+        val_batches = _load_batches(
+            path=val_data_config["url"],
+            variables=_get_variables_to_load(model),
+            nfiles=val_data_config.get("nfiles", None),
+        )
+    one_step_predictions, persistence, target = generate_time_series(
+        model=model,
+        val_batches=val_batches,
+        n_synchronize=args.n_synchronize,
+)
     time_means_to_calculate = {
         "time_mean_prediction": one_step_predictions,
         "time_mean_error": one_step_predictions - target,
