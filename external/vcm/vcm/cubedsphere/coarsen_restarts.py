@@ -76,6 +76,7 @@ logger = logging.getLogger("vcm.coarsen")
 def coarsen_restarts_on_sigma(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
+    toa_pressure: float,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     mass_weighted: bool = True,
@@ -87,6 +88,9 @@ def coarsen_restarts_on_sigma(
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
             of 8.
         grid_spec: Dataset containing the variables area, dx, dy.
+        toa_pressure: pressure at the top of the atmosphere in units of Pascals
+            (not used in this function, but required for harmonizing the required
+            arguments with other coarse-graining functions).
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
