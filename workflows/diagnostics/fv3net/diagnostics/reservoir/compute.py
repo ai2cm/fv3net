@@ -59,7 +59,7 @@ def _load_batches(path, variables, nfiles):
 
 
 def _get_variables_to_load(model: ReservoirModel):
-    variables = list(model.input_variables)
+    variables = list(set(model.input_variables).union(model.output_variables))
     if isinstance(model, HybridReservoirComputingModel):
         return variables + list(model.hybrid_variables)
     else:
@@ -104,29 +104,27 @@ def _get_states_without_overlap(
     states_without_overlap_time_series = []
     for var_time_series in states_with_overlap_time_series:
         # dims in array var_time_series are (t, x, y, z)
-        states_without_overlap_time_series.append(
-            var_time_series[:, overlap:-overlap, overlap:-overlap, :]
-        )
+        if overlap > 0:
+            var_time_series = var_time_series[:, overlap:-overlap, overlap:-overlap, :]
+        states_without_overlap_time_series.append(var_time_series)
     # dims (t, var, x, y, z)
     return np.stack(states_without_overlap_time_series, axis=1)
 
 
-def main(args):
-    model: ReservoirModel = fv3fit.load(args.reservoir_model_path)
-    with fsspec.open(args.validation_config_path, "r") as f:
-        val_data_config = yaml.safe_load(f)
-    val_batches = _load_batches(
-        path=val_data_config["url"],
-        variables=_get_variables_to_load(model),
-        nfiles=val_data_config.get("nfiles", None),
-    )
+
+def generate_time_series(
+        model,
+        val_batches,
+        n_synchronize,
+):
+
     # Initialize hidden state
     model.reset_state()
 
     one_step_prediction_time_series = []
     target_time_series = []
     for batch_data in val_batches:
-        states_with_overlap_time_series = get_ordered_X(
+        input_states_with_overlap_time_series = get_ordered_X(
             batch_data, model.input_variables
         )
 
@@ -134,23 +132,38 @@ def main(args):
             hybrid_inputs_time_series = get_ordered_X(
                 batch_data, model.hybrid_variables
             )
+
             hybrid_inputs_time_series = _get_states_without_overlap(
                 hybrid_inputs_time_series, overlap=model.rank_divider.overlap
             )
         else:
             hybrid_inputs_time_series = None
         batch_predictions = _get_predictions_over_batch(
-            model, states_with_overlap_time_series, hybrid_inputs_time_series
+            model, input_states_with_overlap_time_series, hybrid_inputs_time_series
         )
 
         one_step_prediction_time_series += batch_predictions
-        target_time_series.append(
-            _get_states_without_overlap(
-                states_with_overlap_time_series, overlap=model.rank_divider.overlap
+
+        if set(model.input_variables) == set(model.output_variables):
+            target_time_series.append(
+                _get_states_without_overlap(
+                    input_states_with_overlap_time_series,
+                    overlap=model.rank_divider.overlap,
+                )
             )
-        )
+        else:
+            output_states_with_overlap_time_series = get_ordered_X(
+                batch_data, model.output_variables
+            )
+            target_time_series.append(
+                _get_states_without_overlap(
+                    output_states_with_overlap_time_series,
+                    overlap=model.rank_divider.overlap,
+                )
+            )
+
     target_time_series = np.concatenate(target_time_series, axis=0)[
-        args.n_synchronize :
+        n_synchronize :
     ]
 
     persistence = target_time_series[:-1]
@@ -158,8 +171,25 @@ def main(args):
 
     # _get_predictions_over_batch predicts up to n_timesteps-1
     one_step_predictions = np.array(one_step_prediction_time_series)[
-        args.n_synchronize : -1
+        n_synchronize : -1
     ]
+    return one_step_predictions, persistence, target 
+
+
+def main(args):
+    model: ReservoirModel = fv3fit.load(args.reservoir_model_path)
+    with fsspec.open(args.validation_config_path, "r") as f:
+        val_data_config = yaml.safe_load(f)
+        val_batches = _load_batches(
+            path=val_data_config["url"],
+            variables=_get_variables_to_load(model),
+            nfiles=val_data_config.get("nfiles", None),
+        )
+    one_step_predictions, persistence, target = generate_time_series(
+        model=model,
+        val_batches=val_batches,
+        n_synchronize=args.n_synchronize,
+)
     time_means_to_calculate = {
         "time_mean_prediction": one_step_predictions,
         "time_mean_error": one_step_predictions - target,
@@ -169,7 +199,7 @@ def main(args):
     }
     diags_ = []
     for key, data in time_means_to_calculate.items():
-        diags_.append(_time_mean_dataset(model.input_variables, data, key))
+        diags_.append(_time_mean_dataset(model.output_variables, data, key))
 
     ds = xr.merge(diags_)
 

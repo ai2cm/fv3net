@@ -65,7 +65,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     output_variables: time series variables, must be subset of input_variables
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
-    n_batches_burn: number of training batches at start of time series to use
+    n_timesteps_synchronize: number of timesteps at start of time series to use
         for synchronizaton.  This data is  used to update the reservoir state
         but is not included in training.
     input_noise: stddev of normal distribution which is sampled to add input
@@ -88,21 +88,23 @@ class ReservoirTrainingConfig(Hyperparameters):
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
-    n_batches_burn: int
+    n_timesteps_synchronize: int
     input_noise: float
     seed: int = 0
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     autoencoder_path: Optional[str] = None
+    hybrid_autoencoder_path: Optional[str] = None
     hybrid_variables: Optional[Sequence[str]] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
         if set(self.output_variables).issubset(self.input_variables) is False:
-            raise ValueError(
-                f"Output variables {self.output_variables} must be a subset of "
-                f"input variables {self.input_variables}."
-            )
+            if len(set(self.output_variables).intersection(self.input_variables)) > 0:
+                raise ValueError(
+                    f"Output variables {self.output_variables} must either be a subset "
+                    f"of input variables {self.input_variables} or mutually exclusive."
+                )
         if self.hybrid_variables is not None:
             hybrid_and_input_vars_intersection = set(
                 self.hybrid_variables
@@ -119,7 +121,9 @@ class ReservoirTrainingConfig(Hyperparameters):
             hybrid_vars = list(self.hybrid_variables)  # type: ignore
         else:
             hybrid_vars = []
-        return set(list(self.input_variables) + hybrid_vars)
+        return set(
+            list(self.input_variables) + list(self.output_variables) + hybrid_vars
+        )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
@@ -148,7 +152,7 @@ class ReservoirTrainingConfig(Hyperparameters):
 
     def dump(self, path: str):
         metadata = {
-            "n_batches_burn": self.n_batches_burn,
+            "n_timesteps_synchronize": self.n_timesteps_synchronize,
             "input_noise": self.input_noise,
             "seed": self.seed,
             "n_jobs": self.n_jobs,

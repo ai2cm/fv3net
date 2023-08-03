@@ -4,9 +4,14 @@ import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, List, Union
+from typing import Optional, List, Union, cast
 from .. import Predictor
-from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
+from .utils import (
+    square_even_terms,
+    process_batch_Xy_data,
+    get_ordered_X,
+    SynchronziationTracker,
+)
 from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
@@ -31,6 +36,16 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
+def _get_standard_normalizing_transformer(variables, sample_batch):
+    variable_data = get_ordered_X(sample_batch, variables)
+    variable_data_stacked = [
+        stack_array_preserving_last_dim(arr).numpy() for arr in variable_data
+    ]
+    return build_concat_and_scale_only_autoencoder(
+        variables=variables, X=variable_data_stacked
+    )
+
+
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -42,17 +57,39 @@ def train_reservoir_model(
     sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     if hyperparameters.autoencoder_path is not None:
-        autoencoder: ReloadableTransfomer = fv3fit.load(
-            hyperparameters.autoencoder_path
-        )  # type: ignore
+        input_autoencoder = cast(
+            ReloadableTransfomer, fv3fit.load(hyperparameters.autoencoder_path)
+        )
     else:
-        sample_X_stacked = [
-            stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
-        ]
-        autoencoder = build_concat_and_scale_only_autoencoder(
-            variables=hyperparameters.input_variables, X=sample_X_stacked
+        input_autoencoder = _get_standard_normalizing_transformer(
+            hyperparameters.input_variables, sample_batch
         )
 
+    if hyperparameters.hybrid_variables is not None:
+        if hyperparameters.hybrid_autoencoder_path is not None:
+            hybrid_autoencoder = cast(
+                ReloadableTransfomer,
+                fv3fit.load(hyperparameters.hybrid_autoencoder_path),
+            )
+        else:
+            hybrid_autoencoder = _get_standard_normalizing_transformer(
+                hyperparameters.hybrid_variables, sample_batch
+            )
+
+    # If output variables are different from inputs, need to have a separate
+    # autoencoder for decoding outputs
+    if set(hyperparameters.output_variables) != set(hyperparameters.input_variables):
+        if hyperparameters.autoencoder_path is not None:
+            raise ValueError(
+                "Output variables != input variables, cannot use the same "
+                f"autoencoder {hyperparameters.autoencoder_path} for both. "
+                "This feature will be added in the future."
+            )
+        output_autoencoder = _get_standard_normalizing_transformer(
+            hyperparameters.output_variables, sample_batch
+        )
+    else:
+        output_autoencoder = input_autoencoder
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
@@ -67,7 +104,8 @@ def train_reservoir_model(
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.subdomain_size_with_overlap * autoencoder.n_latent_dims,
+        input_size=rank_divider.subdomain_size_with_overlap
+        * input_autoencoder.n_latent_dims,
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -76,29 +114,30 @@ def train_reservoir_model(
         BatchLinearRegressor(hyperparameters.readout_hyperparameters)
         for r in range(rank_divider.n_subdomains)
     ]
+    sync_tracker = SynchronziationTracker(
+        n_synchronize=hyperparameters.n_timesteps_synchronize
+    )
     for b, batch_data in enumerate(train_batches):
         time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=input_autoencoder,
         )
-
-        if b < hyperparameters.n_batches_burn:
-            logger.info(f"Synchronizing on batch {b+1}")
 
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
         reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
+        sync_tracker.count(len(reservoir_state_time_series))
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
             _, hybrid_time_series = process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
-                autoencoder=autoencoder,
+                autoencoder=hybrid_autoencoder,
             )
         else:
             hybrid_time_series = None
@@ -110,7 +149,26 @@ def train_reservoir_model(
             hybrid_time_series=hybrid_time_series,
         )
 
-        if b >= hyperparameters.n_batches_burn:
+        if set(hyperparameters.input_variables) != (hyperparameters.output_variables):
+            _, output_time_series_without_overlap = process_batch_Xy_data(
+                variables=hyperparameters.output_variables,
+                batch_data=batch_data,
+                rank_divider=rank_divider,
+                autoencoder=output_autoencoder,
+            )
+            logger.info(
+                f"Using output_variables {hyperparameters.output_variables}, "
+                f"which differ from input_variables {hyperparameters.input_variables}"
+            )
+            readout_output = output_time_series_without_overlap[:-1]
+
+        if sync_tracker.completed_synchronization:
+            readout_input = sync_tracker.trim_synchronization_samples_if_needed(
+                readout_input
+            )
+            readout_output = sync_tracker.trim_synchronization_samples_if_needed(
+                readout_output
+            )
             logger.info(f"Fitting on batch {b+1}")
             _fit_batch_over_subdomains(
                 X_batch=readout_input,
@@ -137,23 +195,26 @@ def train_reservoir_model(
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=input_autoencoder,
+            output_autoencoder=output_autoencoder,
         )
     else:
         model = HybridReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
             hybrid_variables=hyperparameters.hybrid_variables,
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=input_autoencoder,
+            output_autoencoder=output_autoencoder,
+            hybrid_autoencoder=hybrid_autoencoder,
         )
     return model
 

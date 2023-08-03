@@ -4,6 +4,8 @@ import os
 import tensorflow as tf
 from toolz.functoolz import curry
 from typing import Union, Sequence, Optional, List, Set, Tuple
+from tensorflow.python.keras.utils.generic_utils import to_list
+
 from fv3fit.reservoir.transformers.transformer import Transformer
 from fv3fit._shared import (
     get_dir,
@@ -68,8 +70,8 @@ class Autoencoder(tf.keras.Model, Transformer):
         x = _ensure_all_items_have_sample_dim(x)
         return self.encoder.predict(x)
 
-    def decode(self, latent_x: ArrayLike) -> ArrayLike:
-        return self.decoder.predict(latent_x)
+    def decode(self, latent_x: ArrayLike) -> Sequence[ArrayLike]:
+        return to_list(self.decoder.predict(latent_x))
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
