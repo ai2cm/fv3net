@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from typing import Iterable, Hashable, Sequence
 import xarray as xr
 
@@ -67,6 +68,8 @@ class DatasetAdapter:
 
 @io.register("reservoir-adapter")
 class ReservoirDatasetAdapter(Predictor):
+    MODEL_DIR = "reservoir_model"
+
     def __init__(
         self,
         model: ReservoirComputingModel,
@@ -99,11 +102,11 @@ class ReservoirDatasetAdapter(Predictor):
         self.model.reset_state()
 
     def dump(self, path):
-        self.model.dump(path)
+        self.model.dump(os.path.join(path, self.MODEL_DIR))
 
     @classmethod
     def load(cls, path: str) -> "ReservoirDatasetAdapter":
-        model = ReservoirComputingModel.load(path)
+        model = ReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
         model.reset_state()
         adapter = cls(
             input_variables=model.input_variables,
@@ -115,6 +118,8 @@ class ReservoirDatasetAdapter(Predictor):
 
 @io.register("hybrid-reservoir-adapter")
 class HybridReservoirDatasetAdapter(Predictor):
+    MODEL_DIR = "hybrid_reservoir_model"
+
     def __init__(
         self,
         model: HybridReservoirComputingModel,
@@ -150,11 +155,11 @@ class HybridReservoirDatasetAdapter(Predictor):
         self.model.reset_state()
 
     def dump(self, path):
-        self.model.dump(path)
+        self.model.dump(os.path.join(path, self.MODEL_DIR))
 
     @classmethod
     def load(cls, path: str) -> "HybridReservoirDatasetAdapter":
-        model = HybridReservoirComputingModel.load(path)
+        model = HybridReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
         model.reset_state()
         adapter = cls(
             input_variables=model.input_variables,

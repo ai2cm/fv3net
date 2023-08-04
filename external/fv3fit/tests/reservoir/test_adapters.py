@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+import fv3fit
 from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
 from fv3fit.reservoir.domain import RankDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
@@ -138,3 +139,29 @@ def test_adapter_increment_state():
     )
     model.reset_state()
     model.increment_state(data)
+
+
+def test_adapter_dump_and_load(tmpdir):
+    predictor = get_initialized_model(n_hybrid_inputs=0)
+    data = get_single_rank_xarray_data()
+
+    model = ReservoirDatasetAdapter(
+        model=predictor,
+        input_variables=predictor.input_variables,
+        output_variables=predictor.output_variables,
+    )
+    nhalo = model.model.rank_divider.overlap
+    data_without_overlap = data.isel(
+        {"x": slice(nhalo, -nhalo), "y": slice(nhalo, -nhalo)}
+    )
+    model.reset_state()
+    result0 = model.predict(data_without_overlap)
+
+    model.dump(str(tmpdir))
+    loaded_model = fv3fit.load(str(tmpdir))
+    loaded_model.reset_state()
+    print(model)
+    print(loaded_model)
+    result1 = loaded_model.predict(data_without_overlap)
+    for r0, r1 in zip(result0, result1):
+        np.testing.assert_array_equal(r0, r1)
