@@ -9,8 +9,13 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirHyperparameters,
     HybridReservoirComputingModel,
+    ReservoirComputingModel,
 )
-from fv3fit.reservoir.model import HybridDatasetAdapter, _transpose_xy_dims
+from fv3fit.reservoir.adapters import (
+    ReservoirDatasetAdapter,
+    HybridReservoirDatasetAdapter,
+    _transpose_xy_dims,
+)
 
 
 @pytest.mark.parametrize(
@@ -25,17 +30,15 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
     assert list(_transpose_xy_dims(da, rank_dims=["x", "y"]).dims) == reordered_dims
 
 
-def get_initialized_hybrid_model():
+def get_initialized_model(n_hybrid_inputs: int = 0):
     # expects rank size (including halos) in latent space
     divider = RankDivider((2, 2), ["x", "y"], [8, 8], 2)
     autoencoder = DoNothingAutoencoder([3, 3])
     input_size = 6 * 6 * autoencoder.n_latent_dims  # overlap subdomain in latent space
-    hybrid_input_size_per_subdomain = (
+    output_size = (
         divider.subdomain_xy_size_without_overlap ** 2 * autoencoder.n_latent_dims
     )  # no overlap subdomain in latent space
-    output_size = (
-        hybrid_input_size_per_subdomain  # no overlap subdomain in latent space
-    )
+    hybrid_input_size_per_subdomain = output_size if n_hybrid_inputs > 0 else 0
 
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
@@ -54,18 +57,27 @@ def get_initialized_hybrid_model():
         intercepts=np.random.rand(output_size * 4),
     )
 
-    hybrid_predictor = HybridReservoirComputingModel(
-        input_variables=["a", "b"],
-        output_variables=["a", "b"],
-        hybrid_variables=["a", "b"],
-        reservoir=reservoir,
-        readout=readout,
-        rank_divider=divider,
-        autoencoder=autoencoder,
-    )
-    hybrid_predictor.reset_state()
-
-    return hybrid_predictor
+    if n_hybrid_inputs > 0:
+        predictor = HybridReservoirComputingModel(
+            input_variables=["a", "b"],
+            output_variables=["a", "b"],
+            hybrid_variables=[f"h{i}" for i in range(n_hybrid_inputs)],
+            reservoir=reservoir,
+            readout=readout,
+            rank_divider=divider,
+            autoencoder=autoencoder,
+        )
+        predictor.reset_state()
+    else:
+        predictor = ReservoirComputingModel(
+            input_variables=["a", "b"],
+            output_variables=["a", "b"],
+            reservoir=reservoir,
+            readout=readout,
+            rank_divider=divider,
+            autoencoder=autoencoder,
+        )
+    return predictor
 
 
 def get_single_rank_xarray_data():
@@ -81,11 +93,32 @@ def get_single_rank_xarray_data():
     )
 
 
-def test_adapter_predict(regtest):
-    hybrid_predictor = get_initialized_hybrid_model()
+def test_hybrid_adapter_predict(regtest):
+    hybrid_predictor = get_initialized_model(n_hybrid_inputs=2)
     data = get_single_rank_xarray_data()
 
-    model = HybridDatasetAdapter(hybrid_predictor)
+    model = HybridReservoirDatasetAdapter(
+        model=hybrid_predictor,
+        input_variables=hybrid_predictor.input_variables,
+        output_variables=hybrid_predictor.output_variables,
+    )
+    nhalo = model.model.rank_divider.overlap
+    data_without_overlap = data.isel(
+        {"x": slice(nhalo, -nhalo), "y": slice(nhalo, -nhalo)}
+    )
+    result = model.predict(data_without_overlap)
+    print(result, file=regtest)
+
+
+def test_adapter_predict(regtest):
+    predictor = get_initialized_model(n_hybrid_inputs=0)
+    data = get_single_rank_xarray_data()
+
+    model = ReservoirDatasetAdapter(
+        model=predictor,
+        input_variables=predictor.input_variables,
+        output_variables=predictor.output_variables,
+    )
     nhalo = model.model.rank_divider.overlap
     data_without_overlap = data.isel(
         {"x": slice(nhalo, -nhalo), "y": slice(nhalo, -nhalo)}
@@ -95,9 +128,13 @@ def test_adapter_predict(regtest):
 
 
 def test_adapter_increment_state():
-    hybrid_predictor = get_initialized_hybrid_model()
+    hybrid_predictor = get_initialized_model(n_hybrid_inputs=2)
     data = get_single_rank_xarray_data()
 
-    model = HybridDatasetAdapter(hybrid_predictor)
+    model = HybridReservoirDatasetAdapter(
+        model=hybrid_predictor,
+        input_variables=hybrid_predictor.input_variables,
+        output_variables=hybrid_predictor.output_variables,
+    )
     model.reset_state()
     model.increment_state(data)

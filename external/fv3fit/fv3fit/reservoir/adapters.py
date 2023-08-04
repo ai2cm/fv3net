@@ -146,6 +146,9 @@ class HybridReservoirDatasetAdapter(Predictor):
         )  # x, y, feature dims
         self.model.increment_state(xy_input_arrs)
 
+    def reset_state(self):
+        self.model.reset_state()
+
     def dump(self, path):
         self.model.dump(path)
 
