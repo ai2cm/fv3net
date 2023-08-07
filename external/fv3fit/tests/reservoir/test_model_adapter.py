@@ -94,7 +94,7 @@ def get_single_rank_xarray_data_with_overlap():
 
 def test_adapter_predict(regtest):
     hybrid_predictor = get_initialized_hybrid_model()
-    data = get_single_rank_xarray_data()
+    data = get_single_rank_xarray_data_with_overlap()
 
     model = HybridDatasetAdapter(hybrid_predictor)
     nhalo = model.model.rank_divider.overlap
