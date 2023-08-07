@@ -217,6 +217,11 @@ class ReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
+        if isinstance(rank_divider, OverlapRankXYDivider):
+            self._no_overlap_divider = rank_divider.get_no_overlap_rank_xy_divider()
+        else:
+            self._no_overlap_divider = rank_divider
+
     def process_state_to_readout_input(self):
         readout_input = self.reservoir.state
         if self.square_half_hidden_state is True:
@@ -228,7 +233,7 @@ class ReservoirComputingModel(Predictor):
         # Returns raw readout prediction of latent state.
         readout_input = self.process_state_to_readout_input()
         flat_prediction = self.readout.predict(readout_input)
-        prediction = self.rank_divider.merge_all_flat_feature_subdomains(
+        prediction = self._no_overlap_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
         decoded_prediction = decode_columns(

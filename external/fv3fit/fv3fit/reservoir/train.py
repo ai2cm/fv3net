@@ -116,9 +116,11 @@ def train_reservoir_model(
 
         if b >= hyperparameters.n_batches_burn:
             logger.info(f"Fitting on batch {b+1}")
-            readout_input = rank_divider.subdomains_to_leading_axis(readout_input)
+            readout_input = rank_divider.subdomains_to_leading_axis(
+                readout_input, flat_feature=True
+            )
             readout_output = no_overlap_divider.subdomains_to_leading_axis(
-                readout_output
+                readout_output, flat_feature=True
             )
             jobs = [
                 delayed(regressor.batch_update)(readout_input[i], readout_output[i])
