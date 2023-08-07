@@ -3,20 +3,26 @@ import fsspec
 import numpy as np
 import os
 from tempfile import NamedTemporaryFile
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, cast
 import xarray as xr
 import vcm
 import yaml
 
 import fv3fit
 from fv3fit.reservoir.utils import get_ordered_X
-from fv3fit.reservoir import ReservoirComputingModel, HybridReservoirComputingModel
+from fv3fit.reservoir import (
+    ReservoirComputingModel,
+    HybridReservoirComputingModel,
+    HybridReservoirDatasetAdapter,
+    ReservoirDatasetAdapter,
+)
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 ReservoirModel = Union[ReservoirComputingModel, HybridReservoirComputingModel]
+ReservoirAdapter = Union[HybridReservoirDatasetAdapter, ReservoirDatasetAdapter]
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -112,7 +118,8 @@ def _get_states_without_overlap(
 
 
 def main(args):
-    model: ReservoirModel = fv3fit.load(args.reservoir_model_path)
+    adapter = cast(ReservoirAdapter, fv3fit.load(args.reservoir_model_path))
+    model: ReservoirModel = adapter.model
     with fsspec.open(args.validation_config_path, "r") as f:
         val_data_config = yaml.safe_load(f)
     val_batches = _load_batches(
