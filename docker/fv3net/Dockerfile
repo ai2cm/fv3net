@@ -22,6 +22,10 @@ RUN chmod +x /usr/local/bin/argo
 # install gcloud sdk
 RUN gcloud config set project vcm-ml
 
+# install git and git-lfs (needed to install torch_harmonics from GitHub)
+RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash && \
+    apt-get install -y git git-lfs
+
 ENV FV3NET=/home/$NB_USER/fv3net
 ENV ENVIRONMENT_SCRIPTS=$FV3NET/environment-scripts
 ENV PROJECT_NAME=fv3net
