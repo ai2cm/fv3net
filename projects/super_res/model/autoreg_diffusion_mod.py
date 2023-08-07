@@ -4,7 +4,6 @@ from pathlib import Path
 from random import random
 from functools import partial
 from collections import namedtuple
-from joblib import Parallel, delayed
 
 import numpy as np
 
@@ -1194,13 +1193,20 @@ class Trainer(object):
         cmap = mpl.colormaps['RdBu_r']
         fcmap = mpl.colormaps['gray_r']
 
+        
+        c384_lgmin = np.load('data/only_precip/c384_lgmin.npy')
+        c384_lgmax = np.load('data/only_precip/c384_lgmax.npy')
+        c384_gmin = np.load('data/only_precip/c384_gmin.npy')
+
+        c48_lgmin = np.load('data/only_precip/c48_lgmin.npy')
+        c48_lgmax = np.load('data/only_precip/c48_lgmax.npy')
+        c48_gmin = np.load('data/only_precip/c48_gmin.npy')
+
         c384_min = np.load('data/only_precip/c384_min.npy')
         c384_max = np.load('data/only_precip/c384_max.npy')
-        c384_logmin = np.load('data/only_precip/c384_logmin.npy')
 
         c48_min = np.load('data/only_precip/c48_min.npy')
         c48_max = np.load('data/only_precip/c48_max.npy')
-        c48_logmin = np.load('data/only_precip/c48_logmin.npy')
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
@@ -1264,6 +1270,7 @@ class Trainer(object):
                                 truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
                                 pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
                                 truth[0,:,:,:,:,:] = (hres[:,2:,:,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
+                                
                                 for k in range(num_samples):
                                     videos, base, res, flows = self.ema.ema_model.sample(lres)
                                     pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
@@ -1281,14 +1288,20 @@ class Trainer(object):
                                     b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
                                 bias_color = np.stack(b_c, axis = 0)
 
-                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
-                                target = np.exp(target) + c384_logmin - 1e-14
-
-                                output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
-                                output = np.exp(output) + c384_logmin - 1e-14
-
-                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
-                                coarse = np.exp(coarse) + c48_logmin - 1e-14
+                                if not self.config.data_config.logscale:
+                                    target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                    output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                    coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                                
+                                else:
+                                    target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                    output = videos.detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                    coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_lgmax - c48_lgmin) + c48_lgmin
+                                
+                                if self.config.data_config.logscale:
+                                    target = np.exp(target) + c384_gmin - 1e-14
+                                    output = np.exp(output) + c384_gmin - 1e-14
+                                    coarse = np.exp(coarse) + c48_gmin - 1e-14
 
                                 nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
                                 diff_output = (output - nn_upscale).flatten()
@@ -1336,13 +1349,31 @@ class Trainer(object):
                                 for m in range(num_frames):
                                     flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
                                 
-                                accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
+                                if self.config.data_config.logscale:
+                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
+                                
+                                else:
+                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,:,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,:,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    target = np.log(target - c384_gmin + 1e-14)
+                                    output = np.log(output - c384_gmin + 1e-14)
+                                    coarse = np.log(coarse - c48_gmin + 1e-14)
+                                    target = (target - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                    output = (output - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                    coarse = (coarse - c48_lgmin) / (c48_lgmax - c48_lgmin)
+                                    accelerator.log({"true_loghigh": wandb.Video((np.repeat(target, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_loglow": wandb.Video((np.repeat(coarse, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"logsamples": wandb.Video((np.repeat(output, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+
+                                    
                                 accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
                                 accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
                                 accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)

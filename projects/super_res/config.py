@@ -20,7 +20,7 @@ config.save_and_sample_every = 5000
 config.ema_decay = 0.995
 config.amp = False
 config.split_batches = True
-config.additional_note = ""
+config.additional_note = "no-logscale"
 config.eval_folder = "./evaluate"
 config.results_folder = "./results"
 config.tensorboard_dir = "./tensorboard"
@@ -35,7 +35,7 @@ config.data_config = config_dict.ConfigDict({
     #"img_channel": 2,
     "img_channel": 1,
     "img_size": 384,
-    "logscale": True,
+    "logscale": False,
     "quick": True
 })
 

@@ -4,7 +4,6 @@ from pathlib import Path
 from random import random
 from functools import partial
 from collections import namedtuple
-from joblib import Parallel, delayed
 
 import numpy as np
 
@@ -15,7 +14,6 @@ import wandb
 
 import piq
 
-from kornia import filters
 from torch.optim import Adam
 
 from einops import rearrange, reduce
@@ -1169,13 +1167,19 @@ class Trainer(object):
 
         cmap = mpl.colormaps['RdBu_r']
 
+        c384_lgmin = np.load('data/only_precip/c384_lgmin.npy')
+        c384_lgmax = np.load('data/only_precip/c384_lgmax.npy')
+        c384_gmin = np.load('data/only_precip/c384_gmin.npy')
+
+        c48_lgmin = np.load('data/only_precip/c48_lgmin.npy')
+        c48_lgmax = np.load('data/only_precip/c48_lgmax.npy')
+        c48_gmin = np.load('data/only_precip/c48_gmin.npy')
+
         c384_min = np.load('data/only_precip/c384_min.npy')
         c384_max = np.load('data/only_precip/c384_max.npy')
-        c384_logmin = np.load('data/only_precip/c384_logmin.npy')
 
         c48_min = np.load('data/only_precip/c48_min.npy')
         c48_max = np.load('data/only_precip/c48_max.npy')
-        c48_logmin = np.load('data/only_precip/c48_logmin.npy')
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
@@ -1239,6 +1243,7 @@ class Trainer(object):
                                 truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
                                 pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
                                 truth[0,:,:,:,:,:] = (hres[:,2:,:,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
+
                                 for k in range(num_samples):
                                     videos, base, res, flows = self.ema.ema_model.sample(lres)
                                     pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
@@ -1256,14 +1261,20 @@ class Trainer(object):
                                     b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
                                 bias_color = np.stack(b_c, axis = 0)
 
-                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
-                                target = np.exp(target) + c384_logmin - 1e-14
-
-                                output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
-                                output = np.exp(output) + c384_logmin - 1e-14
-
-                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
-                                coarse = np.exp(coarse) + c48_logmin - 1e-14
+                                if not self.config.data_config.logscale:
+                                    target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                    output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                    coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                                
+                                else:
+                                    target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                    output = videos.detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                    coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_lgmax - c48_lgmin) + c48_lgmin
+                                
+                                if self.config.data_config.logscale:
+                                    target = np.exp(target) + c384_gmin - 1e-14
+                                    output = np.exp(output) + c384_gmin - 1e-14
+                                    coarse = np.exp(coarse) + c48_gmin - 1e-14
 
                                 nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
                                 diff_output = (output - nn_upscale).flatten()
@@ -1306,12 +1317,29 @@ class Trainer(object):
                                 for m in range(num_frames):
                                     flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
 
-                                accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                if self.config.data_config.logscale:
+                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                
+                                else:
+                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,:,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,:,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    target = np.log(target - c384_gmin + 1e-14)
+                                    output = np.log(output - c384_gmin + 1e-14)
+                                    coarse = np.log(coarse - c48_gmin + 1e-14)
+                                    target = (target - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                    output = (output - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                    coarse = (coarse - c48_lgmin) / (c48_lgmax - c48_lgmin)
+                                    accelerator.log({"true_loghigh": wandb.Video((np.repeat(target, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_loglow": wandb.Video((np.repeat(coarse, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"logsamples": wandb.Video((np.repeat(output, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                
                                 accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
                                 accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
                                 accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
@@ -1333,159 +1361,30 @@ class Trainer(object):
         
         self.ema.ema_model.eval()
 
-        cmap = mpl.colormaps['viridis']
-        sm = smap(None, cmap)
+        c384_norm= torch.from_numpy(np.load("data/only_precip/c384_norm.npy"))
+        c48_norm = torch.from_numpy(np.load("data/only_precip/c48_norm.npy"))
 
         with torch.no_grad():
 
-            for k, batch in enumerate(self.val_dl):
+            for tile in range(6):
 
-                lres = batch['LR'].to(device)
-                hres = batch['HR'].to(device)
-                
-                if k >= self.val_num_of_batch:
-                    break
-                
-                limit = lres.shape[1]
-                if limit < 8:
-                    
-                    #videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres, True)
-                    videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres)
+                st = 0
+                en = 27
+                count = 0
 
-                    torch.save(videos, os.path.join(self.eval_folder) + "/gen.pt")
-                    torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr.pt")
-                    torch.save(lres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_lr.pt")
+                while en < c48_norm.shape[1]:
 
-                    for i, b in enumerate(videos.clamp(0, 1)):
-                        if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-                            os.makedirs(os.path.join(self.eval_folder, "generated"))
-                        Parallel(n_jobs=4)(
-                            delayed(save_image)(sm.to_rgba(f[0,:,:]), os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-                            for j, f in enumerate(b.cpu())
-                        )
+                    print(tile, st)
 
-                    #videos = torch.log(videos.clamp(0.0, 1.0) + 1)
-                    #hres = torch.log(hres + 1)
-                
-                    #for i, b in enumerate(videos.clamp(0, 1)):
-                    # for i, b in enumerate(videos):
-                    #     if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-                    #         os.makedirs(os.path.join(self.eval_folder, "generated"))
-                    #     Parallel(n_jobs=4)(
-                    #         delayed(save_image)(f, os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-                    #         for j, f in enumerate(b.cpu())
-                    #     )
-                          
-#                     for i, b in enumerate(nsteps.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "residual")):
-#                             os.makedirs(os.path.join(self.eval_folder, "residual"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "residual") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                          
-#                     for i, b in enumerate(base.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "warped")):
-#                             os.makedirs(os.path.join(self.eval_folder, "warped"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "warped") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                        
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "flows") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                
-                    for i, b in enumerate(hres[:,2:,:,:,:].clamp(0, 1)):
-                        if not os.path.isdir(os.path.join(self.eval_folder, "truth")):
-                            os.makedirs(os.path.join(self.eval_folder, "truth"))
-                        Parallel(n_jobs=4)(
-                            delayed(save_image)(sm.to_rgba(f[0,:,:]), os.path.join(self.eval_folder, "truth") + f"/{k}-{i}-{j}.png")
-                            for j, f in enumerate(b.cpu())
-                        )
-                
-#                 else:
-                    
-#                     videos, base, nsteps, flows = self.ema.ema_model.sample(lres[:,:7,:,:], hres[:,:7,:,:], True)
-                    
-#                     st = 5
-#                     ed = st + 7
-                    
-#                     while ed < limit:
-                        
-#                         vi, ba, ns, fl = self.ema.ema_model.sample(lres[:,st:ed,:,:], hres[:,st:ed,:,:], True)
-#                         st += 5
-#                         ed += 5
-#                         videos = torch.cat((videos, vi), 1)
-#                         #base = torch.cat((base, ba), 1)
-#                         #nsteps = torch.cat((nsteps, ns), 1)
-#                         #flows = torch.cat((flows, fl), 1)
-                    
-#                     for i, b in enumerate(videos.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-#                             os.makedirs(os.path.join(self.eval_folder, "generated"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                
-#                     for i, b in enumerate(hres[:,2:,:,:,:].clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "truth")):
-#                             os.makedirs(os.path.join(self.eval_folder, "truth"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "truth") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                        
-# #                     for i, b in enumerate(nsteps.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "residual")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "residual"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "residual") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                          
-# #                     for i, b in enumerate(base.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "warped")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "warped"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "warped") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                        
-# #                     for i, b in enumerate(flows.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "flows")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "flows"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "flows") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                        
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows_d")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows_d"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(plt.imsave)(os.path.join(self.eval_folder, "flows_d") + f"/{k}-{i}-{j}.png", flow_vis.flow_to_color(f.permute(1,2,0).cpu().numpy()[:,:,:2], convert_to_bgr = False))
-#                             for j, f in enumerate(b.cpu())
-#                         )
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows_s")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows_s"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(plt.imsave)(os.path.join(self.eval_folder, "flows_s") + f"/{k}-{i}-{j}.png", f.permute(1,2,0).cpu().numpy()[:,:,2], cmap = 'gray_r')
-#                             for j, f in enumerate(b.cpu())
-#                         )
+                    lres = c48_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
+                    hres = c384_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
+
+                    videos, base, res, flows = self.ema.ema_model.sample(lres)
+
+                    torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
+                    torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
+                    torch.save(lres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))
+
+                    st += 25
+                    en += 25
+                    count += 1

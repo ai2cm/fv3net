@@ -56,9 +56,12 @@ class VSRDataset(Dataset):
                 self.y = c384_norm[:, split:, :, :, :]
 
         else:
-
-            c384_norm= np.load("data/only_precip/c384_norm.npy")
-            c48_norm = np.load("data/only_precip/c48_norm.npy")
+            if logscale:
+                c384_norm= np.load("data/only_precip/c384_lgnorm.npy")
+                c48_norm = np.load("data/only_precip/c48_lgnorm.npy")
+            else:
+                c384_norm= np.load("data/only_precip/c384_norm.npy")
+                c48_norm = np.load("data/only_precip/c48_norm.npy")
 
             # calculate split (80/20)
             split = int(c384_norm.shape[1] * 0.8)
