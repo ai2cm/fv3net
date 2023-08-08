@@ -25,20 +25,21 @@ def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
 
 
 class DatasetAdapter:
+    DIM_ORDER_2D = ["x", "y"]
+
     def __init__(
-        self,
-        input_variables: Iterable[Hashable],
-        output_variables: Iterable[Hashable],
-        rank_dims: Sequence[str],
+        self, input_variables: Iterable[Hashable], output_variables: Iterable[Hashable],
     ):
         self.input_variables = input_variables
         self.output_variables = output_variables
-        self.rank_dims = rank_dims
 
     def _ndarray_to_dataarray(self, arr: np.ndarray) -> xr.DataArray:
-        dims = [*self.rank_dims]
-        if len(arr.shape) == 3 and arr.shape[-1] > 1:
-            dims.append("z")
+        dims = [*self.DIM_ORDER_2D]
+        if len(arr.shape) == 3:
+            if arr.shape[-1] > 1:
+                dims.append("z")
+            elif arr.shape[-1] == 1:
+                arr = arr[:, :, 0]
         return xr.DataArray(data=arr, dims=dims)
 
     def output_array_to_ds(
@@ -56,7 +57,7 @@ class DatasetAdapter:
     ) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
         # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(ds=inputs, rank_dims=self.rank_dims)
+        transposed_inputs = _transpose_xy_dims(ds=inputs, rank_dims=self.DIM_ORDER_2D)
         input_arrs = []
         for variable in variables:
             da = transposed_inputs[variable]
@@ -76,13 +77,17 @@ class ReservoirDatasetAdapter(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
     ) -> None:
+        """Wraps a reservoir model to take in and return xarray datasets.
+        The initialization args for input and output variables are not used and
+        are included for matching the signature of the Predictor parent class.
+        The input and output variables are set using the model arg's input and
+        output variable sets.
+        """
         self.model = model
         self.input_variables = input_variables
         self.output_variables = output_variables
         self.model_adapter = DatasetAdapter(
-            input_variables=input_variables,
-            output_variables=output_variables,
-            rank_dims=model.rank_divider.rank_dims,
+            input_variables=input_variables, output_variables=output_variables,
         )
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
@@ -126,13 +131,20 @@ class HybridReservoirDatasetAdapter(Predictor):
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
     ) -> None:
+        """Wraps a hybrid reservoir model to take in and return xarray datasets.
+        The initialization args for input and output variables are not used and
+        are included for matching the signature of the Predictor parent class.
+        The input and output variables are set using the model arg's input, output,
+        and hybrid variable sets.
+        """
         self.model = model
-        self.input_variables = list(set(input_variables).union(model.hybrid_variables))
-        self.output_variables = output_variables
+        self.input_variables = list(
+            set(model.input_variables).union(model.hybrid_variables)
+        )
+        self.output_variables = model.output_variables
         self.model_adapter = DatasetAdapter(
             input_variables=self.input_variables,
-            output_variables=output_variables,
-            rank_dims=model.rank_divider.rank_dims,
+            output_variables=model.output_variables,
         )
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
@@ -147,7 +159,7 @@ class HybridReservoirDatasetAdapter(Predictor):
 
     def increment_state(self, inputs: xr.Dataset):
         xy_input_arrs = self.model_adapter.input_dataset_to_arrays(
-            inputs, self.input_variables
+            inputs, self.model.input_variables
         )  # x, y, feature dims
         self.model.increment_state(xy_input_arrs)
 
