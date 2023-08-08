@@ -20,8 +20,8 @@ class RankXYDivider:
     """
     Rank divider class for handling subdomains on a tile.  Useful for breaking
     into subdomains for smaller training/prediction tasks.  Assumes that the
-    feature dimensions are trailing with the 2D rank dimensions (e.g., [x, y])
-    followed by an optional feature dimension.
+    spatial feature dimensions are trailing.  I.e., 2D rank dimensions (e.g., [x, y])
+    are last or potentially followed by a latent/vertical dimension.
 
     Args:
         subdomain_layout: layout describing subdomain grid within the rank
@@ -32,7 +32,9 @@ class RankXYDivider:
         overlap_rank_extent: Shape of the tile with an appended halo (e.g., [52, 52]
              for a C48 grid with a halo of 2).  Errors if rank_extent also specified.
         z_feature: Optional trailing feature dimension.  Always assumed
-            to be follow the rank_extent dimensions.
+            to be follow the rank_extent dimensions.  Usually this corresponds to a
+            latent dimension from an encoding (e.g., the number of PCA components) or
+            a vertical dimension (e.g., the number of vertical levels).
     """
 
     def __init__(
