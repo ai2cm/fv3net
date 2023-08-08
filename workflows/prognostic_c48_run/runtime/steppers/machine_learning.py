@@ -3,7 +3,7 @@
 import dataclasses
 import logging
 import os
-from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, Tuple, cast
+from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, cast
 
 import fv3fit
 import xarray as xr
@@ -64,41 +64,6 @@ class MachineLearningConfig:
     scaling: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
 
-def non_negative_sphum(
-    sphum: xr.DataArray, dQ1: xr.DataArray, dQ2: xr.DataArray, dt: float
-) -> Tuple[xr.DataArray, xr.DataArray]:
-    delta = dQ2 * dt
-    reduction_ratio = (-sphum) / (dt * dQ2)  # type: ignore
-    dQ1_updated = xr.where(sphum + delta >= 0, dQ1, reduction_ratio * dQ1)
-    dQ2_updated = xr.where(sphum + delta >= 0, dQ2, reduction_ratio * dQ2)
-    return dQ1_updated, dQ2_updated
-
-
-def update_moisture_tendency_to_ensure_non_negative_humidity(
-    sphum: xr.DataArray, q2: xr.DataArray, dt: float
-) -> xr.DataArray:
-    return xr.where(sphum + q2 * dt >= 0, q2, -sphum / dt)
-
-
-def update_temperature_tendency_to_conserve_mse(
-    q1: xr.DataArray, q2_old: xr.DataArray, q2_new: xr.DataArray
-) -> xr.DataArray:
-    mse_tendency = vcm.moist_static_energy_tendency(q1, q2_old)
-    q1_new = vcm.temperature_tendency(mse_tendency, q2_new)
-    return q1_new
-
-
-def non_negative_sphum_mse_conserving(
-    sphum: xr.DataArray, q2: xr.DataArray, dt: float, q1: Optional[xr.DataArray] = None
-) -> Tuple[xr.DataArray, Optional[xr.DataArray]]:
-    q2_new = update_moisture_tendency_to_ensure_non_negative_humidity(sphum, q2, dt)
-    if q1 is not None:
-        q1_new = update_temperature_tendency_to_conserve_mse(q1, q2, q2_new)
-    else:
-        q1_new = None
-    return q2_new, q1_new
-
-
 def _invert_dict(d: Mapping) -> Mapping:
     return dict(zip(d.values(), d.keys()))
 
@@ -121,7 +86,6 @@ class RenamingAdapter:
         self.rename_out = {} if rename_out is None else rename_out
 
     def _rename(self, ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
-
         all_names = set(ds.dims) & set(rename)
         rename_restricted = {key: rename[key] for key in all_names}
         redimed = ds.rename_dims(rename_restricted)
@@ -212,7 +176,6 @@ def predict(model: MultiModelAdapter, state: State) -> State:
 
 
 class PureMLStepper:
-
     label = "machine_learning"
 
     def __init__(
@@ -237,7 +200,6 @@ class PureMLStepper:
         self.mse_conserving_limiter = mse_conserving_limiter
 
     def __call__(self, time, state):
-
         diagnostics: Diagnostics = {}
         delp = state[DELP]
 
@@ -259,11 +221,11 @@ class PureMLStepper:
         dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
 
         if self.mse_conserving_limiter:
-            dQ2_updated, dQ1_updated = non_negative_sphum_mse_conserving(
+            dQ2_updated, dQ1_updated = vcm.non_negative_sphum_mse_conserving(
                 state[SPHUM], dQ2_initial, self.timestep, q1=dQ1_initial,
             )
         else:
-            dQ1_updated, dQ2_updated = non_negative_sphum(
+            dQ1_updated, dQ2_updated = vcm.non_negative_sphum(
                 state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
             )
 

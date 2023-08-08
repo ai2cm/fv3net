@@ -136,6 +136,7 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
+      - run: sudo python -m pip install pip==20.2.4
       - run: sudo pip install -c constraints.txt pre-commit xarray
       - run: make lint
   integration_tests:

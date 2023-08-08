@@ -44,6 +44,7 @@ repos:
         external/fv3fit/fv3fit/.+ |
         external/loaders/loaders/.+ |
         external/radiation/radiation/.+ |
+        external/xtorch_harmonics/.+ |
         workflows/diagnostics/fv3net/diagnostics/offline/.+ |
         workflows/diagnostics/fv3net/diagnostics/prognostic_run/.+
         )$
