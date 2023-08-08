@@ -22,7 +22,7 @@ from fv3fit.reservoir.model import HybridDatasetAdapter, _transpose_xy_dims
 )
 def test__transpose_xy_dims(original_dims, reordered_dims):
     da = xr.DataArray(np.random.rand(5, 7, 7, 8), dims=original_dims)
-    assert list(_transpose_xy_dims(da, rank_dims=["x", "y"]).dims) == reordered_dims
+    assert list(_transpose_xy_dims(da).dims) == reordered_dims
 
 
 def get_initialized_hybrid_model():

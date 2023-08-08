@@ -14,8 +14,10 @@ from fv3fit._shared import io
 from .utils import square_even_terms
 from .transformers import ReloadableTransfomer, encode_columns, decode_columns
 
+DIMENSION_ORDER = ("x", "y")
 
-def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
+
+def _transpose_xy_dims(ds: xr.Dataset):
     # Useful for transposing the x, y dims in a dataset to match those in
     # RankDivider.rank_dims, and leaves other dims in the same order
     # relative to x,y. Dims after the first occurence of one of the rank_dims
@@ -23,11 +25,11 @@ def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
     # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
     leading_non_xy_dims = []
     for dim in ds.dims:
-        if dim not in rank_dims:
+        if dim not in DIMENSION_ORDER:
             leading_non_xy_dims.append(dim)
-        if dim in rank_dims:
+        if dim in DIMENSION_ORDER:
             break
-    ordered_dims = (*leading_non_xy_dims, *rank_dims)
+    ordered_dims = (*leading_non_xy_dims, *DIMENSION_ORDER)
     return ds.transpose(*ordered_dims, ...)
 
 
@@ -154,9 +156,7 @@ class HybridDatasetAdapter:
     def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
         # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(
-            ds=inputs, rank_dims=self.model.rank_divider._rank_dims_all_features
-        )
+        transposed_inputs = _transpose_xy_dims(ds=inputs)
         input_arrs = []
         for variable in self.model.input_variables:
             da = transposed_inputs[variable]
