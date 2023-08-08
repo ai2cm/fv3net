@@ -10,3 +10,4 @@ from .domain import RankDivider
 from .transformers.autoencoder import Autoencoder
 from .transformers.sk_transformer import SkTransformer
 from .cubed_sphere import CubedSphereDivider
+from .adapters import HybridReservoirDatasetAdapter, ReservoirDatasetAdapter

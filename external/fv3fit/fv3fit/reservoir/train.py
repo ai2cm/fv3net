@@ -17,6 +17,7 @@ from . import (
     ReservoirTrainingConfig,
     ReservoirComputingReadout,
 )
+from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .readout import combine_readouts
 from .domain import RankDivider
 from ._reshaping import stack_array_preserving_last_dim
@@ -144,6 +145,11 @@ def train_reservoir_model(
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
+        return ReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
     else:
         model = HybridReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
@@ -155,7 +161,11 @@ def train_reservoir_model(
             rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
-    return model
+        return HybridReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
 
 
 def _get_reservoir_state_time_series(

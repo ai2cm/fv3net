@@ -58,7 +58,8 @@ def test_train_reservoir():
         n_batches_burn=2,
         input_noise=0.01,
     )
-    model = train_reservoir_model(hyperparameters, train_tfdataset, val_tfdataset)
+    adapter = train_reservoir_model(hyperparameters, train_tfdataset, val_tfdataset)
+    model = adapter.model
     model.reset_state()
 
     assert model.predict()[0].shape == (
