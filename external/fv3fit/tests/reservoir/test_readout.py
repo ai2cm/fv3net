@@ -169,3 +169,29 @@ def test_BatchLinearRegressor_error_on_missing_bias_col():
     # fail if add_bias_term is False but last col is not constant
     with pytest.raises(ValueError):
         lr_no_bias.batch_update(X, y)
+
+
+@pytest.mark.parametrize(
+    "coef_shape, input_shape, expected_shape",
+    [((5, 3), (2, 5), (2, 3)), ((10, 5, 3), (2, 10, 5), (2, 10, 3)),],
+    ids=["no subdomains", "with subdomains"],
+)
+def test_readout_coefficient_multiplication(coef_shape, input_shape, expected_shape):
+    # e.g., flat_feautres, output_features
+    coefficients_2d = np.ones(coef_shape)
+    intercepts = np.array([1, 2, 3])
+    readout_2d = ReservoirComputingReadout(coefficients_2d, intercepts)
+
+    inputs = np.ones(input_shape)
+    result = readout_2d.predict(inputs)
+    assert result.shape == expected_shape
+    # each sum product is 1*1*5 then add intercepts
+    np.testing.assert_array_equal(result, np.zeros_like(result) + np.array([6, 7, 8]))
+
+
+def test_readout_coefficent_shape_error():
+    with pytest.raises(ValueError):
+        ReservoirComputingReadout(np.ones((3,)), np.ones((3,)))
+
+    with pytest.raises(ValueError):
+        ReservoirComputingReadout(np.ones((2, 2, 10, 3)), np.ones((3,)))
