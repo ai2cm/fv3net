@@ -8,7 +8,7 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Tuple[int, int]  # TODO? is this type ok?
+    layout: Tuple[int, int]
     overlap: int
     rank_dims: Sequence[str]
 
@@ -124,7 +124,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
         kwargs = {**kwargs}
-        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
+        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float, tuple])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
             data_class=ReservoirHyperparameters,
             data=kwargs.get("reservoir_hyperparameters", {}),
