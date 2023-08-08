@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
-from fv3fit.reservoir.domain2 import OverlapRankXYDivider
+from fv3fit.reservoir.domain2 import RankXYDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir import (
     Reservoir,
@@ -27,7 +27,7 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
 
 def get_initialized_hybrid_model():
     # expects rank size (including halos) in latent space
-    divider = OverlapRankXYDivider((2, 2), (8, 8), 2, z_feature=6)
+    divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature=6)
     autoencoder = DoNothingAutoencoder([3, 3])
 
     state_size = 25
@@ -39,7 +39,7 @@ def get_initialized_hybrid_model():
     )
     reservoir = Reservoir(hyperparameters, input_size=divider.flat_subdomain_len)
 
-    no_overlap_divider = divider.get_no_overlap_rank_xy_divider()
+    no_overlap_divider = divider.get_no_overlap_rank_divider()
     # multiplied by the number of subdomains since it's a combined readout
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(

@@ -9,7 +9,7 @@ import fv3fit
 from fv3fit import Predictor
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
-from .domain2 import RankXYDivider, OverlapRankXYDivider
+from .domain2 import RankXYDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
 from .transformers import ReloadableTransfomer, encode_columns, decode_columns
@@ -69,10 +69,7 @@ class HybridReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
-        if isinstance(rank_divider, OverlapRankXYDivider):
-            self._no_overlap_divider = rank_divider.get_no_overlap_rank_xy_divider()
-        else:
-            self._no_overlap_divider = rank_divider
+        self._no_overlap_divider = self.rank_divider.get_no_overlap_rank_divider()
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
@@ -217,10 +214,7 @@ class ReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.autoencoder = autoencoder
 
-        if isinstance(rank_divider, OverlapRankXYDivider):
-            self._no_overlap_divider = rank_divider.get_no_overlap_rank_xy_divider()
-        else:
-            self._no_overlap_divider = rank_divider
+        self._no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
 
     def process_state_to_readout_input(self):
         readout_input = self.reservoir.state

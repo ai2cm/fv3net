@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from fv3fit.reservoir.utils import square_even_terms, process_batch_Xy_data
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
-from fv3fit.reservoir.domain2 import OverlapRankXYDivider
+from fv3fit.reservoir.domain2 import RankXYDivider
 
 
 @pytest.mark.parametrize(
@@ -32,19 +32,18 @@ def test_process_batch_Xy_data(nz):
         "a": np.ones((nt, nx, ny, nz)),
         "b": np.ones((nt, nx, ny, nz)),
     }
-    overlap_rank_divider = OverlapRankXYDivider(
+    overlap_rank_divider = RankXYDivider(
         subdomain_layout=subdomain_layout,
-        overlap_rank_extent=(nx, ny),
         overlap=overlap,
+        overlap_rank_extent=(nx, ny),
         z_feature=autoencoder.n_latent_dims,
     )
-    rank_divider = overlap_rank_divider.get_no_overlap_rank_xy_divider()
+    rank_divider = overlap_rank_divider.get_no_overlap_rank_divider()
 
     time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
         variables=["a", "b"],
         batch_data=batch_data,
-        x_rank_divider=overlap_rank_divider,
-        y_rank_divider=rank_divider,
+        rank_divider=overlap_rank_divider,
         autoencoder=autoencoder,
     )
     features_per_subdomain_with_overlap = overlap_rank_divider.flat_subdomain_len

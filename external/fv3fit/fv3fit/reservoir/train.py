@@ -18,7 +18,7 @@ from . import (
     Reservoir,
     ReservoirTrainingConfig,
 )
-from .domain2 import OverlapRankXYDivider
+from .domain2 import RankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
 from fv3fit.reservoir.transformers import ReloadableTransfomer
 
@@ -57,13 +57,13 @@ def train_reservoir_model(
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
     rank_extent = sample_X[0].shape[1:-1]
-    rank_divider = OverlapRankXYDivider(
+    rank_divider = RankXYDivider(
         subdomain_layout=subdomain_config.layout,
-        overlap_rank_extent=rank_extent,
         overlap=subdomain_config.overlap,
+        overlap_rank_extent=rank_extent,
         z_feature=autoencoder.n_latent_dims,
     )
-    no_overlap_divider = rank_divider.get_no_overlap_rank_xy_divider()
+    no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
 
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
@@ -82,8 +82,7 @@ def train_reservoir_model(
         time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
-            x_rank_divider=rank_divider,
-            y_rank_divider=no_overlap_divider,
+            rank_divider=rank_divider,
             autoencoder=autoencoder,
         )
 
@@ -100,8 +99,7 @@ def train_reservoir_model(
             _, hybrid_time_series = process_batch_Xy_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
-                x_rank_divider=no_overlap_divider,
-                y_rank_divider=no_overlap_divider,
+                rank_divider=rank_divider,
                 autoencoder=autoencoder,
             )
         else:

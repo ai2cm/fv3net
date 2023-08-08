@@ -36,7 +36,7 @@ def _sparse_allclose(A, B, atol=1e-8):
 
 def get_ReservoirComputingModel(
     state_size=150,
-    rank_divider=RankXYDivider((2, 2), (2, 2), 2),
+    rank_divider=RankXYDivider((2, 2), 0, rank_extent=(2, 2), z_feature=2),
     autoencoder=DoNothingAutoencoder([1, 1]),
     variables=("a", "b"),
 ):
@@ -96,7 +96,9 @@ def test_dump_load_preserves_matrices(tmpdir):
 @pytest.mark.parametrize("nz, nvars", [(1, 1), (3, 1), (3, 3), (1, 3)])
 def test_prediction_shape(nz, nvars):
     transformer = DoNothingAutoencoder([nz for var in range(nvars)])
-    rank_divider = RankXYDivider((2, 2), (2, 2), z_feature=transformer.n_latent_dims)
+    rank_divider = RankXYDivider(
+        (2, 2), 0, rank_extent=(2, 2), z_feature=transformer.n_latent_dims
+    )
     input_size = rank_divider.flat_subdomain_len
     state_size = 1000
     transformer.encode([np.ones((input_size, nz)) for v in range(nvars)])
@@ -117,7 +119,7 @@ def test_prediction_shape(nz, nvars):
 
 
 def test_ReservoirComputingModel_state_increment():
-    rank_divider = RankXYDivider((1, 1), (2, 2))
+    rank_divider = RankXYDivider((1, 1), 0, rank_extent=(2, 2))
     input_size = rank_divider.flat_subdomain_len
     state_size = 3
     hyperparameters = ReservoirHyperparameters(
