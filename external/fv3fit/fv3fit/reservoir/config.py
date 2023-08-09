@@ -59,6 +59,13 @@ class BatchLinearRegressorHyperparameters:
 
 
 @dataclass
+class TransformerConfig:
+    input: Optional[str] = None
+    output: Optional[str] = None
+    hybrid: Optional[str] = None
+
+
+@dataclass
 class ReservoirTrainingConfig(Hyperparameters):
     """
     input_variables: variables and additional features in time series
@@ -91,6 +98,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_batches_burn: int
     input_noise: float
     seed: int = 0
+    transformers: Optional[TransformerConfig] = None
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     autoencoder_path: Optional[str] = None
@@ -138,6 +146,11 @@ class ReservoirTrainingConfig(Hyperparameters):
         kwargs["subdomain"] = dacite.from_dict(
             data_class=CubedsphereSubdomainConfig,
             data=kwargs.get("subdomain", {}),
+            config=dacite_config,
+        )
+        kwargs["transformers"] = dacite.from_dict(
+            data_class=TransformerConfig,
+            data=kwargs.get("transformers", {}),
             config=dacite_config,
         )
         return dacite.from_dict(
