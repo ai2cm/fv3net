@@ -4,10 +4,15 @@ import fv3fit
 from fv3fit.reservoir.readout import BatchLinearRegressor
 import numpy as np
 import tensorflow as tf
-from typing import Optional, List, Union
+from typing import Optional, List, Union, cast, Mapping
 from .. import Predictor
-from .utils import square_even_terms, process_batch_Xy_data, get_ordered_X
-from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
+from .utils import (
+    square_even_terms,
+    process_batch_Xy_data,
+    get_ordered_X,
+    get_standard_normalizing_transformer,
+)
+from .transformers import TransformerGroup
 from .._shared import register_training_function
 from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
@@ -32,6 +37,41 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
+def _get_transformers(
+    sample_batch: Mapping[str, tf.Tensor], hyperparameters: ReservoirTrainingConfig
+) -> TransformerGroup:
+    # Load transformers with specified paths
+    transformers = {}
+    for variable_group in ["input", "output", "hybrid"]:
+        path = getattr(hyperparameters.transformers, variable_group, None)
+        if path is not None:
+            transformers[variable_group] = cast(ReloadableTransfomer, fv3fit.load(path))
+
+    # If input transformer not specified, always create a standard norm transform
+    if "input" not in transformers:
+        transformers["input"] = get_standard_normalizing_transformer(
+            hyperparameters.input_variables, sample_batch
+        )
+
+    # If output transformer not specified and output_variables != input_variables,
+    # create a separate standard norm transform
+    if "output" not in transformers and (
+        hyperparameters.output_variables != hyperparameters.input_variables
+    ):
+        transformers["output"] = get_standard_normalizing_transformer(
+            hyperparameters.output_variables, sample_batch
+        )
+
+    # If hybrid variables transformer not specified, and hybrid variables are defined,
+    # create a separate standard norm transform
+    if "hybrid" not in transformers and hyperparameters.hybrid_variables is not None:
+        transformers["hybrid"] = get_standard_normalizing_transformer(
+            hyperparameters.hybrid_variables, sample_batch
+        )
+
+    return TransformerGroup(**transformers)
+
+
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -42,18 +82,7 @@ def train_reservoir_model(
     sample_batch = next(iter(train_batches))
     sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
-    if hyperparameters.autoencoder_path is not None:
-        autoencoder: ReloadableTransfomer = fv3fit.load(
-            hyperparameters.autoencoder_path
-        )  # type: ignore
-    else:
-        sample_X_stacked = [
-            stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
-        ]
-        autoencoder = build_concat_and_scale_only_autoencoder(
-            variables=hyperparameters.input_variables, X=sample_X_stacked
-        )
-
+    transformers = _get_transformers(sample_batch, hyperparameters)
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
@@ -68,7 +97,8 @@ def train_reservoir_model(
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.subdomain_size_with_overlap * autoencoder.n_latent_dims,
+        input_size=rank_divider.subdomain_size_with_overlap
+        * transformers.input.n_latent_dims,
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -82,7 +112,7 @@ def train_reservoir_model(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=transformers.input,
         )
 
         if b < hyperparameters.n_batches_burn:
@@ -99,7 +129,7 @@ def train_reservoir_model(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
                 rank_divider=rank_divider,
-                autoencoder=autoencoder,
+                autoencoder=transformers.hybrid,
             )
         else:
             hybrid_time_series = None
