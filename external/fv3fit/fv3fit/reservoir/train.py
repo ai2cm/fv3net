@@ -98,7 +98,7 @@ def train_reservoir_model(
         reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
-        sync_tracker.count(len(reservoir_state_time_series))
+        sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
             _, hybrid_time_series = process_batch_Xy_data(

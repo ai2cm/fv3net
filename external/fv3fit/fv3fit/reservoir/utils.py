@@ -6,6 +6,11 @@ from fv3fit.reservoir.domain import RankDivider, assure_txyz_dims
 
 
 class SynchronziationTracker:
+    """Counts the number of times a reservoir has been incremented,
+    and excludes time series data from training set if the number of
+    incrments is less than the specified synchronization length.
+    """
+
     def __init__(self, n_synchronize: int):
         self.n_synchronize = n_synchronize
         self.n_steps_synchronized = 0
@@ -17,7 +22,7 @@ class SynchronziationTracker:
         else:
             return False
 
-    def count(self, n_samples: int):
+    def count_synchronization_steps(self, n_samples: int):
         self.n_steps_synchronized += n_samples
 
     def trim_synchronization_samples_if_needed(self, arr: np.ndarray) -> np.ndarray:
