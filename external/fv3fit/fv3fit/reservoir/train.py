@@ -18,6 +18,7 @@ from . import (
     Reservoir,
     ReservoirTrainingConfig,
 )
+from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
 from fv3fit.reservoir.transformers import ReloadableTransfomer
@@ -140,6 +141,11 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             autoencoder=autoencoder,
         )
+        return ReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
     else:
         model = HybridReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
@@ -151,7 +157,11 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             autoencoder=autoencoder,
         )
-    return model
+        return HybridReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
 
 
 def _get_reservoir_state_time_series(
