@@ -6,6 +6,40 @@ from fv3fit.reservoir.domain import assure_txyz_dims
 from fv3fit.reservoir.domain2 import RankXYDivider
 
 
+class SynchronziationTracker:
+    """Counts the number of times a reservoir has been incremented,
+    and excludes time series data from training set if the number of
+    incrments is less than the specified synchronization length.
+    """
+
+    def __init__(self, n_synchronize: int):
+        self.n_synchronize = n_synchronize
+        self.n_steps_synchronized = 0
+
+    @property
+    def completed_synchronization(self):
+        if self.n_steps_synchronized > self.n_synchronize:
+            return True
+        else:
+            return False
+
+    def count_synchronization_steps(self, n_samples: int):
+        self.n_steps_synchronized += n_samples
+
+    def trim_synchronization_samples_if_needed(self, arr: np.ndarray) -> np.ndarray:
+        """ Removes samples from the input array if they fall within the
+        synchronization range.
+        """
+        if self.completed_synchronization is True:
+            steps_past_sync = self.n_steps_synchronized - self.n_synchronize
+            if steps_past_sync > len(arr):
+                return arr
+            else:
+                return arr[-steps_past_sync:]
+        else:
+            return np.array([])
+
+
 def _square_evens(v: np.ndarray) -> np.ndarray:
     evens = v[::2]
     odds = v[1::2]

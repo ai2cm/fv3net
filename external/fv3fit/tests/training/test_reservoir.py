@@ -56,7 +56,7 @@ def test_train_reservoir():
         subdomain=subdomain_config,
         reservoir_hyperparameters=reservoir_config,
         readout_hyperparameters=reg_config,
-        n_batches_burn=2,
+        n_timesteps_synchronize=5,
         input_noise=0.01,
     )
     adapter = train_reservoir_model(hyperparameters, train_tfdataset, val_tfdataset)
