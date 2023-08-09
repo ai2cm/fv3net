@@ -1,8 +1,13 @@
 import numpy as np
 import tensorflow as tf
 from typing import Iterable, Mapping, Tuple
-from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
+from fv3fit.reservoir.transformers import (
+    ReloadableTransfomer,
+    encode_columns,
+    build_concat_and_scale_only_autoencoder,
+)
 from fv3fit.reservoir.domain import RankDivider, assure_txyz_dims
+from ._reshaping import stack_array_preserving_last_dim
 
 
 def _square_evens(v: np.ndarray) -> np.ndarray:
@@ -66,4 +71,14 @@ def process_batch_Xy_data(
     return (
         np.stack(time_series_X_reshaped, axis=0),
         np.stack(time_series_Y_reshaped, axis=0),
+    )
+
+
+def get_standard_normalizing_transformer(variables, sample_batch):
+    variable_data = get_ordered_X(sample_batch, variables)
+    variable_data_stacked = [
+        stack_array_preserving_last_dim(arr).numpy() for arr in variable_data
+    ]
+    return build_concat_and_scale_only_autoencoder(
+        variables=variables, X=variable_data_stacked
     )
