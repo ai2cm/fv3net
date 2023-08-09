@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set
+from typing import Sequence, Optional, Set, Tuple
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,7 +8,7 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Sequence[int]
+    layout: Tuple[int, int]
     overlap: int
     rank_dims: Sequence[str]
 
@@ -124,7 +124,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
         kwargs = {**kwargs}
-        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
+        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float, tuple])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
             data_class=ReservoirHyperparameters,
             data=kwargs.get("reservoir_hyperparameters", {}),

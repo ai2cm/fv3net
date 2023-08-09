@@ -15,6 +15,7 @@ from tests.training.test_train import (
 def test_train_reservoir():
     n_sample = 10
     n_tile, nx, ny, nz = 1, 12, 12, 5
+    overlap = 2
     sample_func = get_uniform_sample_func(size=(n_sample, n_tile, nx, ny, nz))
     _, _, train_dataset = get_dataset_default(sample_func)
     _, _, test_dataset = get_dataset_default(sample_func)
@@ -37,7 +38,7 @@ def test_train_reservoir():
     variables = ["var_in_3d", "var_in_2d"]
 
     subdomain_config = CubedsphereSubdomainConfig(
-        layout=[2, 2], overlap=2, rank_dims=["x", "y"],
+        layout=[2, 2], overlap=overlap, rank_dims=["x", "y"],
     )
     reservoir_config = ReservoirHyperparameters(
         state_size=100,
@@ -62,11 +63,7 @@ def test_train_reservoir():
     model = adapter.model
     model.reset_state()
 
-    assert model.predict()[0].shape == (
-        *model.rank_divider.rank_extent_without_overlap,
-        nz,
-    )
-    assert model.predict()[1].shape == (
-        *model.rank_divider.rank_extent_without_overlap,
-        1,
-    )
+    xy_out_shape = (nx - overlap * 2, ny - overlap * 2)
+
+    assert model.predict()[0].shape == (*xy_out_shape, nz)
+    assert model.predict()[1].shape == (*xy_out_shape, 1)
