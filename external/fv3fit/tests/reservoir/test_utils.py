@@ -14,7 +14,7 @@ def test_SynchronziationTracker():
     batches = np.arange(15).reshape(3, 5)
     expected = [np.array([]), np.array([6, 7, 8, 9]), np.array([10, 11, 12, 13, 14])]
     for expected_trimmed, batch in zip(expected, batches):
-        sync_tracker.count(len(batch))
+        sync_tracker.count_synchronization_steps(len(batch))
         np.testing.assert_array_equal(
             sync_tracker.trim_synchronization_samples_if_needed(batch), expected_trimmed
         )
