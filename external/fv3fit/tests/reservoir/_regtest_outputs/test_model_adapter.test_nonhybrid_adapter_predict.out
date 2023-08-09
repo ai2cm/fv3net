@@ -2,5 +2,5 @@
 Dimensions:  (x: 4, y: 4, z: 3)
 Dimensions without coordinates: x, y, z
 Data variables:
-    a        (x, y, z) float64 0.9064 0.1769 0.5555 ... 0.8058 0.1051 0.6322
-    b        (x, y, z) float64 0.7414 0.9793 0.2091 ... 0.7822 0.6339 0.6977
+    a        (x, y, z) float64 0.2191 0.549 0.1612 ... 0.6874 0.4054 0.143
+    b        (x, y, z) float64 0.7901 0.982 0.1075 ... 0.9823 0.5043 0.2942

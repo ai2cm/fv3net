@@ -27,7 +27,7 @@ from fv3fit.reservoir.adapters import (
 )
 def test__transpose_xy_dims(original_dims, reordered_dims):
     da = xr.DataArray(np.random.rand(5, 7, 7, 8), dims=original_dims)
-    assert list(_transpose_xy_dims(da).dims) == reordered_dims
+    assert list(_transpose_xy_dims(da, ("x", "y")).dims) == reordered_dims
 
 
 def get_initialized_model(hybrid: bool):
@@ -46,10 +46,15 @@ def get_initialized_model(hybrid: bool):
 
     no_overlap_divider = divider.get_no_overlap_rank_divider()
     # multiplied by the number of subdomains since it's a combined readout
+
+    if hybrid:
+        coefs_feature_size = state_size + no_overlap_divider.flat_subdomain_len
+    else:
+        coefs_feature_size = state_size
     readout = ReservoirComputingReadout(
         coefficients=np.random.rand(
             divider.n_subdomains,
-            state_size + no_overlap_divider.flat_subdomain_len,
+            coefs_feature_size,
             no_overlap_divider.flat_subdomain_len,
         ),
         intercepts=np.random.rand(
