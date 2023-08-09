@@ -36,7 +36,7 @@ def _sparse_allclose(A, B, atol=1e-8):
 
 def get_ReservoirComputingModel(
     state_size=150,
-    rank_divider=RankXYDivider((2, 2), 0, rank_extent=(2, 2), z_feature=2),
+    rank_divider=RankXYDivider((2, 2), 0, rank_extent=(2, 2), z_feature_size=2),
     autoencoder=DoNothingAutoencoder([1, 1]),
     variables=("a", "b"),
 ):
@@ -97,7 +97,7 @@ def test_dump_load_preserves_matrices(tmpdir):
 def test_prediction_shape(nz, nvars):
     transformer = DoNothingAutoencoder([nz for var in range(nvars)])
     rank_divider = RankXYDivider(
-        (2, 2), 0, rank_extent=(2, 2), z_feature=transformer.n_latent_dims
+        (2, 2), 0, rank_extent=(2, 2), z_feature_size=transformer.n_latent_dims
     )
     input_size = rank_divider.flat_subdomain_len
     state_size = 1000

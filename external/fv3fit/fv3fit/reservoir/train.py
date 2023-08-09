@@ -61,7 +61,7 @@ def train_reservoir_model(
         subdomain_layout=subdomain_config.layout,
         overlap=subdomain_config.overlap,
         overlap_rank_extent=rank_extent,
-        z_feature=autoencoder.n_latent_dims,
+        z_feature_size=autoencoder.n_latent_dims,
     )
     no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
 

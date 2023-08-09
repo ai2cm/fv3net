@@ -117,7 +117,7 @@ def test_get_subdomain_with_feature():
     rank_domain = get_4x4_rank_domain()
     stacked = np.concatenate([rank_domain[..., None] + i for i in range(3)], axis=-1)
 
-    divider = RankXYDivider((2, 2), 0, rank_extent=(4, 4), z_feature=3)
+    divider = RankXYDivider((2, 2), 0, rank_extent=(4, 4), z_feature_size=3)
     subdomain = divider.get_subdomain(stacked, 0)
     assert subdomain.shape == (2, 2, 3)
     np.testing.assert_equal(subdomain[..., 0], np.array([[0, 1], [4, 5]]))
@@ -169,7 +169,7 @@ def test_get_all_subdomains_with_leading():
 
 
 def test_flatten_subdomain_features():
-    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature=3)
+    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature_size=3)
     data = np.ones((5, 10, 3))
     flattened = divider.flatten_subdomain_features(data)
     assert flattened.shape == (150,)
@@ -181,7 +181,7 @@ def test_flatten_subdomain_features():
 
 
 def test_reshape_flat_subdomain_features():
-    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature=3)
+    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature_size=3)
     data = np.ones((150))
     reshaped = divider.reshape_flat_subdomain_features(data)
     assert reshaped.shape == (5, 10, 3)
@@ -193,7 +193,7 @@ def test_reshape_flat_subdomain_features():
 
 
 def test_merge_all_subdomains():
-    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature=3)
+    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature_size=3)
     data = np.ones((4, 5, 10, 3))
     merged = divider.merge_all_subdomains(data)
     assert merged.shape == (10, 20, 3)
@@ -205,7 +205,7 @@ def test_merge_all_subdomains():
 
 
 def test_all_subdomain_merge_roundtrip():
-    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature=3)
+    divider = RankXYDivider((2, 2), 0, rank_extent=(10, 20), z_feature_size=3)
     data = np.random.rand(15, 10, 20, 3)
     divided_flat = divider.get_all_subdomains_with_flat_feature(data)
     merged = divider.merge_all_flat_feature_subdomains(divided_flat)
@@ -267,7 +267,9 @@ def test_merge_subdomain_with_overlap_fails():
     "overlap, z_feature", [(0, None), (0, 3), (1, None), (1, 3),],
 )
 def test_dump_load(overlap, z_feature):
-    divider = RankXYDivider((2, 2), overlap, rank_extent=(4, 4), z_feature=z_feature)
+    divider = RankXYDivider(
+        (2, 2), overlap, rank_extent=(4, 4), z_feature_size=z_feature
+    )
     with tempfile.NamedTemporaryFile() as tmp:
         divider.dump(tmp.name)
         loaded = RankXYDivider.load(tmp.name)
@@ -290,7 +292,7 @@ def test_trim_overlap_rank(ntimes, z_features):
         trimmed = np.stack([trimmed] * z_features, axis=-1)
 
     divider = RankXYDivider(
-        (2, 2), overlap, overlap_rank_extent=(4, 4), z_feature=z_features
+        (2, 2), overlap, overlap_rank_extent=(4, 4), z_feature_size=z_features
     )
     result = divider.trim_halo_from_rank_data(rank_data)
 

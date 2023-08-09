@@ -27,7 +27,7 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
 
 def get_initialized_hybrid_model():
     # expects rank size (including halos) in latent space
-    divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature=6)
+    divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature_size=6)
     autoencoder = DoNothingAutoencoder([3, 3])
 
     state_size = 25

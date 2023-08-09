@@ -31,7 +31,7 @@ class RankXYDivider:
             Errors if overlap_rank_extent also specified.
         overlap_rank_extent: Shape of the tile with an appended halo (e.g., [52, 52]
              for a C48 grid with a halo of 2).  Errors if rank_extent also specified.
-        z_feature: Optional trailing feature dimension.  Always assumed
+        z_feature_size: Optional trailing feature dimension length.  Always assumed
             to be follow the rank_extent dimensions.  Usually this corresponds to a
             latent dimension from an encoding (e.g., the number of PCA components) or
             a vertical dimension (e.g., the number of vertical levels).
@@ -43,7 +43,7 @@ class RankXYDivider:
         overlap: int,
         rank_extent: Optional[Tuple[int, int]] = None,
         overlap_rank_extent: Optional[Tuple[int, int]] = None,
-        z_feature: Optional[int] = None,
+        z_feature_size: Optional[int] = None,
     ):
         if len(subdomain_layout) != 2:
             raise ValueError("Rank divider only handles 2D subdomain layouts")
@@ -59,7 +59,7 @@ class RankXYDivider:
         self._init_rank_extent(rank_extent, overlap_rank_extent)
         self._x_rank_extent = self.rank_extent[0]
         self._y_rank_extent = self.rank_extent[1]
-        self._z_feature = z_feature
+        self._z_feature_size = z_feature_size
 
         self._check_extent_divisibility()
         self._x_subdomain_extent = (
@@ -76,13 +76,13 @@ class RankXYDivider:
     @property
     def _rank_extent_for_partitioner(self):
         # Fed into partitioner for slicing, no overlap should ever be given
-        return self._maybe_append_feature_value(self.rank_extent, self._z_feature)
+        return self._maybe_append_feature_value(self.rank_extent, self._z_feature_size)
 
     @property
     def _rank_extent_all_features(self):
         # used for data consistency checks
         return self._maybe_append_feature_value(
-            self.overlap_rank_extent, self._z_feature
+            self.overlap_rank_extent, self._z_feature_size
         )
 
     @property
@@ -91,7 +91,9 @@ class RankXYDivider:
 
     @property
     def _subdomain_shape(self):
-        return self._maybe_append_feature_value(self.subdomain_extent, self._z_feature)
+        return self._maybe_append_feature_value(
+            self.subdomain_extent, self._z_feature_size
+        )
 
     @property
     def flat_subdomain_len(self) -> int:
@@ -117,7 +119,7 @@ class RankXYDivider:
             return (
                 self.subdomain_layout == other.subdomain_layout
                 and self.rank_extent == other.rank_extent
-                and self._z_feature == other._z_feature
+                and self._z_feature_size == other._z_feature_size
             )
         else:
             return False
@@ -127,7 +129,7 @@ class RankXYDivider:
             return self
         else:
             return RankXYDivider(
-                self.subdomain_layout, 0, self.rank_extent, None, self._z_feature
+                self.subdomain_layout, 0, self.rank_extent, None, self._z_feature_size
             )
 
     def _init_rank_extent(self, rank_extent, overlap_rank_extent):
@@ -174,7 +176,7 @@ class RankXYDivider:
             )
 
     def _maybe_append_feature_value(self, rank_values, feature_value):
-        to_append = [] if self._z_feature is None else [feature_value]
+        to_append = [] if self._z_feature_size is None else [feature_value]
         return [*rank_values, *to_append]
 
     def _update_slices_with_overlap(self, slices):
@@ -352,7 +354,7 @@ class RankXYDivider:
             "subdomain_layout": self.subdomain_layout,
             "overlap": self.overlap,
             "rank_extent": self.rank_extent,
-            "z_feature": self._z_feature,
+            "z_feature_size": self._z_feature_size,
         }
         with fsspec.open(path, "w") as f:
             f.write(yaml.dump(metadata))

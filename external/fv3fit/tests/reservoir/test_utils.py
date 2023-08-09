@@ -36,7 +36,7 @@ def test_process_batch_Xy_data(nz):
         subdomain_layout=subdomain_layout,
         overlap=overlap,
         overlap_rank_extent=(nx, ny),
-        z_feature=autoencoder.n_latent_dims,
+        z_feature_size=autoencoder.n_latent_dims,
     )
     rank_divider = overlap_rank_divider.get_no_overlap_rank_divider()
 
