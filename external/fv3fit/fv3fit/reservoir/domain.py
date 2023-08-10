@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Sequence, Iterable
 import yaml
-from ._reshaping import stack_data, split_1d_samples_into_2d_rows
+from ._reshaping import split_1d_samples_into_2d_rows
 import pace.util
 
 
@@ -25,6 +25,9 @@ class RankDivider:
         overlap: int,
     ):
         """ Divides a rank of data into subdomains for use in training.
+        When dividing a tensor into subdomains, it is assumed that the input rank
+        data always includes <overlap> number of halo points.
+
         Args:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
@@ -139,7 +142,13 @@ class RankDivider:
     def get_subdomain_tensor_slice(
         self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool,
     ) -> tf.Tensor:
-
+        if tensor_data.shape[:2] != tuple(self.rank_extent):
+            raise ValueError(
+                f"Data array being divided must be of shape {self.rank_extent}, "
+                f"which is the rank shape {self.rank_extent_without_overlap} plus "
+                f"{self.overlap} halo points. "
+                f"Array provided was shape {tensor_data.shape}"
+            )
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
         x_ind, y_ind = self._x_ind, self._y_ind
         tensor_data_xsliced = slice_along_axis(
@@ -183,9 +192,7 @@ class RankDivider:
             subdomain_data = self.get_subdomain_tensor_slice(
                 data, subdomain_index=s, with_overlap=with_overlap,
             )
-            subdomains_to_columns.append(
-                stack_data(subdomain_data, keep_first_dim=False)
-            )
+            subdomains_to_columns.append(np.reshape(subdomain_data, -1))
 
         # Concatentate subdomain data arrays along a new subdomain axis.
         # Dimensions are now [time, feature, submdomain]
@@ -219,7 +226,7 @@ class RankDivider:
 
         # separate the prediction into its constituent subdomains
         subdomain_rows = split_1d_samples_into_2d_rows(
-            flat_prediction, n_rows=self.n_subdomains, keep_first_dim_shape=False,
+            flat_prediction, n_rows=self.n_subdomains
         )
         subdomain_2d_predictions = []
 
@@ -252,81 +259,19 @@ class RankDivider:
         return np.concatenate(np.concatenate(domain_z_blocks, axis=2), axis=0)
 
 
-class TimeSeriesRankDivider(RankDivider):
-    def get_subdomain_tensor_slice(
-        self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool,
-    ) -> tf.Tensor:
-        x_ind, y_ind = self._x_ind + 1, self._y_ind + 1
-        subdomain_slice = (
-            slice(None, None),
-            *self.subdomain_slice(subdomain_index, with_overlap),
-        )
-
-        tensor_data_xsliced = slice_along_axis(
-            arr=tensor_data, inds=subdomain_slice[x_ind], axis=x_ind
-        )
-        tensor_data_xy_sliced = slice_along_axis(
-            arr=tensor_data_xsliced, inds=subdomain_slice[y_ind], axis=y_ind
-        )
-        return tensor_data_xy_sliced
-
-    def unstack_subdomain(self, tensor, with_overlap: bool):
-        # Takes a flattened subdomain and reshapes it back into its original
-        # x and y dims. The resulting unstacked array always has a vertical dim
-        # as its last tim, if the original data is 2d then the vertical dim has size 1.
-
-        unstacked_shape = self.get_subdomain_extent(with_overlap=with_overlap)
-        vertical_dim_size = int(tensor[0].size / (np.prod(unstacked_shape)))
-
-        unstacked_shape = (
-            tensor.shape[0],
-            *self.get_subdomain_extent(with_overlap=with_overlap),
-            vertical_dim_size,
-        )
-        # Don't include the time dimension in the expected spatial dims size
-        expected_stacked_size = np.prod(unstacked_shape[1:])
-
-        if tensor.shape[-1] != expected_stacked_size:
-            raise ValueError(
-                f"Dimension of each stacked sample {tensor.shape[-1]} expected to be "
-                f"{expected_stacked_size} (product of {unstacked_shape})."
-            )
-        if vertical_dim_size == 1:
-            unstacked_shape = unstacked_shape[:-1]
-        return np.reshape(tensor, unstacked_shape)
-
-    def flatten_subdomains_to_columns(self, data: tf.Tensor, with_overlap: bool):
-        # Divide into subdomains and flatten subdomains into columns.
-        # Dimensions [(time), x, y, feature_orig] -> [(time), feature_new, subdomain]
-        # where feature_orig is variables at each model level, and feature_new
-        # is variables at each model level and xy coord.
-        subdomains_to_columns = []
-        for s in range(self.n_subdomains):
-            subdomain_data = self.get_subdomain_tensor_slice(
-                data, subdomain_index=s, with_overlap=with_overlap,
-            )
-            subdomains_to_columns.append(
-                stack_data(subdomain_data, keep_first_dim=True)
-            )
-
-        # Concatentate subdomain data arrays along a new subdomain axis.
-        # Dimensions are now [time, feature, submdomain]
-        reshaped = np.stack(subdomains_to_columns, axis=-1)
-        return reshaped
-
-
-def assure_same_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
-    max_dims = max(len(v.shape) for v in variable_tensors)
+def assure_txyz_dims(variable_tensors: Iterable[tf.Tensor]) -> Iterable[tf.Tensor]:
+    # Assumes dims 1, 2, 3 are t, x, y.
+    # If variable data has 3 dims, adds a 4th feature dim of size 1.
     reshaped_tensors = []
     for var_data in variable_tensors:
-        if len(var_data.shape) == max_dims:
+        if len(var_data.shape) == 4:
             reshaped_tensors.append(var_data)
-        elif len(var_data.shape) == max_dims - 1:
+        elif len(var_data.shape) == 3:
             orig_shape = var_data.shape
             reshaped_tensors.append(tf.reshape(var_data, shape=(*orig_shape, 1)))
         else:
             raise ValueError(
                 f"Tensor data has {len(var_data.shape)} dims, must either "
-                f"have either {max_dims} or {max_dims-1}."
+                "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)."
             )
     return reshaped_tensors

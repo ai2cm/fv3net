@@ -100,16 +100,16 @@ def test_increment_state_2d_input():
     )
     reservoir = Reservoir(hyperparameters, input_size=2)
 
-    reservoir.W_in = sparse.coo_matrix(np.ones(reservoir.W_in.shape))
+    reservoir.W_in = sparse.csc_matrix(np.ones(reservoir.W_in.shape))
     reservoir.W_res = sparse.identity(hyperparameters.state_size)
 
     # Test matrix multiplication with W_in and W_res when input has
     # multiple columns for different subdomains
-    input = np.array([[0.5 * i, 0.5 * i] for i in range(input_matrix_columns)]).T
+    input = np.array([[0.5 * i, 0.5 * i] for i in range(input_matrix_columns)])
     reservoir.reset_state(input_shape=input.shape)
 
     reservoir.increment_state(input)
-    assert reservoir.state.shape == (state_size, input_matrix_columns)
+    assert reservoir.state.shape == (input_matrix_columns, state_size)
 
     reservoir.increment_state(input)
-    assert reservoir.state.shape == (state_size, input_matrix_columns)
+    assert reservoir.state.shape == (input_matrix_columns, state_size)

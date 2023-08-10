@@ -17,6 +17,8 @@ import xarray as xr
 from toolz import compose_left
 from vcm import interpolate_to_pressure_levels, safe
 
+import intake
+
 from ._helpers import (
     DATASET_DIM_NAME,
     EVALUATION_RESOLUTION,
@@ -75,6 +77,13 @@ def _get_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--catalog_path",
+        type=str,
+        default=vcm.catalog.catalog_path,
+        help=("The location of the catalog.yaml file"),
+    )
+
+    parser.add_argument(
         "--snapshot-time",
         type=str,
         default=None,
@@ -84,6 +93,7 @@ def _get_parser() -> argparse.ArgumentParser:
             "default to use the first timestep available."
         ),
     )
+
     parser.add_argument(
         "--evaluation-grid",
         type=str,
@@ -99,12 +109,14 @@ def _get_parser() -> argparse.ArgumentParser:
             f"must be present in the vcm catalog at the evaluation resolution."
         ),
     )
+
     parser.add_argument(
         "--n-jobs",
         type=int,
         default=-1,
         help=("Optional n_jobs parameter for joblib.parallel when computing metrics."),
     )
+
     return parser
 
 
@@ -246,7 +258,9 @@ def _add_derived_diagnostics(ds):
     return merged.assign_attrs(ds.attrs)
 
 
-def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
+def _coarsen_transform(
+    evaluation_resolution: int, prediction_resolution: int, catalog: intake.Catalog,
+):
     coarsening_factor = prediction_resolution // evaluation_resolution
     logger.info(
         f"Making predictions at validation data's c{prediction_resolution} resolution."
@@ -258,7 +272,7 @@ def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
             "resolution."
         )
     if coarsening_factor > 1:
-        prediction_grid = load_grid_info(f"c{prediction_resolution}")
+        prediction_grid = load_grid_info(catalog, f"c{prediction_resolution}")
         logger.info(f"Coarsening predictions by factor of {coarsening_factor}.")
         return coarsen_cell_centered(
             weights=prediction_grid.area, coarsening_factor=coarsening_factor
@@ -268,6 +282,7 @@ def _coarsen_transform(evaluation_resolution: int, prediction_resolution: int):
 def get_prediction(
     config: loaders.BatchesFromMapperConfig,
     model: fv3fit.Predictor,
+    catalog: intake.Catalog,
     evaluation_resolution: int,
 ) -> xr.Dataset:
     model_variables = _variables_to_load(model)
@@ -283,6 +298,7 @@ def get_prediction(
                 _coarsen_transform(
                     evaluation_resolution=evaluation_resolution,
                     prediction_resolution=prediction_resolution,
+                    catalog=catalog,
                 )
             )
     mapping_function = compose_left(*transforms)
@@ -308,7 +324,8 @@ def main(args):
     with fsspec.open(args.data_yaml, "r") as f:
         as_dict = yaml.safe_load(f)
     config = loaders.BatchesLoader.from_dict(as_dict)
-    evaluation_grid = load_grid_info(args.evaluation_grid)
+    catalog = intake.open_catalog(args.catalog_path)
+    evaluation_grid = load_grid_info(catalog, args.evaluation_grid)
 
     logger.info("Opening ML model")
     model = fv3fit.load(args.model_path)
@@ -323,6 +340,7 @@ def main(args):
     ds_predicted = get_prediction(
         config=config,
         model=model,
+        catalog=catalog,
         evaluation_resolution=evaluation_grid.sizes[horizontal_dims[0]],
     )
 

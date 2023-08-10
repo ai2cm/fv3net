@@ -89,7 +89,6 @@ jobs:
             sudo apt-get install -y kubectl
       - run: sudo apt-get install make
       - run: make test_argo
-
   build_default:
     parameters:
       image:
@@ -137,12 +136,16 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
+      - run: sudo python -m pip install pip==20.2.4
       - run: sudo pip install -c constraints.txt pre-commit xarray
       - run: make lint
-
   integration_tests:
     docker:
       - image: google/cloud-sdk
+    parameters:
+      runNudgeToFine:
+        default: false
+        type: boolean
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       CLUSTER_NAME: ml-cluster-dev
@@ -195,12 +198,11 @@ jobs:
       - run:
           name: Submit integration tests
           command: |
-            make run_integration_tests VERSION=$CIRCLE_SHA1
+            make run_integration_tests ARGS=--runNudgeToFine="<<parameters.runNudgeToFine>>" VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
-
   validate_radiation_port:
     machine:
       image: ubuntu-2004:202111-02
@@ -263,7 +265,6 @@ parameters:
   run-weekly-workflow:
     type: boolean
     default: false
-
 workflows:
   version: 2
   test_and_lint:
@@ -315,7 +316,7 @@ workflows:
                 - fv3net
                 - artifacts
       - build_default:
-          name: "build/push fv3fit image"
+          name: "build_push_fv3fit_image"
           image: fv3fit
           requires:
             - pytest
@@ -328,7 +329,9 @@ workflows:
       - integration_tests:
           requires:
             - build_default
+            - build_push_fv3fit_image
             - hold
+          runNudgeToFine: true
           filters:
             tags:
               ignore: /^v.*/
@@ -338,13 +341,17 @@ workflows:
       - integration_tests:
           requires:
             - build_default
+            - build_push_fv3fit_image
           filters:
             tags:
               only: /^v.*/
             branches:
               only: master
       - validate_radiation_port
-  weekly-scream-workflow:
+  weekly-workflow:
     when: << pipeline.parameters.run-weekly-workflow >>
     jobs:
       - build_and_test_scream
+      - integration_tests:
+          runNudgeToFine: true
+

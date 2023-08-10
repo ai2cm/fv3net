@@ -183,7 +183,7 @@ deploy_docs_prognostic_run:
 # Testing
 ############################################################
 run_integration_tests:
-	./tests/end_to_end_integration/run_test.sh $(REGISTRY) $(VERSION)
+	./tests/end_to_end_integration/run_test.sh $(ARGS) $(REGISTRY) $(VERSION)
 
 test_prognostic_run_report:
 	bash workflows/diagnostics/tests/prognostic/test_integration.sh
@@ -192,14 +192,15 @@ test_%: ARGS =
 test_%:
 	cd external/$* && tox -- $(ARGS)
 
-test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts
+test_unit: test_fv3kube test_vcm test_fv3fit test_artifacts test_xtorch_harmonics
 	coverage run -m pytest -m "not regression" --durations=20 $(ARGS)
 	coverage combine \
 		--append \
 		external/fv3kube/.coverage \
 		external/vcm/.coverage \
 		external/fv3fit/.coverage \
-		external/artifacts/.coverage
+		external/artifacts/.coverage \
+		external/xtorch_harmonics/.coverage
 
 test_regression:
 	pytest -vv -m regression -s $(ARGS)

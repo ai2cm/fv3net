@@ -4,10 +4,8 @@ from typing import Mapping, MutableMapping, Iterable, Hashable, Sequence
 
 import xarray as xr
 import fv3fit
-from runtime.steppers.machine_learning import (
-    non_negative_sphum_mse_conserving,
-    MultiModelAdapter,
-)
+from runtime.steppers.machine_learning import MultiModelAdapter
+from vcm import non_negative_sphum_mse_conserving
 from runtime.types import State
 from runtime.names import SPHUM, TEMP
 

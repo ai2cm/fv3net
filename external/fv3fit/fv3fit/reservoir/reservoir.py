@@ -19,12 +19,13 @@ def _random_uniform_sample_func(min, max):
     return _f
 
 
-def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1):
+def _random_uniform_sparse_matrix(m, n, sparsity, min=0, max=1, type="csc"):
     return scipy.sparse.random(
         m=m,
         n=n,
         density=1.0 - sparsity,
         data_rvs=_random_uniform_sample_func(min=min, max=max),
+        format=type,
     )
 
 
@@ -37,8 +38,8 @@ class Reservoir:
         self,
         hyperparameters: ReservoirHyperparameters,
         input_size: int,
-        W_in: Optional[scipy.sparse.coo_matrix] = None,
-        W_res: Optional[scipy.sparse.coo_matrix] = None,
+        W_in: Optional[scipy.sparse.csc_matrix] = None,
+        W_res: Optional[scipy.sparse.csc_matrix] = None,
     ):
         """
 
@@ -51,7 +52,7 @@ class Reservoir:
                 generated upon initialiation.
         """
         self.hyperparameters = hyperparameters
-        self.input_size = input_size
+        self.input_size = int(input_size)
 
         np.random.seed(self.hyperparameters.seed)
         self.W_in = W_in if W_in is not None else self._generate_W_in()
@@ -59,15 +60,19 @@ class Reservoir:
         self.state: Optional[np.ndarray] = None
 
     def increment_state(self, input):
-        self.state = np.tanh(self.W_in @ input + self.W_res @ self.state)
+        # input: [subdomain, features]
+        # W_in: [features, state_size]
+        # W_res: [state_size, state_size]
+        # output: [subdomain, state_size]
+        self.state = np.tanh(input @ self.W_in.T + self.state @ self.W_res.T)
 
     def reset_state(self, input_shape: tuple):
         logger.info("Resetting reservoir state.")
         if len(input_shape) > 1:
-            # Input is a 2d matrix with each colum as a separate subdomain
-            ncols_inputs = input_shape[1]
+            # Input is a 2d matrix with each row as a separate subdomain
+            input_subdomains = input_shape[0]
             state_after_reset = np.zeros(
-                (self.hyperparameters.state_size, ncols_inputs)
+                (input_subdomains, self.hyperparameters.state_size)
             )
         elif len(input_shape) == 1:
             # Input is a 1d vector
