@@ -1,10 +1,12 @@
 import fsspec
 import numpy as np
 import os
-import scipy.sparse
-from typing import Sequence
+import logging
+from typing import Optional, Sequence
 
 from .config import BatchLinearRegressorHyperparameters
+
+logger = logging.getLogger(__name__)
 
 
 class NotFittedError(Exception):
@@ -19,8 +21,8 @@ class BatchLinearRegressor:
 
     def __init__(self, hyperparameters: BatchLinearRegressorHyperparameters):
         self.hyperparameters = hyperparameters
-        self.A = None
-        self.B = None
+        self.A: Optional[np.ndarray] = None
+        self.B: Optional[np.ndarray] = None
 
     def _add_bias_feature(self, X):
         return np.concatenate([X, np.ones((X.shape[0], 1))], axis=1)
@@ -32,7 +34,9 @@ class BatchLinearRegressor:
                 "Last column of X array must all be ones if add_bias_term is False."
             )
 
-    def batch_update(self, X, y):
+    def batch_update(self, X: np.ndarray, y: np.ndarray):
+        # X is [time, feature]
+        # y is [time, feature]
         if self.hyperparameters.add_bias_term:
             X = self._add_bias_feature(X)
         else:
@@ -42,7 +46,7 @@ class BatchLinearRegressor:
             self.A = np.zeros((X.shape[1], X.shape[1]))
             self.B = np.zeros((X.shape[1], y.shape[1]))
 
-        self.A = np.add(self.A, (np.dot(X.T, X)))
+        self.A = np.add(self.A, np.dot(X.T, X))
         self.B = np.add(self.B, np.dot(X.T, y))
 
     def get_weights(self):
@@ -74,11 +78,23 @@ class ReservoirComputingReadout:
     _INTERCEPTS_NAME = "intercepts.npy"
 
     def __init__(self, coefficients: np.ndarray, intercepts: np.ndarray):
+        # coefficients: [(subdomain), in_features, out_features]
+        # intercepts: [(subdomain), out_features]
         self.coefficients = coefficients
         self.intercepts = intercepts
 
+        if len(coefficients.shape) == 2:
+            self._einsum_str = "...j,jk->...k"
+        elif len(coefficients.shape) == 3:
+            self._einsum_str = "...ij,ijk->...ik"
+        else:
+            raise ValueError(
+                "Coefficients must be a 2D or 3D array. "
+                f"Got coefficients with shape {coefficients.shape}"
+            )
+
     def predict(self, input: np.ndarray):
-        return (input @ self.coefficients) + self.intercepts
+        return np.einsum(self._einsum_str, input, self.coefficients) + self.intercepts
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
@@ -88,31 +104,32 @@ class ReservoirComputingReadout:
         """
         # convert to sparse before saving so a single dump/load can be used
         with fsspec.open(os.path.join(path, self._COEFFICIENTS_NAME), "wb") as f:
-            scipy.sparse.save_npz(f, scipy.sparse.coo_matrix(self.coefficients))
+            np.save(f, self.coefficients, allow_pickle=False)
         with fsspec.open(os.path.join(path, self._INTERCEPTS_NAME), "wb") as f:
-            np.save(f, self.intercepts)
+            np.save(f, self.intercepts, allow_pickle=False)
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingReadout":
         with fsspec.open(os.path.join(path, cls._COEFFICIENTS_NAME), "rb") as f:
-            coefficients = scipy.sparse.load_npz(f)
+            coefficients = np.load(f)
         with fsspec.open(os.path.join(path, cls._INTERCEPTS_NAME), "rb") as f:
             intercepts = np.load(f)
         return cls(coefficients=coefficients, intercepts=intercepts)
 
 
-def combine_readouts(readouts: Sequence[ReservoirComputingReadout]):
-    coefs, intercepts = [], []
-    for readout in readouts:
-        coefs.append(readout.coefficients)
-        intercepts.append(readout.intercepts)
-
-    # Merge the coefficient arrays of individual readouts into single
-    # block diagonal matrix
-    combined_coefficients = scipy.sparse.block_diag(coefs)
+def combine_readouts_from_subdomain_regressors(
+    regressors: Sequence[BatchLinearRegressor],
+):
+    all_coefficients, all_intercepts = [], []
+    for i, reg in enumerate(regressors):
+        logger.info(f"Solving for readout weights: readout {i + 1}/{len(regressors)}")
+        coefs_, intercept = reg.get_weights()
+        all_coefficients.append(coefs_)
+        all_intercepts.append(intercept)
 
     # Concatenate the intercepts of individual readouts into single array
-    combined_intercepts = np.concatenate(intercepts)
+    combined_coefficients = np.stack(all_coefficients, axis=0)
+    combined_intercepts = np.stack(all_intercepts, axis=0)
 
     return ReservoirComputingReadout(
         coefficients=combined_coefficients, intercepts=combined_intercepts,

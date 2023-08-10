@@ -1,12 +1,13 @@
 import numpy as np
 import os
 import pytest
+from unittest.mock import MagicMock
 
 from fv3fit.reservoir.config import BatchLinearRegressorHyperparameters
 from fv3fit.reservoir.readout import (
     ReservoirComputingReadout,
-    combine_readouts,
     BatchLinearRegressor,
+    combine_readouts_from_subdomain_regressors,
 )
 
 
@@ -33,23 +34,22 @@ def test_combine_readouts():
 
     state_size = 3
     output_size = 2
-    readout_1 = ReservoirComputingReadout(
-        coefficients=np.random.rand(state_size, output_size),
-        intercepts=np.random.rand(output_size),
-    )
-    readout_2 = ReservoirComputingReadout(
-        coefficients=np.random.rand(state_size, output_size),
-        intercepts=np.random.rand(output_size),
-    )
-    input = np.array([[1, 1, 1], [2, 2, 2]])
-    output_1 = readout_1.predict(input)
-    output_2 = readout_2.predict(input)
 
-    combined_readout = combine_readouts(readouts=[readout_1, readout_2])
-    combined_input = np.concatenate([input, input], axis=1)
+    regressor = MagicMock()
+    regressor.get_weights.return_value = (
+        np.random.rand(state_size, output_size),
+        np.random.rand(output_size),
+    )
+    readout = ReservoirComputingReadout(*regressor.get_weights())
+    input = np.array([[1, 1, 1], [2, 2, 2]])
+    output = readout.predict(input)
+
+    regressors = [regressor, regressor]
+    combined_readout = combine_readouts_from_subdomain_regressors(regressors)
+    combined_input = np.stack([input, input], axis=0)
     output_combined = combined_readout.predict(combined_input)
     np.testing.assert_array_almost_equal(
-        output_combined, np.concatenate([output_1, output_2], axis=1)
+        output_combined, np.stack([output, output], axis=0)
     )
 
 
@@ -169,3 +169,29 @@ def test_BatchLinearRegressor_error_on_missing_bias_col():
     # fail if add_bias_term is False but last col is not constant
     with pytest.raises(ValueError):
         lr_no_bias.batch_update(X, y)
+
+
+@pytest.mark.parametrize(
+    "coef_shape, input_shape, expected_shape",
+    [((5, 3), (2, 5), (2, 3)), ((10, 5, 3), (2, 10, 5), (2, 10, 3)),],
+    ids=["no subdomains", "with subdomains"],
+)
+def test_readout_coefficient_multiplication(coef_shape, input_shape, expected_shape):
+    # e.g., flat_feautres, output_features
+    coefficients_2d = np.ones(coef_shape)
+    intercepts = np.array([1, 2, 3])
+    readout_2d = ReservoirComputingReadout(coefficients_2d, intercepts)
+
+    inputs = np.ones(input_shape)
+    result = readout_2d.predict(inputs)
+    assert result.shape == expected_shape
+    # each sum product is 1*1*5 then add intercepts
+    np.testing.assert_array_equal(result, np.zeros_like(result) + np.array([6, 7, 8]))
+
+
+def test_readout_coefficent_shape_error():
+    with pytest.raises(ValueError):
+        ReservoirComputingReadout(np.ones((3,)), np.ones((3,)))
+
+    with pytest.raises(ValueError):
+        ReservoirComputingReadout(np.ones((2, 2, 10, 3)), np.ones((3,)))

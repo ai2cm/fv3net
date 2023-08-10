@@ -52,7 +52,7 @@ def test_decode_columns(nx, ny, nz, nvars):
     transformer.encode(data_arrs)
 
     encoded_input = np.random.rand(*encoded_input_shape)
-    decoded = decode_columns(encoded_input, transformer=transformer, xy_shape=(nx, ny))
+    decoded = decode_columns(encoded_input, transformer=transformer)
 
     assert len(expected_shapes) == len(decoded)
     for expected_shape, decoded_output in zip(expected_shapes, decoded):

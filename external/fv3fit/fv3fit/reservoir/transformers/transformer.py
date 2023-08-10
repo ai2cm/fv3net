@@ -15,7 +15,7 @@ from fv3fit._shared import io
 ArrayLike = Union[np.ndarray, tf.Tensor]
 
 
-class Transformer(abc.ABC):
+class BaseTransformer(abc.ABC):
     @property
     @abc.abstractmethod
     def n_latent_dims(self):
@@ -28,6 +28,50 @@ class Transformer(abc.ABC):
     @abc.abstractmethod
     def decode(self, x: ArrayLike) -> Sequence[ArrayLike]:
         pass
+
+
+class Transformer(BaseTransformer, Reloadable):
+    def __init__(self, **kwargs):
+        self.super().__init__(**kwargs)
+
+
+@io.register("do-nothing-transformer")
+class DoNothingAutoencoder(Transformer, Reloadable):
+    _CONFIG_NAME = "mock_transformer.yaml"
+
+    """Useful class for tests. Encode just concatenates input
+    variables. Decode separates them back into individual arrays.
+    """
+
+    def __init__(self, original_feature_sizes: Sequence[int]):
+        self.original_feature_sizes = original_feature_sizes
+
+    @property
+    def n_latent_dims(self):
+        return sum(self.original_feature_sizes)
+
+    def encode(self, x):
+        self.original_feature_sizes = [arr.shape[-1] for arr in x]
+        return np.concatenate(x, -1)
+
+    def decode(self, latent_x):
+        if self.original_feature_sizes is None:
+            raise ValueError("Must encode data before decoding.")
+
+        split_indices = np.cumsum(self.original_feature_sizes)[:-1]
+        return np.split(latent_x, split_indices, axis=-1)
+
+    def dump(self, path: str) -> None:
+        with fsspec.open(os.path.join(path, self._CONFIG_NAME), "w") as f:
+            yaml.dump(
+                {"original_feature_sizes": self.original_feature_sizes}, f,
+            )
+
+    @classmethod
+    def load(cls, path: str) -> "DoNothingAutoencoder":
+        with fsspec.open(os.path.join(path, cls._CONFIG_NAME), "r") as f:
+            config = yaml.safe_load(f)
+        return cls(original_feature_sizes=config["original_feature_sizes"],)
 
 
 class TransformerGroup:
@@ -79,47 +123,8 @@ class TransformerGroup:
         return cls(input=input, output=output, hybrid=hybrid)
 
 
-@io.register("do-nothing-transformer")
-class DoNothingAutoencoder(Transformer, Reloadable):
-    _CONFIG_NAME = "mock_transformer.yaml"
-
-    """Useful class for tests. Encode just concatenates input
-    variables. Decode separates them back into individual arrays.
-    """
-
-    def __init__(self, original_feature_sizes: Sequence[int]):
-        self.original_feature_sizes = original_feature_sizes
-
-    @property
-    def n_latent_dims(self):
-        return sum(self.original_feature_sizes)
-
-    def encode(self, x):
-        self.original_feature_sizes = [arr.shape[-1] for arr in x]
-        return np.concatenate(x, -1)
-
-    def decode(self, latent_x):
-        if self.original_feature_sizes is None:
-            raise ValueError("Must encode data before decoding.")
-
-        split_indices = np.cumsum(self.original_feature_sizes)[:-1]
-        return np.split(latent_x, split_indices, axis=-1)
-
-    def dump(self, path: str) -> None:
-        with fsspec.open(os.path.join(path, self._CONFIG_NAME), "w") as f:
-            yaml.dump(
-                {"original_feature_sizes": self.original_feature_sizes}, f,
-            )
-
-    @classmethod
-    def load(cls, path: str) -> "DoNothingAutoencoder":
-        with fsspec.open(os.path.join(path, cls._CONFIG_NAME), "r") as f:
-            config = yaml.safe_load(f)
-        return cls(original_feature_sizes=config["original_feature_sizes"],)
-
-
 def decode_columns(
-    encoded_output: np.ndarray, transformer: Transformer, xy_shape: Sequence[int]
+    encoded_output: np.ndarray, transformer: Transformer
 ) -> Sequence[np.ndarray]:
     """
     Differs from encode_columns as the decoder expects a single input array
@@ -134,9 +139,10 @@ def decode_columns(
         raise ValueError("Unexpected dimension size in decoding operation.")
 
     feature_size = encoded_output.shape[-1]
+    leading_shape = encoded_output.shape[:-1]
     encoded_output = encoded_output.reshape(-1, feature_size)
     decoded = transformer.decode(encoded_output)
-    var_arrays = [arr.reshape(*xy_shape, -1) for arr in decoded]
+    var_arrays = [arr.reshape(*leading_shape, -1) for arr in decoded]
     return var_arrays
 
 

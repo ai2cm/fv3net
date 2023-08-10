@@ -1,7 +1,10 @@
 import logging
 from joblib import Parallel, delayed
 import fv3fit
-from fv3fit.reservoir.readout import BatchLinearRegressor
+from fv3fit.reservoir.readout import (
+    BatchLinearRegressor,
+    combine_readouts_from_subdomain_regressors,
+)
 import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping
@@ -10,23 +13,20 @@ from .utils import (
     square_even_terms,
     process_batch_Xy_data,
     get_ordered_X,
+    SynchronziationTracker,
     get_standard_normalizing_transformer,
 )
 from .transformers import TransformerGroup
 from .._shared import register_training_function
-from ._reshaping import concat_inputs_along_subdomain_features
 from . import (
     ReservoirComputingModel,
     HybridReservoirComputingModel,
     Reservoir,
     ReservoirTrainingConfig,
-    ReservoirComputingReadout,
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
-from .readout import combine_readouts
-from .domain import RankDivider
-from ._reshaping import stack_array_preserving_last_dim
-from fv3fit.reservoir.transformers import ReloadableTransfomer
+from .domain2 import RankXYDivider
+from fv3fit.reservoir.transformers import Transformer
 
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def _get_transformers(
     for variable_group in ["input", "output", "hybrid"]:
         path = getattr(hyperparameters.transformers, variable_group, None)
         if path is not None:
-            transformers[variable_group] = cast(ReloadableTransfomer, fv3fit.load(path))
+            transformers[variable_group] = cast(Transformer, fv3fit.load(path))
 
     # If input transformer not specified, always create a standard norm transform
     if "input" not in transformers:
@@ -87,18 +87,19 @@ def train_reservoir_model(
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
     rank_extent = sample_X[0].shape[1:-1]
-    rank_divider = RankDivider(
+    rank_divider = RankXYDivider(
         subdomain_layout=subdomain_config.layout,
-        rank_dims=subdomain_config.rank_dims,
-        rank_extent=rank_extent,
         overlap=subdomain_config.overlap,
+        overlap_rank_extent=rank_extent,
+        z_feature_size=transformers.input.n_latent_dims,
     )
+    no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
+
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
-        input_size=rank_divider.subdomain_size_with_overlap
-        * transformers.input.n_latent_dims,
+        input_size=rank_divider.flat_subdomain_len,
     )
 
     # One readout is trained per subdomain when iterating over batches,
@@ -107,6 +108,9 @@ def train_reservoir_model(
         BatchLinearRegressor(hyperparameters.readout_hyperparameters)
         for r in range(rank_divider.n_subdomains)
     ]
+    sync_tracker = SynchronziationTracker(
+        n_synchronize=hyperparameters.n_timesteps_synchronize
+    )
     for b, batch_data in enumerate(train_batches):
         time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
             variables=hyperparameters.input_variables,
@@ -115,14 +119,12 @@ def train_reservoir_model(
             autoencoder=transformers.input,
         )
 
-        if b < hyperparameters.n_batches_burn:
-            logger.info(f"Synchronizing on batch {b+1}")
-
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
         reservoir_state_time_series = _get_reservoir_state_time_series(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
+        sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
             _, hybrid_time_series = process_batch_Xy_data(
@@ -140,28 +142,27 @@ def train_reservoir_model(
             hyperparameters.square_half_hidden_state,
             hybrid_time_series=hybrid_time_series,
         )
-
-        if b >= hyperparameters.n_batches_burn:
-            logger.info(f"Fitting on batch {b+1}")
-            _fit_batch_over_subdomains(
-                X_batch=readout_input,
-                Y_batch=readout_output,
-                subdomain_regressors=subdomain_regressors,
-                n_jobs=hyperparameters.n_jobs,
+        if sync_tracker.completed_synchronization:
+            readout_input = sync_tracker.trim_synchronization_samples_if_needed(
+                readout_input
             )
+            readout_output = sync_tracker.trim_synchronization_samples_if_needed(
+                readout_output
+            )
+            logger.info(f"Fitting on batch {b+1}")
+            readout_input = rank_divider.subdomains_to_leading_axis(
+                readout_input, flat_feature=True
+            )
+            readout_output = no_overlap_divider.subdomains_to_leading_axis(
+                readout_output, flat_feature=True
+            )
+            jobs = [
+                delayed(regressor.batch_update)(readout_input[i], readout_output[i])
+                for i, regressor in enumerate(subdomain_regressors)
+            ]
+            Parallel(n_jobs=hyperparameters.n_jobs, backend="threading")(jobs)
 
-    subdomain_readouts = []
-    for r, regressor in enumerate(subdomain_regressors):
-        logger.info(
-            f"Solving for readout weights: readout {r+1}/{len(subdomain_regressors)}"
-        )
-
-        coefs_, intercepts_ = regressor.get_weights()
-
-        subdomain_readouts.append(
-            ReservoirComputingReadout(coefficients=coefs_, intercepts=intercepts_)
-        )
-    readout = combine_readouts(subdomain_readouts)
+    readout = combine_readouts_from_subdomain_regressors(subdomain_regressors)
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
 
@@ -172,8 +173,8 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            rank_divider=rank_divider,  # type: ignore
+            autoencoder=transformers.input,
         )
         return ReservoirDatasetAdapter(
             model=model,
@@ -188,8 +189,8 @@ def train_reservoir_model(
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
-            rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            rank_divider=rank_divider,  # type: ignore
+            autoencoder=transformers.input,
         )
         return HybridReservoirDatasetAdapter(
             model=model,
@@ -201,6 +202,8 @@ def train_reservoir_model(
 def _get_reservoir_state_time_series(
     X: np.ndarray, input_noise: float, reservoir: Reservoir,
 ) -> np.ndarray:
+    # X is [time, subdomain, feature]
+
     # Initialize hidden state
     if reservoir.state is None:
         reservoir.reset_state(input_shape=X[0].shape)
@@ -214,40 +217,21 @@ def _get_reservoir_state_time_series(
     return np.array(reservoir_state_time_series)
 
 
-def _fit_batch(X_batch, Y_batch, subdomain_index, regressor):
-    # Last dimension is subdomains
-    X_subdomain = X_batch[..., subdomain_index]
-    Y_subdomain = Y_batch[..., subdomain_index]
-    regressor.batch_update(
-        X_subdomain, Y_subdomain,
-    )
-
-
 def _construct_readout_inputs_outputs(
     reservoir_state_time_series,
     prediction_time_series,
     square_even_inputs,
     hybrid_time_series=None,
 ):
-    # X has dimensions [time, reservoir_state, subdomain]
+    # X has dimensions [time, subdomain, reservoir_state]
+    # hybrid has dimension [time, subdomain, hybrid_feature]
     X_batch = reservoir_state_time_series[:-1]
     if square_even_inputs is True:
-        X_batch = square_even_terms(X_batch, axis=1)
+        X_batch = square_even_terms(X_batch, axis=-1)
     if hybrid_time_series is not None:
-        X_batch = concat_inputs_along_subdomain_features(
-            X_batch, hybrid_time_series[:-1]
-        )
-    # Y has dimensions [time, subdomain-feature, subdomain] where feature dimension
-    # has flattened (x, y, encoded-feature) coordinates
+        X_batch = np.concatenate((X_batch, hybrid_time_series[:-1]), axis=-1)
+
+    # Y has dimensions [time, subdomain, flat_subdomain_feature] where feature
+    # dimension has flattened (x, y, encoded-feature) coordinates
     Y_batch = prediction_time_series[1:]
     return X_batch, Y_batch
-
-
-def _fit_batch_over_subdomains(
-    X_batch, Y_batch, subdomain_regressors, n_jobs,
-):
-    # Fit a readout to each subdomain's column of training data
-    Parallel(n_jobs=n_jobs, backend="threading")(
-        delayed(_fit_batch)(X_batch, Y_batch, i, regressor)
-        for i, regressor in enumerate(subdomain_regressors)
-    )
