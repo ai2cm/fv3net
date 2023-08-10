@@ -1,11 +1,56 @@
 import numpy as np
+import os
 import pytest
 
 from fv3fit.reservoir.transformers.transformer import (
     encode_columns,
     DoNothingAutoencoder,
     decode_columns,
+    TransformerGroup,
 )
+
+
+@pytest.mark.parametrize(
+    "nz_input, nz_output, nz_hybrid, output_same_as_input,  \
+        hybrid_same_as_input, n_saved_transformers",
+    [
+        (2, None, None, True, True, 1),
+        (2, 3, None, False, True, 2),
+        (2, 3, 4, False, False, 3),
+    ],
+)
+def test_TransformerGroup(
+    tmpdir,
+    nz_input,
+    nz_output,
+    nz_hybrid,
+    output_same_as_input,
+    hybrid_same_as_input,
+    n_saved_transformers,
+):
+    if nz_output is not None:
+        output_transformer = DoNothingAutoencoder([nz_output])
+    else:
+        output_transformer = None
+    if nz_hybrid is not None:
+        hybrid_transformer = DoNothingAutoencoder([nz_hybrid])
+    else:
+        hybrid_transformer = None
+
+    transformers = TransformerGroup(
+        input=DoNothingAutoencoder([nz_input]),
+        output=output_transformer,
+        hybrid=hybrid_transformer,
+    )
+    assert transformers._hybrid_same_as_input == hybrid_same_as_input
+    assert transformers._output_same_as_input == output_same_as_input
+
+    transformers.dump(str(tmpdir))
+    assert len(os.listdir(str(tmpdir))) == n_saved_transformers
+    loaded_transformers = TransformerGroup.load(str(tmpdir))
+
+    assert loaded_transformers._hybrid_same_as_input == hybrid_same_as_input
+    assert loaded_transformers._output_same_as_input == output_same_as_input
 
 
 @pytest.mark.parametrize("nz, nvars", [(2, 2), (2, 1), (1, 2), (1, 1)])
