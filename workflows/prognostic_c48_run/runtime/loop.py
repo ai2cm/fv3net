@@ -459,7 +459,9 @@ class TimeLoop(
     ) -> Tuple[Optional[Stepper], Optional[Stepper]]:
         if config.reservoir_corrector is not None:
             res_config = config.reservoir_corrector
-            incrementer, predictor = get_reservoir_steppers(res_config)
+            incrementer, predictor = get_reservoir_steppers(
+                res_config, MPI.COMM_WORLD.Get_rank()
+            )
         else:
             incrementer, predictor = None, None
 

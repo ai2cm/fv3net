@@ -6,12 +6,12 @@ from typing import Optional, MutableMapping, Hashable, Sequence, Union, cast
 import xarray as xr
 
 import fv3fit
+from fv3fit._shared import put_dir
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.model import HybridReservoirComputingModel
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 
 
-ModelPaths = Sequence[str]
 ReservoirAdapter = Union[ReservoirDatasetAdapter, HybridReservoirComputingModel]
 
 
@@ -24,9 +24,9 @@ class ReservoirConfig:
         model: URL to the global hybrid RC model
     """
 
-    models: ModelPaths
-    synchronize_steps: int = 1  # TODO: this could also be set as a duration
-    reservoir_timestep: str = "3h"  # TODO: could this be inferred from the model?
+    models: Sequence[str]
+    synchronize_steps: int = 1
+    reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
 
 
 class _FiniteStateMachine:
@@ -197,17 +197,23 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
 
 def open_rc_model(path: str) -> ReservoirAdapter:
-    return cast(ReservoirAdapter, fv3fit.load(path))
+    with put_dir(path) as local_path:
+        return cast(ReservoirAdapter, fv3fit.load(local_path))
 
 
-def get_reservoir_steppers(config: ReservoirConfig):
+def get_reservoir_steppers(config: ReservoirConfig, rank: int):
     """
     Gets both steppers needed by the time loop to increment the state using
     inputs from the beginning of the timestep and applying hybrid readout
     using the stepped underlying model + incremented RC state.
     """
-
-    model = open_rc_model(config.models[0])
+    try:
+        model = open_rc_model(config.models[rank])
+    except IndexError:
+        raise IndexError(
+            "Not enough models provided in the stepper ReservoirConfig"
+            " for number of MPI ranks"
+        )
     state_machine = _FiniteStateMachine()
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
     incrementer = ReservoirIncrementOnlyStepper(
