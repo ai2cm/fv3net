@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 import xarray as xr
 import fv3fit
-from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
+from fv3fit.reservoir.transformers.transformer import (
+    DoNothingAutoencoder,
+    TransformerGroup,
+)
 from fv3fit.reservoir.domain2 import RankXYDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir import (
@@ -33,8 +36,7 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
 def get_initialized_model(hybrid: bool):
     # expects rank size (including halos) in latent space
     divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature_size=6)
-    autoencoder = DoNothingAutoencoder([3, 3])
-
+    transformers = TransformerGroup(input=DoNothingAutoencoder([3, 3]))
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
         state_size=state_size,
@@ -69,7 +71,7 @@ def get_initialized_model(hybrid: bool):
             reservoir=reservoir,
             readout=readout,
             rank_divider=divider,
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
     else:
         predictor = ReservoirComputingModel(
@@ -78,7 +80,7 @@ def get_initialized_model(hybrid: bool):
             reservoir=reservoir,
             readout=readout,
             rank_divider=divider,
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
     predictor.reset_state()
 

@@ -1,6 +1,6 @@
 from fv3fit.reservoir.domain2 import RankXYDivider
 from fv3fit.reservoir.readout import ReservoirComputingReadout
-from fv3fit.reservoir.transformers import DoNothingAutoencoder
+from fv3fit.reservoir.transformers import DoNothingAutoencoder, TransformerGroup
 import numpy as np
 import pytest
 
@@ -53,6 +53,7 @@ def get_ReservoirComputingModel(
         coefficients=np.random.rand(rank_divider.n_subdomains, state_size, input_size),
         intercepts=np.random.rand(input_size),
     )
+    transformers = TransformerGroup(input=autoencoder)
     predictor = ReservoirComputingModel(
         input_variables=variables,
         output_variables=variables,
@@ -60,7 +61,7 @@ def get_ReservoirComputingModel(
         readout=readout,
         square_half_hidden_state=False,
         rank_divider=rank_divider,
-        autoencoder=autoencoder,
+        transformers=transformers,
     )
 
     return predictor
@@ -136,21 +137,21 @@ def test_ReservoirComputingModel_state_increment():
 
     input = [(0.25 * np.ones((input_size))).reshape(rank_divider.rank_extent)]
 
-    transformer = DoNothingAutoencoder([1])
-    transformer.encode(input)
+    transformers = TransformerGroup(input=DoNothingAutoencoder([1]))
+    transformers.input.encode(input)
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],
         output_variables=["a", "b"],
         reservoir=reservoir,
         readout=readout,
         rank_divider=rank_divider,
-        autoencoder=transformer,
+        transformers=transformers,
     )
 
     predictor.reset_state()
     predictor.increment_state(input)
     state_before_prediction = predictor.reservoir.state
-    encoded_prediction = predictor.autoencoder.encode(predictor.predict())
+    encoded_prediction = predictor.transformers.input.encode(predictor.predict())
     predictor.increment_state(input)
 
     np.testing.assert_array_almost_equal(

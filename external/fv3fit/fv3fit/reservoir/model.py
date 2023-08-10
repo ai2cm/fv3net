@@ -1,18 +1,17 @@
 import fsspec
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence, cast
+from typing import Iterable, Hashable, Sequence
 import xarray as xr
 import yaml
 
-import fv3fit
 from fv3fit import Predictor
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
 from .domain2 import RankXYDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import Transformer, encode_columns, decode_columns
+from .transformers import encode_columns, decode_columns, TransformerGroup
 
 DIMENSION_ORDER = ("x", "y")
 
@@ -45,15 +44,9 @@ class HybridReservoirComputingModel(Predictor):
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
         rank_divider: RankXYDivider,
-        autoencoder: Transformer,
+        transformers: TransformerGroup,
         square_half_hidden_state: bool = False,
     ):
-        # TODO: The autoencoder and by  extension the rank encoder all assume
-        # that the same variable set are used for inputs, hybrid variables, and
-        # perhaps outputs.  This will quickly not be the case, so need to allow
-        # for different ones for each case.  Default can be an expectation that
-        # all variables are available, but the encoder will then contain all that
-        # information (e.g., time=t and t+1).  Separate PR is necessary for that.
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
             output_variables=output_variables,
@@ -61,7 +54,7 @@ class HybridReservoirComputingModel(Predictor):
             readout=readout,
             square_half_hidden_state=square_half_hidden_state,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
         self.input_variables = input_variables
         self.hybrid_variables = hybrid_variables
@@ -69,15 +62,14 @@ class HybridReservoirComputingModel(Predictor):
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
-        self.autoencoder = autoencoder
-
+        self.transformers = transformers
         self._no_overlap_divider = self.rank_divider.get_no_overlap_rank_divider()
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
         encoded_hybrid_input = encode_columns(
-            input_arrs=hybrid_input, transformer=self.autoencoder
+            input_arrs=hybrid_input, transformer=self.transformers.hybrid
         )
 
         flat_hybrid_in = self._no_overlap_divider.get_all_subdomains_with_flat_feature(
@@ -92,7 +84,7 @@ class HybridReservoirComputingModel(Predictor):
             flat_prediction
         )
         decoded_prediction = decode_columns(
-            encoded_output=prediction, transformer=self.autoencoder,
+            encoded_output=prediction, transformer=self.transformers.output,
         )
         return decoded_prediction
 
@@ -130,7 +122,7 @@ class HybridReservoirComputingModel(Predictor):
             readout=pure_reservoir_model.readout,
             square_half_hidden_state=pure_reservoir_model.square_half_hidden_state,
             rank_divider=pure_reservoir_model.rank_divider,
-            autoencoder=pure_reservoir_model.autoencoder,
+            transformers=pure_reservoir_model.transformers,
             hybrid_variables=hybrid_variables,
         )
 
@@ -183,7 +175,7 @@ class ReservoirComputingModel(Predictor):
     _READOUT_SUBDIR = "readout"
     _METADATA_NAME = "metadata.yaml"
     _RANK_DIVIDER_NAME = "rank_divider.yaml"
-    _AUTOENCODER_SUBDIR = "autoencoder"
+    _TRANSFORMERS_SUBDIR = "transformers"
 
     def __init__(
         self,
@@ -192,7 +184,7 @@ class ReservoirComputingModel(Predictor):
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
         rank_divider: RankXYDivider,
-        autoencoder: Transformer,
+        transformers: TransformerGroup,
         square_half_hidden_state: bool = False,
     ):
         """_summary_
@@ -212,7 +204,7 @@ class ReservoirComputingModel(Predictor):
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
-        self.autoencoder = autoencoder
+        self.transformers = transformers
 
         self._no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
 
@@ -231,7 +223,7 @@ class ReservoirComputingModel(Predictor):
             flat_prediction
         )
         decoded_prediction = decode_columns(
-            encoded_output=prediction, transformer=self.autoencoder,
+            encoded_output=prediction, transformer=self.transformers.output,
         )
         return decoded_prediction
 
@@ -245,7 +237,7 @@ class ReservoirComputingModel(Predictor):
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         # input array is in native x, y, z_feature coordinates
         encoded_xy_input_arrs = encode_columns(
-            prediction_with_overlap, self.autoencoder
+            prediction_with_overlap, self.transformers.input
         )
         encoded_flat_sub = self.rank_divider.get_all_subdomains_with_flat_feature(
             encoded_xy_input_arrs
@@ -255,7 +247,7 @@ class ReservoirComputingModel(Predictor):
     def synchronize(self, synchronization_time_series):
         # input arrays in native x, y, z_feature coordinates
         encoded_timeseries = encode_columns(
-            synchronization_time_series, self.autoencoder
+            synchronization_time_series, self.transformers.input
         )
         encoded_flat = self.rank_divider.get_all_subdomains_with_flat_feature(
             encoded_timeseries
@@ -280,8 +272,7 @@ class ReservoirComputingModel(Predictor):
             f.write(yaml.dump(metadata))
 
         self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
-        if self.autoencoder is not None:
-            fv3fit.dump(self.autoencoder, os.path.join(path, self._AUTOENCODER_SUBDIR))
+        self.transformers.dump(os.path.join(path, self._TRANSFORMERS_SUBDIR))
 
     @classmethod
     def load(cls, path: str) -> "ReservoirComputingModel":
@@ -294,10 +285,10 @@ class ReservoirComputingModel(Predictor):
             metadata = yaml.safe_load(f)
 
         rank_divider = RankXYDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
-
-        autoencoder = cast(
-            Transformer, fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
+        transformers = TransformerGroup.load(
+            os.path.join(path, cls._TRANSFORMERS_SUBDIR)
         )
+
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
@@ -305,5 +296,5 @@ class ReservoirComputingModel(Predictor):
             readout=readout,
             square_half_hidden_state=metadata["square_half_hidden_state"],
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
