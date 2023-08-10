@@ -133,6 +133,7 @@ class _ReservoirStepper:
     def predict(self, time, state):
 
         updated_state = {}
+        diags = {}
         if self._is_rc_update_step(time):
             inputs = state[self.model.input_variables]
 
@@ -143,10 +144,11 @@ class _ReservoirStepper:
                 updated_state.update(
                     {k: result[k] for k in self.model.output_variables}
                 )
+                diags.update({f"{k}_rc_out": v for k, v in updated_state.items()})
 
             self._state_machine(self._state_machine.PREDICT)
 
-        return {}, {}, updated_state
+        return {}, diags, updated_state
 
     def __call__(self, time, state):
         raise NotImplementedError(
