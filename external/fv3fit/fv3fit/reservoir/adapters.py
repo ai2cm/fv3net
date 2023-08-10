@@ -84,10 +84,11 @@ class ReservoirDatasetAdapter(Predictor):
         output variable sets.
         """
         self.model = model
-        self.input_variables = input_variables
-        self.output_variables = output_variables
+        self.input_variables = model.input_variables
+        self.output_variables = model.output_variables
         self.model_adapter = DatasetAdapter(
-            input_variables=input_variables, output_variables=output_variables,
+            input_variables=self.input_variables,
+            output_variables=self.output_variables,
         )
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:

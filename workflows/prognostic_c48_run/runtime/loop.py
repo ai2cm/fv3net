@@ -689,9 +689,10 @@ class TimeLoop(
         else:
             return {}
 
-    def _apply_hybrid_reservoir_to_state(self) -> Diagnostics:
+    def _apply_reservoir_update_to_state(self) -> Diagnostics:
+        # TODO: handle tendencies
         if self._reservoir_predict_stepper is not None:
-            self._log_info("Applying hybrid reservior prediction to state.")
+            self._log_info("Applying reservior prediction to state.")
             [_, diags, state] = self._reservoir_predict_stepper(
                 self._state.time, self._state
             )
@@ -731,7 +732,7 @@ class TimeLoop(
                 ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
-                self._apply_hybrid_reservoir_to_state,
+                self._apply_reservoir_update_to_state,
                 self._intermediate_restarts,
             ]:
                 with self._timer.clock(substep.__name__):

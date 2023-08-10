@@ -7,7 +7,7 @@ import runtime.steppers.reservoir as reservoir
 from runtime.steppers.reservoir import (
     _ReservoirStepper,
     _FiniteStateMachine,
-    HybridReservoirConfig,
+    ReservoirConfig,
 )
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
@@ -16,16 +16,16 @@ from unittest.mock import MagicMock
 def test_reservoir_stepper_state():
     fsm = _FiniteStateMachine()
 
-    assert fsm.increment_steps == 0
+    assert fsm.completed_increments == 0
 
     for i in range(2):
         fsm.to_incremented()
         assert fsm._last_called == fsm.INCREMENT
-        assert fsm.increment_steps == i + 1
+        assert fsm.completed_increments == i + 1
 
     fsm.to_predicted()
     assert fsm._last_called == fsm.PREDICT
-    assert fsm.increment_steps == 2
+    assert fsm.completed_increments == 2
 
 
 def test_reservior_stepper_state_call():
@@ -135,18 +135,18 @@ def test__ReservoirStepper_model_predict(patched_reservoir_module):
     # no call to predict when at or below required number of sync steps
     for i in range(stepper.synchronize_steps):
         stepper.increment_reservoir(stepper.init_time, mock_state)
-        stepper.hybrid_predict(stepper.init_time, mock_state)
+        stepper.predict(stepper.init_time, mock_state)
         stepper.model.predict.assert_not_called()
 
     # call to predict when past synchronization period
     stepper.increment_reservoir(stepper.init_time, mock_state)
-    stepper.hybrid_predict(stepper.init_time, mock_state)
+    stepper.predict(stepper.init_time, mock_state)
     stepper.model.predict.assert_called_once()
 
 
 def test_get_reservoir_steppers(patched_reservoir_module):
 
-    config = HybridReservoirConfig("model", 0, reservoir_timestep="10m")
+    config = ReservoirConfig("model", 0, reservoir_timestep="10m")
     incrementer, predictor = reservoir.get_reservoir_steppers(config)
 
     # Check that both steppers share model and state machine objects
@@ -164,7 +164,7 @@ def test_get_reservoir_steppers(patched_reservoir_module):
 
 def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 
-    config = HybridReservoirConfig("model", 0, reservoir_timestep="10m")
+    config = ReservoirConfig("model", 0, reservoir_timestep="10m")
     incrementer, predictor = reservoir.get_reservoir_steppers(config)
 
     # check that steppers respect state machine limit

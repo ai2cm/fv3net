@@ -12,7 +12,7 @@ from runtime.diagnostics.manager import (
 )
 from runtime.steppers.nudging import NudgingConfig
 from runtime.steppers.machine_learning import MachineLearningConfig
-from runtime.steppers.reservoir import HybridReservoirConfig
+from runtime.steppers.reservoir import ReservoirConfig
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.steppers.interval import IntervalConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
@@ -72,7 +72,7 @@ class UserConfig:
     online_emulator: Optional[runtime.transformers.fv3fit.Config] = None
     radiation_scheme: Optional[RadiationStepperConfig] = None
     bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
-    reservoir_corrector: Optional[HybridReservoirConfig] = None
+    reservoir_corrector: Optional[ReservoirConfig] = None
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
