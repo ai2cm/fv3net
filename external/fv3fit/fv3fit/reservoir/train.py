@@ -118,6 +118,15 @@ def train_reservoir_model(
             rank_divider=rank_divider,
             autoencoder=transformers.input,
         )
+        # If the output variables differ from inputs, use the transformer specific
+        # to the output set to transform the output data
+        if hyperparameters.output_variables != hyperparameters.input_variables:
+            _, time_series_without_overlap = process_batch_Xy_data(
+                variables=hyperparameters.output_variables,
+                batch_data=batch_data,
+                rank_divider=rank_divider,
+                autoencoder=transformers.output,
+            )
 
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
@@ -125,6 +134,7 @@ def train_reservoir_model(
             time_series_with_overlap, hyperparameters.input_noise, reservoir
         )
         sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
+
         hybrid_time_series: Optional[np.ndarray]
         if hyperparameters.hybrid_variables is not None:
             _, hybrid_time_series = process_batch_Xy_data(
@@ -174,7 +184,7 @@ def train_reservoir_model(
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,  # type: ignore
-            autoencoder=transformers.input,
+            transformers=transformers,
         )
         return ReservoirDatasetAdapter(
             model=model,
@@ -190,7 +200,7 @@ def train_reservoir_model(
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,  # type: ignore
-            autoencoder=transformers.input,
+            transformers=transformers,
         )
         return HybridReservoirDatasetAdapter(
             model=model,
