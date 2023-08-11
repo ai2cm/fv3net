@@ -161,7 +161,7 @@ def test__ReservoirStepper_model_predict(patched_reservoir_module):
 
 def test_get_reservoir_steppers(patched_reservoir_module):
 
-    config = ReservoirConfig(["model"], 0, reservoir_timestep="10m")
+    config = ReservoirConfig({0: "model"}, 0, reservoir_timestep="10m")
     incrementer, predictor = reservoir.get_reservoir_steppers(config, 0)
 
     # Check that both steppers share model and state machine objects
@@ -179,7 +179,7 @@ def test_get_reservoir_steppers(patched_reservoir_module):
 
 def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 
-    config = ReservoirConfig(["model"], 0, reservoir_timestep="10m")
+    config = ReservoirConfig({0: "model"}, 0, reservoir_timestep="10m")
     incrementer, predictor = reservoir.get_reservoir_steppers(config, 0)
 
     # check that steppers respect state machine limit
@@ -193,6 +193,6 @@ def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 
 
 def test_model_paths_and_rank_index_mismatch_on_load():
-    config = ReservoirConfig(["model"], 0, reservoir_timestep="10m")
+    config = ReservoirConfig({1: "model"}, 0, reservoir_timestep="10m")
     with pytest.raises(IndexError):
         reservoir.get_reservoir_steppers(config, 1)

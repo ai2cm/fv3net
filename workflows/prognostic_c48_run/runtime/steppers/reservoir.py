@@ -2,7 +2,7 @@ import cftime
 import dataclasses
 from datetime import timedelta
 import pandas as pd
-from typing import Optional, MutableMapping, Hashable, Sequence, cast
+from typing import Optional, MutableMapping, Hashable, Mapping, cast
 import xarray as xr
 
 import fv3fit
@@ -20,7 +20,7 @@ class ReservoirConfig:
         model: URL to the global hybrid RC model
     """
 
-    models: Sequence[str]
+    models: Mapping[int, str]
     synchronize_steps: int = 1
     reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
 
@@ -234,10 +234,10 @@ def get_reservoir_steppers(config: ReservoirConfig, rank: int):
     """
     try:
         model = open_rc_model(config.models[rank])
-    except IndexError:
-        raise IndexError(
-            "Not enough models provided in the stepper ReservoirConfig"
-            " for number of MPI ranks"
+    except KeyError:
+        raise KeyError(
+            f"No reservoir model path found  for rank {rank}. "
+            "Ensure that the rank key and model is present in the configuration."
         )
     state_machine = _FiniteStateMachine()
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
