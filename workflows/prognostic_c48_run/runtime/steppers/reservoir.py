@@ -34,9 +34,9 @@ class _FiniteStateMachine:
     INCREMENT = "increment"
     PREDICT = "predict"
 
-    def __init__(self, init_time: Optional[cftime.DatetimeJulian] = None) -> None:
+    def __init__(self) -> None:
         self._last_called = None
-        self._init_time = init_time
+        self._init_time = None
         self._num_increments_completed = 0
 
     @property

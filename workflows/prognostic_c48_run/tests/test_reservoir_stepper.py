@@ -70,12 +70,15 @@ def get_mock_reservoir_model():
 def get_mock_ReservoirStepper(timestep=timedelta(minutes=10)):
 
     model = get_mock_reservoir_model()
+    state_machine = _FiniteStateMachine()
+    state_machine.set_init_time(datetime(1, 1, 1, 0, 0, 0))
+
     # Create a _ReservoirStepper object with mock objects
     stepper = _ReservoirStepper(
         model=model,
         reservoir_timestep=timedelta(minutes=10),
         synchronize_steps=2,
-        state_machine=_FiniteStateMachine(init_time=datetime(1, 1, 1, 0, 0, 0)),
+        state_machine=_FiniteStateMachine(),
     )
 
     return stepper
