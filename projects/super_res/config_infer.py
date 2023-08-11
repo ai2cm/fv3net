@@ -2,8 +2,8 @@ from ml_collections import config_dict
 
 config = config_dict.ConfigDict()
 
-config.dim = 128
-config.dim_mults = (1, 2, 2, 2, 4, 4)
+config.dim = 64
+config.dim_mults = (1, 1, 2, 2, 3, 4)
 config.learned_sinusoidal_cond = True,
 config.random_fourier_features = True,
 config.learned_sinusoidal_dim = 32
