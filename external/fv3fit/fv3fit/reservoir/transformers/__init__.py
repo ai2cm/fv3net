@@ -8,5 +8,3 @@ from .transformer import (
     TransformerGroup,
 )
 from typing import Union
-
-# ReloadableTransformer = Union[Autoencoder, SkTransformer]
