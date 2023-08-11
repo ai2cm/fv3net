@@ -30,6 +30,10 @@ class ReservoirConfig:
 
 
 class _FiniteStateMachine:
+    """
+    A simple state machine to keep to a shared state between the increment
+    and predict steppers that are separated across the time loop.
+    """
 
     INCREMENT = "increment"
     PREDICT = "predict"
@@ -38,10 +42,6 @@ class _FiniteStateMachine:
         self._last_called = None
         self._init_time = None
         self._num_increments_completed = 0
-
-    @property
-    def init_time(self):
-        return self._init_time
 
     @property
     def completed_increments(self):
@@ -58,9 +58,6 @@ class _FiniteStateMachine:
             raise ValueError("Must call increment before next prediction")
         self._last_called = self.PREDICT
 
-    def set_init_time(self, time: cftime.DatetimeJulian):
-        self._init_time = time
-
     def __call__(self, state: str):
         if state == self.INCREMENT:
             self.to_incremented()
@@ -70,6 +67,23 @@ class _FiniteStateMachine:
             raise ValueError(
                 f"Unknown state provided to _ReservoirStepperState {state}"
             )
+
+
+class _InitTimeStore:
+    """
+    A time store to keep a shared init time variable between the increment
+    and predict steppers that are separated across the time loop.
+    """
+
+    def __init__(self):
+        self._init_time = None
+
+    @property
+    def init_time(self):
+        return self._init_time
+
+    def set_init_time(self, time: cftime.DatetimeJulian):
+        self._init_time = time
 
 
 class _ReservoirStepper:
@@ -83,20 +97,27 @@ class _ReservoirStepper:
         synchronize_steps: int,
         model_timestep_seconds: int = 900,
         state_machine: Optional[_FiniteStateMachine] = None,
+        init_time_store: Optional[_InitTimeStore] = None,
     ):
         self.model = model
         self.rc_timestep = reservoir_timestep
         self.synchronize_steps = synchronize_steps
         self.dt_atmos = timedelta(seconds=model_timestep_seconds)
+        self._init_time = None
 
         if state_machine is None:
             self._state_machine = _FiniteStateMachine()
         else:
             self._state_machine = state_machine
 
+        if init_time_store is None:
+            self._init_time_store = _InitTimeStore()
+        else:
+            self._init_time_store = init_time_store
+
     @property
     def init_time(self):
-        return self._state_machine.init_time
+        return self._init_time_store.init_time
 
     @property
     def completed_sync_steps(self):
@@ -105,8 +126,8 @@ class _ReservoirStepper:
     def increment_reservoir(self, time, state):
         """Should be called at beginning of time loop"""
 
-        if self._state_machine.init_time is None:
-            self._state_machine.set_init_time(time)
+        if self.init_time is None:
+            self._init_time_store.set_init_time(time)
 
         if self._is_rc_update_step(time):
             reservoir_inputs = state[self.model.input_variables]
@@ -163,15 +184,13 @@ class _ReservoirStepper:
         )
 
     def _is_rc_update_step(self, time):
-        init_time = self._state_machine.init_time
-
-        if init_time is None:
+        if self.init_time is None:
             raise ValueError(
                 "Cannot determine reservoir update status without init time.  Ensure"
                 " that a _ReservoirStateStepper has an init time specified or that the"
                 " reservoir increment stepper is called at least once."
             )
-        return (time - init_time) % self.rc_timestep == timedelta(seconds=0)
+        return (time - self.init_time) % self.rc_timestep == timedelta(seconds=0)
 
     def get_diagnostics(self, state, tendency):
         diags: MutableMapping[Hashable, xr.DataArray] = {}
