@@ -138,7 +138,8 @@ class _ReservoirStepper:
 
         # won't evaluate to true until we've reached the step before the next increment
         # e.g., if fv3 has k timesteps between rc timestep, on t + k - 1, the timestep
-        # at the end will have ticked over to t + k, we'll maybe use the integrated
+        # at the end will have ticked over to t + k in the middle of the called wrapper
+        # steps prior to predict, we'll maybe use the integrated
         # hybrid quantites from t -> t + k, make the rc prediction for t + k, and then
         # increment during the next time loop based on those outputs.
         if self._is_rc_update_step(time):
