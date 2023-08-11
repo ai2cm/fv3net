@@ -125,17 +125,25 @@ class _ReservoirStepper:
             if self.completed_sync_steps == 0:
                 self.model.reset_state()
 
-            self.model.increment_state(rc_in_with_halos)
             self._state_machine(self._state_machine.INCREMENT)
+            self.model.increment_state(rc_in_with_halos)
 
         return {}, {}, {}
 
     def predict(self, time, state):
+        """Called at the end of timeloop after time has ticked from t -> t+1"""
 
         updated_state = {}
         diags = {}
+
+        # won't evaluate to true until we've reached the step before the next increment
+        # e.g., if fv3 has k timesteps between rc timestep, on t + k - 1, the timestep
+        # at the end will have ticked over to t + k, we'll maybe use the integrated
+        # hybrid quantites from t -> t + k, make the rc prediction for t + k, and then
+        # increment during the next time loop based on those outputs.
         if self._is_rc_update_step(time):
             inputs = state[self.model.input_variables]
+            self._state_machine(self._state_machine.PREDICT)
 
             # no halo necessary for potential hybrid inputs
             # +1 to align with the necessary increment before any prediction
@@ -145,8 +153,6 @@ class _ReservoirStepper:
                     {k: result[k] for k in self.model.output_variables}
                 )
                 diags.update({f"{k}_rc_out": v for k, v in updated_state.items()})
-
-            self._state_machine(self._state_machine.PREDICT)
 
         return {}, diags, updated_state
 
