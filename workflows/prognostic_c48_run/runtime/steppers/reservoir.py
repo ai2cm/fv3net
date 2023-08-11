@@ -88,7 +88,7 @@ class _InitTimeStore:
 
 class _ReservoirStepper:
 
-    label = "hybrid_reservoir"
+    label = "base_reservoir_stepper"
 
     def __init__(
         self,
