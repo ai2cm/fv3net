@@ -2,17 +2,13 @@ import cftime
 import dataclasses
 from datetime import timedelta
 import pandas as pd
-from typing import Optional, MutableMapping, Hashable, Sequence, Union, cast
+from typing import Optional, MutableMapping, Hashable, Sequence, cast
 import xarray as xr
 
 import fv3fit
 from fv3fit._shared import put_dir
 from fv3fit._shared.halos import append_halos_using_mpi
-from fv3fit.reservoir.model import HybridReservoirComputingModel
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-
-
-ReservoirAdapter = Union[ReservoirDatasetAdapter, HybridReservoirComputingModel]
 
 
 @dataclasses.dataclass
@@ -92,7 +88,7 @@ class _ReservoirStepper:
 
     def __init__(
         self,
-        model: ReservoirAdapter,
+        model: ReservoirDatasetAdapter,
         reservoir_timestep: timedelta,
         synchronize_steps: int,
         model_timestep_seconds: int = 900,
@@ -152,36 +148,34 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
     label = "reservoir_incrementer"
 
-    def increment_reservoir(self, time, state):
+    def increment_reservoir(self, state):
         """Should be called at beginning of time loop"""
+        reservoir_inputs = state[self.model.input_variables]
+
+        try:
+            n_halo_points = self.model.rank_divider.overlap
+            rc_in_with_halos = append_halos_using_mpi(reservoir_inputs, n_halo_points)
+        except RuntimeError:
+            raise ValueError(
+                "MPI not available or tile dimension does not exist in state fields"
+                " during reservoir increment update"
+            )
+
+        if self.completed_sync_steps == 0:
+            self.model.reset_state()
+
+        self._state_machine(self._state_machine.INCREMENT)
+        self.model.increment_state(rc_in_with_halos)
+
+    def __call__(self, time, state):
 
         if self.init_time is None:
             self._init_time_store.set_init_time(time)
 
         if self._is_rc_update_step(time):
-            reservoir_inputs = state[self.model.input_variables]
-
-            try:
-                n_halo_points = self.model.rank_divider.overlap
-                rc_in_with_halos = append_halos_using_mpi(
-                    reservoir_inputs, n_halo_points
-                )
-            except RuntimeError:
-                raise ValueError(
-                    "MPI not available or tile dimension does not exist in state fields"
-                    " during reservoir increment update"
-                )
-
-            if self.completed_sync_steps == 0:
-                self.model.reset_state()
-
-            self._state_machine(self._state_machine.INCREMENT)
-            self.model.increment_state(rc_in_with_halos)
+            self.increment_reservoir(state)
 
         return {}, {}, {}
-
-    def __call__(self, time, state):
-        return super().increment_reservoir(time, state)
 
 
 class ReservoirPredictStepper(_ReservoirStepper):
@@ -193,11 +187,25 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
     label = "reservoir_predictor"
 
-    def predict(self, time, state):
+    def predict(self, state):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
 
         updated_state = {}
         diags = {}
+
+        inputs = state[self.model.input_variables]
+        self._state_machine(self._state_machine.PREDICT)
+
+        # no halo necessary for potential hybrid inputs
+        # +1 to align with the necessary increment before any prediction
+        if self._state_machine.completed_increments >= self.synchronize_steps + 1:
+            result = self.model.predict(inputs)
+            updated_state.update({k: result[k] for k in self.model.output_variables})
+            diags.update({f"{k}_rc_out": v for k, v in updated_state.items()})
+
+        return {}, diags, updated_state
+
+    def __call__(self, time, state):
 
         # won't evaluate to true until we've reached the step before the next increment
         # e.g., if fv3 has k timesteps between rc timestep, on t + k - 1, the timestep
@@ -206,27 +214,16 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # hybrid quantites from t -> t + k, make the rc prediction for t + k, and then
         # increment during the next time loop based on those outputs.
         if self._is_rc_update_step(time):
-            inputs = state[self.model.input_variables]
-            self._state_machine(self._state_machine.PREDICT)
+            tendencies, diags, state = self.predict(state)
+        else:
+            tendencies, diags, state = {}, {}, {}
 
-            # no halo necessary for potential hybrid inputs
-            # +1 to align with the necessary increment before any prediction
-            if self._state_machine.completed_increments >= self.synchronize_steps + 1:
-                result = self.model.predict(inputs)
-                updated_state.update(
-                    {k: result[k] for k in self.model.output_variables}
-                )
-                diags.update({f"{k}_rc_out": v for k, v in updated_state.items()})
-
-        return {}, diags, updated_state
-
-    def __call__(self, time, state):
-        return super().predict(time, state)
+        return tendencies, diags, state
 
 
-def open_rc_model(path: str) -> ReservoirAdapter:
+def open_rc_model(path: str) -> ReservoirDatasetAdapter:
     with put_dir(path) as local_path:
-        return cast(ReservoirAdapter, fv3fit.load(local_path))
+        return cast(ReservoirDatasetAdapter, fv3fit.load(local_path))
 
 
 def get_reservoir_steppers(config: ReservoirConfig, rank: int):
