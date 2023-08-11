@@ -240,11 +240,21 @@ def get_reservoir_steppers(config: ReservoirConfig, rank: int):
             "Ensure that the rank key and model is present in the configuration."
         )
     state_machine = _FiniteStateMachine()
+    init_time_store = _InitTimeStore()
+
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
     incrementer = ReservoirIncrementOnlyStepper(
-        model, rc_tdelta, config.synchronize_steps, state_machine=state_machine
+        model,
+        rc_tdelta,
+        config.synchronize_steps,
+        state_machine=state_machine,
+        init_time_store=init_time_store,
     )
     predictor = ReservoirPredictStepper(
-        model, rc_tdelta, config.synchronize_steps, state_machine=state_machine
+        model,
+        rc_tdelta,
+        config.synchronize_steps,
+        state_machine=state_machine,
+        init_time_store=init_time_store,
     )
     return incrementer, predictor

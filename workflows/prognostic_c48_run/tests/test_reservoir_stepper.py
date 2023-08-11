@@ -116,7 +116,7 @@ def test__ReservoirStepper__is_rc_update_step():
 
     stepper, _ = get_mock_ReservoirSteppers()
 
-    time = stepper._state_machine.init_time
+    time = stepper.init_time
     assert stepper._is_rc_update_step(time)
     assert not stepper._is_rc_update_step(time + timedelta(minutes=5))
     assert stepper._is_rc_update_step(time + timedelta(minutes=10))
@@ -130,12 +130,12 @@ def test__ReservoirStepper_model_sync(patched_reservoir_module):
     incrementer, _ = get_mock_ReservoirSteppers()
     mock_state = MockState(a=1)
 
-    incrementer.increment_reservoir(incrementer.init_time, mock_state)
+    incrementer.increment_reservoir(mock_state)
     incrementer.model.reset_state.assert_called()
     assert incrementer.completed_sync_steps == 1
 
     # shouldn't call reset again after it's been initialized
-    incrementer.increment_reservoir(incrementer.init_time, mock_state)
+    incrementer.increment_reservoir(mock_state)
     incrementer.model.reset_state.assert_called_once()
     assert incrementer.completed_sync_steps == 2
 
@@ -149,13 +149,13 @@ def test__ReservoirStepper_model_predict(patched_reservoir_module):
 
     # no call to predict when at or below required number of sync steps
     for i in range(incrementer.synchronize_steps):
-        incrementer.increment_reservoir(incrementer.init_time, mock_state)
-        predictor.predict(predictor.init_time, mock_state)
+        incrementer.increment_reservoir(mock_state)
+        predictor.predict(mock_state)
         predictor.model.predict.assert_not_called()
 
     # call to predict when past synchronization period
-    incrementer.increment_reservoir(incrementer.init_time, mock_state)
-    predictor.predict(predictor.init_time, mock_state)
+    incrementer.increment_reservoir(mock_state)
+    predictor.predict(mock_state)
     predictor.model.predict.assert_called_once()
 
 
@@ -167,6 +167,7 @@ def test_get_reservoir_steppers(patched_reservoir_module):
     # Check that both steppers share model and state machine objects
     assert incrementer.model is predictor.model
     assert incrementer._state_machine is predictor._state_machine
+    assert incrementer._init_time_store is predictor._init_time_store
 
     # check that call methods point to correct methods
     time = datetime(1, 1, 1, 0, 0, 0)
@@ -194,5 +195,5 @@ def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 
 def test_model_paths_and_rank_index_mismatch_on_load():
     config = ReservoirConfig({1: "model"}, 0, reservoir_timestep="10m")
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         reservoir.get_reservoir_steppers(config, 1)
