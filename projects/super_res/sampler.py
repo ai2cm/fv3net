@@ -1,56 +1,80 @@
 import os
 
 from model.autoreg_diffusion_mod import Unet, Flow, GaussianDiffusion, Trainer
-from data.load_data import load_data
 from config_infer import config
 
-model = Unet(
-    dim = config.dim,
-    channels = 2 * config.data_config["img_channel"],
-    out_dim = config.data_config["img_channel"],
-    dim_mults = config.dim_mults,
-    learned_sinusoidal_cond = config.learned_sinusoidal_cond,
-    random_fourier_features = config.random_fourier_features,
-    learned_sinusoidal_dim = config.learned_sinusoidal_dim
-).cuda()
+def main():
 
-flow = Flow(
-    dim = config.dim,
-    channels = 3 * config.data_config["img_channel"],
-    out_dim = 3,
-    dim_mults = config.dim_mults
-).cuda()
+    if config.data_config["multi"]:
 
-diffusion = GaussianDiffusion(
-    model,
-    flow,
-    image_size = config.data_config["img_size"],
-    timesteps = config.diffusion_steps,
-    sampling_timesteps = config.sampling_steps,
-    loss_type = config.loss,
-    objective = config.objective
-).cuda()
+        in_ch_model = 2 * config.data_config["img_channel"] + 4 + 1 # all channels plus noise : (1 + 4 + 1) + 1 : (precip + multi + topo) + noise
+        in_ch_flow = 3 * (config.data_config["img_channel"] + 4 + 1) # all channels from current low res and past two high res : 3 * (1 + 4 + 1) : 3 * (precip + multi + topo)
+        in_ch_isr = config.data_config["img_channel"] + 4 + 1 # all channels from current low res : 1 + 4 + 1 : precip + multi + topo
 
-trainer = Trainer(
-    diffusion,
-    None,
-    None,
-    train_batch_size = config.batch_size,
-    train_lr = config.lr,
-    train_num_steps = config.steps,
-    gradient_accumulate_every = config.grad_acc,
-    val_num_of_batch = config.val_num_of_batch,
-    save_and_sample_every = config.save_and_sample_every,
-    ema_decay = config.ema_decay,
-    amp = config.amp,
-    split_batches = config.split_batches,
-    #eval_folder = os.path.join(config.eval_folder, f"{config.model_name}/"),
-    eval_folder = os.path.join(config.eval_folder, f"{config.data_name}/"),
-    results_folder = os.path.join(config.results_folder, f"{config.model_name}/"),
-    config = config
-    #tensorboard_dir = os.path.join(config.tensorboard_dir, f"{config.model_name}/"),
-)
+    else:
 
-trainer.load(config.milestone)
+        in_ch_model = 2 * config.data_config["img_channel"]
+        in_ch_flow = 3 * config.data_config["img_channel"]
+        in_ch_isr = config.data_config["img_channel"]
 
-trainer.sample()
+    if config.data_config["flow"] == "3d":
+
+        out_ch_flow = 3
+
+    elif config.data_config["flow"] == "2d":
+
+        out_ch_flow = 2
+
+    model = Unet(
+        dim = config.dim,
+        channels = in_ch_model,
+        out_dim = config.data_config["img_channel"],
+        dim_mults = config.dim_mults,
+        learned_sinusoidal_cond = config.learned_sinusoidal_cond,
+        random_fourier_features = config.random_fourier_features,
+        learned_sinusoidal_dim = config.learned_sinusoidal_dim
+    ).cuda()
+
+    flow = Flow(
+        dim = config.dim,
+        channels = in_ch_flow,
+        out_dim = out_ch_flow,
+        dim_mults = config.dim_mults
+    ).cuda()
+
+    diffusion = GaussianDiffusion(
+        model,
+        flow,
+        image_size = config.data_config["img_size"],
+        in_ch = in_ch_isr,
+        timesteps = config.diffusion_steps,
+        sampling_timesteps = config.sampling_steps,
+        loss_type = config.loss,
+        objective = config.objective
+    ).cuda()
+
+    trainer = Trainer(
+        diffusion,
+        None,
+        None,
+        train_batch_size = config.batch_size,
+        train_lr = config.lr,
+        train_num_steps = config.steps,
+        gradient_accumulate_every = config.grad_acc,
+        val_num_of_batch = config.val_num_of_batch,
+        save_and_sample_every = config.save_and_sample_every,
+        ema_decay = config.ema_decay,
+        amp = config.amp,
+        split_batches = config.split_batches,
+        eval_folder = os.path.join(config.eval_folder, f"{config.data_name}/"),
+        results_folder = os.path.join(config.results_folder, f"{config.model_name}/"),
+        config = config
+    )
+
+    trainer.load(config.milestone)
+
+    trainer.sample()
+
+if __name__ == "__main__":
+    print(config)
+    main()

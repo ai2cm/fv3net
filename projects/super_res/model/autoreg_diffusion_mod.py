@@ -1,7 +1,7 @@
 import os
 import math
 from pathlib import Path
-from random import random
+from random import random, randint
 from functools import partial
 from collections import namedtuple
 
@@ -11,6 +11,8 @@ import torch
 from torch import nn, einsum
 import torch.nn.functional as F
 import wandb
+
+from torchvision.transforms.functional import crop
 
 import piq
 
@@ -40,6 +42,14 @@ from .network_swinir import SwinIR as context_net
 ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
 # helpers functions
+
+def get_random_idx_with_difference(min_tx, max_tx, number_tx, diff):
+    times = []
+    while len(times) < number_tx:
+        new_time = randint(min_tx, max_tx)
+        if all(abs(new_time - time) >= diff for time in times):
+            times.append(new_time)
+    return times
 
 def calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size):
     truth_cdf = np.zeros((256, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
@@ -100,7 +110,7 @@ def normalize_to_neg_one_to_one(img):
 def unnormalize_to_zero_to_one(t):
     return (t + 1) * 0.5
 
-# ssf modules
+# flow modules
 
 def gaussian_pyramids(input, base_sigma = 1, m = 5):
     
@@ -163,6 +173,41 @@ def scale_space_warp(input, flow):
     warped = F.grid_sample(multi_scale, flow_grid, padding_mode = "border", align_corners = True).squeeze(2)
     
     return warped
+
+def flow_warp(x, flow, interp_mode='bilinear', padding_mode='border', align_corners=True):
+    """Warp an image or feature map with optical flow.
+
+    Args:
+        x (Tensor): Tensor with size (n, c, h, w).
+        flow (Tensor): Tensor with size (n, h, w, 2), normal value.
+        interp_mode (str): 'nearest' or 'bilinear' or 'nearest4'. Default: 'bilinear'.
+        padding_mode (str): 'zeros' or 'border' or 'reflection'.
+            Default: 'zeros'.
+        align_corners (bool): Before pytorch 1.3, the default value is
+            align_corners=True. After pytorch 1.3, the default value is
+            align_corners=False. Here, we use the True as default.
+
+
+    Returns:
+        Tensor: Warped image or feature map.
+    """
+    n, _, h, w = x.size()
+    # create mesh grid
+    grid_y, grid_x = torch.meshgrid(torch.arange(0, h, dtype=x.dtype, device=x.device),
+                                    torch.arange(0, w, dtype=x.dtype, device=x.device))
+    grid = torch.stack((grid_x, grid_y), 2).float()  # W(x), H(y), 2
+    grid.requires_grad = False
+
+    vgrid = grid + flow
+
+    # scale grid to [-1,1]
+    vgrid_x = 2.0 * vgrid[:, :, :, 0] / max(w - 1, 1) - 1.0
+    vgrid_y = 2.0 * vgrid[:, :, :, 1] / max(h - 1, 1) - 1.0
+    vgrid_scaled = torch.stack((vgrid_x, vgrid_y), dim=3)
+
+    output = F.grid_sample(x, vgrid_scaled, mode=interp_mode, padding_mode=padding_mode, align_corners=align_corners)
+
+    return output
 
 # small helper modules
 
@@ -640,6 +685,7 @@ class GaussianDiffusion(nn.Module):
         flow,
         *,
         image_size,
+        in_ch,
         timesteps = 1200,
         sampling_timesteps = None,
         loss_type = 'l1',
@@ -652,16 +698,13 @@ class GaussianDiffusion(nn.Module):
         auto_normalize = True
     ):
         super().__init__()
-        #assert not (type(self) == GaussianDiffusion and model.channels != model.out_dim)
-        #assert not model.random_or_learned_sinusoidal_cond
 
         self.model = model
         
-        self.umodel = context_net(upscale=8, in_chans=1, img_size=48, window_size=8,
-        img_range=1., depths=[6, 6, 6, 6, 6, 6, 6], embed_dim=200,
-        num_heads=[8, 8, 8, 8, 8, 8, 8],
-        mlp_ratio=2, upsampler='pixelshuffle', resi_connection='3conv')
-        
+        self.umodel = context_net(upscale = 8, in_chans = in_ch, out_chans = 1, img_size = 48, window_size = 8,
+        img_range = 1., depths = [6, 6, 6, 6, 6, 6, 6], embed_dim = 200,
+        num_heads = [8, 8, 8, 8, 8, 8, 8],
+        mlp_ratio = 2, upsampler = 'pixelshuffle', resi_connection = '3conv')
         self.flow = flow
         self.upsample = nn.UpsamplingBilinear2d(scale_factor=8)
         
@@ -765,6 +808,7 @@ class GaussianDiffusion(nn.Module):
         )
 
     def q_posterior(self, x_start, x_t, t):
+
         posterior_mean = (
             extract(self.posterior_mean_coef1, t, x_t.shape) * x_start +
             extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -773,11 +817,8 @@ class GaussianDiffusion(nn.Module):
         posterior_log_variance_clipped = extract(self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
-    #def model_predictions(self, x, t, x_self_cond = None, clip_x_start = False):
     def model_predictions(self, x, t, l_cond, context, x_self_cond = None, clip_x_start = False):
         
-        #model_output = self.model(x, t, x_self_cond)
-        #print(x.shape, l_cond.shape)
         model_output = self.model(torch.cat((x, l_cond), 1), t, context, x_self_cond)
         
         maybe_clip = partial(torch.clamp, min = -1., max = 1.) if clip_x_start else identity
@@ -800,10 +841,8 @@ class GaussianDiffusion(nn.Module):
 
         return ModelPrediction(pred_noise, x_start)
 
-    #def p_mean_variance(self, x, t, x_self_cond = None, clip_denoised = True):
     def p_mean_variance(self, x, t, context, x_self_cond = None, clip_denoised = True):
         
-        #preds = self.model_predictions(x, t, x_self_cond)
         preds = self.model_predictions(x, t, context, x_self_cond)
         x_start = preds.pred_x_start
 
@@ -814,22 +853,18 @@ class GaussianDiffusion(nn.Module):
         return model_mean, posterior_variance, posterior_log_variance, x_start
 
     @torch.no_grad()
-    #def p_sample(self, x, t: int, x_self_cond = None):
     def p_sample(self, x, t: int, context, x_self_cond = None):
         
-        b, *_, device = *x.shape, x.device
         batched_times = torch.full((x.shape[0],), t, device = x.device, dtype = torch.long)
-        #model_mean, _, model_log_variance, x_start = self.p_mean_variance(x = x, t = batched_times, x_self_cond = x_self_cond, clip_denoised = True)
         model_mean, _, model_log_variance, x_start = self.p_mean_variance(x = x, t = batched_times, context = context, x_self_cond = x_self_cond, clip_denoised = True)
         noise = torch.randn_like(x) if t > 0 else 0. # no noise if t == 0
         pred_img = model_mean + (0.5 * model_log_variance).exp() * noise
         return pred_img, x_start
 
     @torch.no_grad()
-    #def p_sample_loop(self, shape, return_all_timesteps = False):
     def p_sample_loop(self, shape, context, return_all_timesteps = False):
         
-        batch, device = shape[0], self.betas.device
+        device = self.betas.device
 
         img = torch.randn(shape, device = device)
         imgs = [img]
@@ -838,19 +873,16 @@ class GaussianDiffusion(nn.Module):
         
         for t in tqdm(reversed(range(0, self.num_timesteps)), desc = 'sampling loop time step', total = self.num_timesteps):
             self_cond = x_start if self.self_condition else None
-            #img, x_start = self.p_sample(img, t, self_cond)
             img, x_start = self.p_sample(img, t, context, self_cond)
             imgs.append(img)
 
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
 
-        #ret = self.unnormalize(ret)
         return ret
 
     @torch.no_grad()
-    #def ddim_sample(self, shape, return_all_timesteps = False):
     def ddim_sample(self, shape, l_cond, context, return_all_timesteps = False):
-        print('here!!!')
+        
         batch, device, total_timesteps, sampling_timesteps, eta, objective = shape[0], self.betas.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
 
         times = torch.linspace(-1, total_timesteps - 1, steps = sampling_timesteps + 1)   # [-1, 0, 1, 2, ..., T-1] when sampling_timesteps == total_timesteps
@@ -865,7 +897,6 @@ class GaussianDiffusion(nn.Module):
         for time, time_next in tqdm(time_pairs, desc = 'sampling loop time step'):
             time_cond = torch.full((batch,), time, device = device, dtype = torch.long)
             self_cond = x_start if self.self_condition else None
-            #pred_noise, x_start, *_ = self.model_predictions(img, time_cond, self_cond, clip_x_start = True)
             pred_noise, x_start, *_ = self.model_predictions(img, time_cond, l_cond, context, self_cond, clip_x_start = True)
 
             imgs.append(img)
@@ -889,33 +920,66 @@ class GaussianDiffusion(nn.Module):
         imgs.append(img)
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
 
-        #ret = self.unnormalize(ret)
         return ret
 
     @torch.no_grad()
-    def sample(self, lres, return_all_timesteps = False):
+    def sample(self, lres, hres, multi, flow_mode, return_all_timesteps = False):
         
         b, f, c, h, w = lres.shape
         
-        ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        if multi:
+
+            topo = hres[:, :, 1:2, :, :]
+            low_chans = lres[:, :, 1:, :, :]
+            topo_low = rearrange(F.interpolate(rearrange(topo, 'b t c h w -> (b t) c h w'), size=(h, w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+            high_chans = rearrange(F.interpolate(rearrange(low_chans, 'b t c h w -> (b t) c h w'), size=(8*h, 8*w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+        
+        if multi:
+            
+            ures = self.umodel(rearrange(torch.cat((lres, topo_low), dim = 2), 'b t c h w -> (b t) c h w'))
+        
+        else:
+            
+            ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        
         ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
         
         lres = self.normalize(lres)
         ures = self.normalize(ures)
+
+        if multi:
+
+            topo = self.normalize(topo)
+
         sample_fn = self.p_sample_loop if not self.is_ddim_sampling else self.ddim_sample
         
         l = ures.clone()
+        
+        if multi:
+
+            l = torch.cat((l, high_chans, topo), dim = 2)
+        
         r = torch.roll(l, -1, 1)
         ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
-        l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
-        #l_cond = rearrange(ures[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
+
+        if multi:
+
+            l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+        
+        else:
+
+            l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
         
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
         m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
+        
+        if multi:
+            
+            m1 = torch.cat((m1, topo), dim = 2)
+        
         m1 = torch.roll(m1, -2, 1)
-        #m1 = torch.roll(l, -2, 1)
         
         stack = torch.cat((l, r, m1), 2)
         stack = stack[:, :(f-2), :, :, :]
@@ -923,9 +987,15 @@ class GaussianDiffusion(nn.Module):
         
         flow, context = self.flow(stack)
         
-        warped = scale_space_warp(ures_flow, flow)
+        if flow_mode == '3d':
+    
+            warped = scale_space_warp(ures_flow, flow)
+
+        elif flow_mode == '2d':
+
+            warped = flow_warp(ures_flow, flow)
         
-        res = sample_fn((b*(f-2),c,8*h,8*w), l_cond, context, return_all_timesteps = return_all_timesteps)
+        res = sample_fn((b * (f - 2), 1, 8 * h, 8 * w), l_cond, context, return_all_timesteps = return_all_timesteps)
         sres = warped + res
         sres = rearrange(sres, '(b t) c h w -> b t c h w', b = b)
 
@@ -934,9 +1004,11 @@ class GaussianDiffusion(nn.Module):
         flow = rearrange(flow, '(b t) c h w -> b t c h w', b = b)
         
         return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
+    
 
     @torch.no_grad()
     def interpolate(self, x1, x2, t = None, lam = 0.5):
+
         b, *_, device = *x1.shape, x1.device
         t = default(t, self.num_timesteps - 1)
 
@@ -952,6 +1024,7 @@ class GaussianDiffusion(nn.Module):
         return img
 
     def q_sample(self, x_start, t, noise=None):
+        
         noise = default(noise, lambda: torch.randn_like(x_start))
 
         return (
@@ -961,6 +1034,7 @@ class GaussianDiffusion(nn.Module):
 
     @property
     def loss_fn(self):
+        
         if self.loss_type == 'l1':
             return F.l1_loss
         elif self.loss_type == 'l2':
@@ -968,24 +1042,33 @@ class GaussianDiffusion(nn.Module):
         else:
             raise ValueError(f'invalid loss type {self.loss_type}')
 
-    def p_losses(self, stack, hres, lres, ures, t, noise = None):
+    def p_losses(self, stack, hres, lres, ures, t, multi, flow_mode, topo = None, noise = None):
         
-        b, f, c, h, w = hres.shape
+        f = hres.shape[1]
         
         stack = rearrange(stack, 'b t c h w -> (b t) c h w')
-        ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
+        ures_flow = rearrange(ures[:, 1:(f - 1), :, :, :], 'b t c h w -> (b t) c h w')
         
         flow, context = self.flow(stack)
         
-        warped = scale_space_warp(ures_flow, flow)
+        if flow_mode == '3d':
+            
+            warped = scale_space_warp(ures_flow, flow)
+
+        elif flow_mode == '2d':
+
+            warped = flow_warp(ures_flow, flow)
         
         x_start = rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         x_start = x_start - warped
         
-        l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
-        #l_cond = rearrange(ures[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
+        if multi:
+            
+            l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
         
-        b, c, h, w = x_start.shape
+        else:
+            
+            l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
         
         del f
         
@@ -1032,35 +1115,68 @@ class GaussianDiffusion(nn.Module):
 
         return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*0.3
 
-    def forward(self, lres, hres, *args, **kwargs):
+    def forward(self, lres, hres, multi, flow_mode, *args, **kwargs):
         
-        b, f, c, h, w, device, img_size = *hres.shape, hres.device, self.image_size
-        
-        assert h == img_size and w == img_size, f'height and width of image must be {img_size}'
+        b, f, c, h, w, device = *hres.shape, hres.device
         
         t = torch.randint(0, self.num_timesteps, (b*(f-2),), device=device).long()
 
-        ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        if multi:
+            
+            topo = hres[:, :, 1:2, :, :]
+            hres = hres[:, :, 0:1, :, :]
+            low_chans = lres[:, :, 1:, :, :]
+            topo_low = rearrange(F.interpolate(rearrange(topo, 'b t c h w -> (b t) c h w'), size=(h//8, w//8), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+            high_chans = rearrange(F.interpolate(rearrange(low_chans, 'b t c h w -> (b t) c h w'), size=(h, w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+
+        if multi:
+            
+            ures = self.umodel(rearrange(torch.cat((lres, topo_low), dim = 2), 'b t c h w -> (b t) c h w'))
+        
+        else:
+            
+            ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        
         ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
         
         lres = self.normalize(lres)
         hres = self.normalize(hres)
         ures = self.normalize(ures)
+
+        if multi:
+
+            topo = self.normalize(topo)
         
         l = ures.clone()
+        
+        if multi:
+            
+            l = torch.cat((l, high_chans, topo), dim = 2)
+        
         r = torch.roll(l, -1, 1)
 
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
         m1 = rearrange(m1, '(b t) c h w -> b t c h w', b = b)
+        
+        if multi:
+            
+            m1 = torch.cat((m1, topo), dim = 2)
+        
         m1 = torch.roll(m1, -2, 1)
-        #m1 = torch.roll(l, -2, 1)
 
         stack = torch.cat((l, r, m1), 2)
         stack = stack[:, :(f-2), :, :, :]
         
-        return self.p_losses(stack, hres, lres, ures, t, *args, **kwargs)
+        if multi:
+
+            
+            return self.p_losses(stack, hres, lres, ures, t, multi, flow_mode, topo, *args, **kwargs)
+        
+        else:
+
+            return self.p_losses(stack, hres, lres, ures, t, multi, flow_mode, None, *args, **kwargs)
 
 # trainer class
 
@@ -1074,24 +1190,18 @@ class Trainer(object):
         *,
         train_batch_size = 16,
         gradient_accumulate_every = 1,
-        #augment_horizontal_flip = True,
         train_lr = 1e-4,
         train_num_steps = 100000,
         ema_update_every = 1,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
         save_and_sample_every = 1,
-        #num_samples = 25,
         eval_folder = './evaluate',
         results_folder = './results',
-        #tensorboard_dir = './tensorboard',
         val_num_of_batch = 2,
         amp = False,
         fp16 = False,
-        #fp16 = True,
-        split_batches = True,
-        #split_batches = False,
-        convert_image_to = None
+        split_batches = True
     ):
         super().__init__()
 
@@ -1111,6 +1221,10 @@ class Trainer(object):
         )
         self.config = config
         self.accelerator.native_amp = amp
+        self.multi = config.data_config["multi"]
+        self.rollout = config.rollout
+        self.flow = config.data_config["flow"]
+        self.minipatch = config.data_config["minipatch"]
 
         self.model = diffusion_model
 
@@ -1193,7 +1307,6 @@ class Trainer(object):
         cmap = mpl.colormaps['RdBu_r']
         fcmap = mpl.colormaps['gray_r']
 
-        
         c384_lgmin = np.load('data/only_precip/c384_lgmin.npy')
         c384_lgmax = np.load('data/only_precip/c384_lgmax.npy')
         c384_gmin = np.load('data/only_precip/c384_gmin.npy')
@@ -1216,15 +1329,20 @@ class Trainer(object):
 
                 for _ in range(self.gradient_accumulate_every):
                     
-                    #data = next(self.dl).to(device)
                     data = next(self.train_dl)
                     lres = data['LR'].to(device)
                     hres = data['HR'].to(device)
 
+                    if self.minipatch:
+                        
+                        x_st = randint(0, 36)
+                        y_st = randint(0, 36)
+                        lres = crop(lres, x_st, y_st, 12, 12)
+                        hres = crop(hres, 8 * x_st, 8 * y_st, 96, 96)
+
                     with self.accelerator.autocast():
                         
-                        #loss = self.model(data)
-                        loss = self.model(lres, hres)
+                        loss = self.model(lres, hres, self.multi, self.flow)
                         loss = loss / self.gradient_accumulate_every
                         total_loss += loss.item()
 
@@ -1233,7 +1351,6 @@ class Trainer(object):
                 accelerator.clip_grad_norm_(self.model.parameters(), 1.0)
                 pbar.set_description(f'loss: {total_loss:.4f}')
 
-                #self.writer.add_scalar("loss", total_loss, self.step)
                 accelerator.log({"loss": total_loss}, step = self.step)
 
                 accelerator.wait_for_everyone()
@@ -1269,13 +1386,17 @@ class Trainer(object):
 
                                 truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
                                 pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
-                                truth[0,:,:,:,:,:] = (hres[:,2:,:,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
+                                truth[0,:,:,:,:,:] = (hres[:,2:,0:1,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
                                 
                                 for k in range(num_samples):
-                                    videos, base, res, flows = self.ema.ema_model.sample(lres)
+                                    videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
                                     pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
+
+                                lres = lres[:, :, 0:1, :, :]
+                                hres = hres[:, :, 0:1, :, :]
                                 
                                 crps_index = calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size)
+                                
                                 psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
 
                                 videos_time_mean = videos.mean(dim = 1)
@@ -1341,15 +1462,20 @@ class Trainer(object):
                                 ax1.set_yscale("log")
                                 
                                 flow_d = np.zeros((1, num_frames, 3, img_size, img_size))
+
                                 for m in range(num_frames):
+
                                     flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
 
                                 flow_s = np.zeros((1, num_frames, 3, img_size, img_size))
                                 sm = smap(None, fcmap)
+
                                 for m in range(num_frames):
+
                                     flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
                                 
                                 if self.config.data_config.logscale:
+
                                     accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                     accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                     accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
@@ -1359,8 +1485,9 @@ class Trainer(object):
                                     accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
                                 
                                 else:
-                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,:,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,:,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+
+                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                     accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                     accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                     target = np.log(target - c384_gmin + 1e-14)
@@ -1395,30 +1522,61 @@ class Trainer(object):
         
         self.ema.ema_model.eval()
 
-        c384_norm= torch.from_numpy(np.load("data/only_precip/c384_norm.npy"))
-        c48_norm = torch.from_numpy(np.load("data/only_precip/c48_norm.npy"))
+        c384_norm= torch.from_numpy(np.load("data/only_precip/c384_lgnorm.npy"))
+        c48_norm = torch.from_numpy(np.load("data/only_precip/c48_lgnorm.npy"))
+
+        if self.multi:
+            
+            # refer to data/vsrdata.py for more info
+
+            c48_norm_more = torch.from_numpy(np.load("data/more_channels/c48_norm.npy"))
+            c48_norm = torch.cat((c48_norm, c48_norm_more), 2)
+            
+            topo384 = torch.from_numpy(np.repeat(np.load("data/topography/topo384_norm.npy").reshape((6, 1, 1, 384, 384)), 2920, axis = 1))
+            c384_norm = torch.cat((c384_norm, topo384), axis = 2)
 
         with torch.no_grad():
 
             for tile in range(6):
 
-                st = 0
-                en = 27
-                count = 0
+                if self.rollout == 'full':
 
-                while en < c48_norm.shape[1]:
+                    seq_len = self.rollout_batch
+                    st = 0
+                    en = seq_len + 2
+                    count = 0
 
-                    print(tile, st)
+                    while en < c48_norm.shape[1]:
 
-                    lres = c48_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
-                    hres = c384_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
+                        print(tile, st)
 
-                    videos, base, res, flows = self.ema.ema_model.sample(lres)
+                        lres = c48_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
+                        hres = c384_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
 
-                    torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
-                    torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
-                    torch.save(lres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))
+                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi)
 
-                    st += 25
-                    en += 25
-                    count += 1
+                        torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
+                        torch.save(hres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
+                        torch.save(lres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))
+                        count += 1
+
+                        st += seq_len
+                        en += seq_len
+
+                if self.rollout == 'partial':
+
+                    seq_len = self.rollout_batch
+                    indices = get_random_idx_with_difference(0, c48_norm.shape[1] - (seq_len + 2), 250 // seq_len, seq_len + 2) # 250 samples per tile
+
+                    for count, st in enumerate(indices):
+
+                        print(tile, count)
+
+                        lres = c48_norm[tile,st:st+(seq_len+2),:,:,:].unsqueeze(0).to(device)
+                        hres = c384_norm[tile,st:st+(seq_len+2),:,:,:].unsqueeze(0).to(device)
+
+                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi)
+
+                        torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
+                        torch.save(hres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
+                        torch.save(lres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))
