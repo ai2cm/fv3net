@@ -5,8 +5,10 @@ Unit tests for the reservoir stepper.
 import pytest
 import runtime.steppers.reservoir as reservoir
 from runtime.steppers.reservoir import (
-    _ReservoirStepper,
+    ReservoirIncrementOnlyStepper,
+    ReservoirPredictStepper,
     _FiniteStateMachine,
+    _InitTimeStore,
     ReservoirConfig,
 )
 from datetime import datetime, timedelta
@@ -67,21 +69,31 @@ def get_mock_reservoir_model():
     return mock_model
 
 
-def get_mock_ReservoirStepper(timestep=timedelta(minutes=10)):
+def get_mock_ReservoirSteppers():
 
     model = get_mock_reservoir_model()
     state_machine = _FiniteStateMachine()
-    state_machine.set_init_time(datetime(1, 1, 1, 0, 0, 0))
+    time_store = _InitTimeStore()
+    time_store.set_init_time(datetime(1, 1, 1, 0, 0, 0))
 
     # Create a _ReservoirStepper object with mock objects
-    stepper = _ReservoirStepper(
+    incrementer = ReservoirIncrementOnlyStepper(
         model=model,
         reservoir_timestep=timedelta(minutes=10),
         synchronize_steps=2,
-        state_machine=_FiniteStateMachine(),
+        state_machine=state_machine,
+        init_time_store=time_store,
     )
 
-    return stepper
+    predictor = ReservoirPredictStepper(
+        model=model,
+        reservoir_timestep=timedelta(minutes=10),
+        synchronize_steps=2,
+        state_machine=state_machine,
+        init_time_store=time_store,
+    )
+
+    return incrementer, predictor
 
 
 @pytest.fixture(scope="function")
@@ -102,7 +114,7 @@ def patched_reservoir_module(monkeypatch):
 def test__ReservoirStepper__is_rc_update_step():
     # Test that the time check for a given TimeLoop time is correct
 
-    stepper = get_mock_ReservoirStepper()
+    stepper, _ = get_mock_ReservoirSteppers()
 
     time = stepper._state_machine.init_time
     assert stepper._is_rc_update_step(time)
@@ -115,36 +127,36 @@ def test__ReservoirStepper_model_sync(patched_reservoir_module):
     # Test that the model reset is called  when no completed steps and not otherwise
     # also check that completed sync steps is updated correctly
 
-    stepper = get_mock_ReservoirStepper()
+    incrementer, _ = get_mock_ReservoirSteppers()
     mock_state = MockState(a=1)
 
-    stepper.increment_reservoir(stepper.init_time, mock_state)
-    stepper.model.reset_state.assert_called()
-    assert stepper.completed_sync_steps == 1
+    incrementer.increment_reservoir(incrementer.init_time, mock_state)
+    incrementer.model.reset_state.assert_called()
+    assert incrementer.completed_sync_steps == 1
 
     # shouldn't call reset again after it's been initialized
-    stepper.increment_reservoir(stepper.init_time, mock_state)
-    stepper.model.reset_state.assert_called_once()
-    assert stepper.completed_sync_steps == 2
+    incrementer.increment_reservoir(incrementer.init_time, mock_state)
+    incrementer.model.reset_state.assert_called_once()
+    assert incrementer.completed_sync_steps == 2
 
 
 def test__ReservoirStepper_model_predict(patched_reservoir_module):
     # Test that the model predict is called  when completed steps and not otherwise
     # also check that completed sync steps is updated correctly
 
-    stepper = get_mock_ReservoirStepper()
+    incrementer, predictor = get_mock_ReservoirSteppers()
     mock_state = MockState(a=1)
 
     # no call to predict when at or below required number of sync steps
-    for i in range(stepper.synchronize_steps):
-        stepper.increment_reservoir(stepper.init_time, mock_state)
-        stepper.predict(stepper.init_time, mock_state)
-        stepper.model.predict.assert_not_called()
+    for i in range(incrementer.synchronize_steps):
+        incrementer.increment_reservoir(incrementer.init_time, mock_state)
+        predictor.predict(predictor.init_time, mock_state)
+        predictor.model.predict.assert_not_called()
 
     # call to predict when past synchronization period
-    stepper.increment_reservoir(stepper.init_time, mock_state)
-    stepper.predict(stepper.init_time, mock_state)
-    stepper.model.predict.assert_called_once()
+    incrementer.increment_reservoir(incrementer.init_time, mock_state)
+    predictor.predict(predictor.init_time, mock_state)
+    predictor.model.predict.assert_called_once()
 
 
 def test_get_reservoir_steppers(patched_reservoir_module):
