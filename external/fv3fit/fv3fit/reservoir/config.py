@@ -86,8 +86,9 @@ class ReservoirTrainingConfig(Hyperparameters):
         state before it is used as input to the regressor's .fit and
         .predict methods. This option was found to be important for skillful
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
-    autoencoder_path: optional path for autoencoder to use in encoding time series
-        before passing to reservoir
+    transformers: optional TransformerConfig for autoencoders to use in
+        encoding input, output, and/or hybrid variable sets.
+
     """
 
     input_variables: Sequence[str]
@@ -101,7 +102,6 @@ class ReservoirTrainingConfig(Hyperparameters):
     transformers: Optional[TransformerConfig] = None
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
-    autoencoder_path: Optional[str] = None
     hybrid_variables: Optional[Sequence[str]] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
@@ -168,7 +168,7 @@ class ReservoirTrainingConfig(Hyperparameters):
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
-            "autoencoder_path": self.autoencoder_path,
+            "transformers": asdict(self.transformers),
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
