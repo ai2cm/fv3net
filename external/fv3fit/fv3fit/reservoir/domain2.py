@@ -124,6 +124,14 @@ class RankXYDivider:
         else:
             return False
 
+    def get_new_zdim_rank_divider(self, z_feature_size: int):
+        return RankXYDivider(
+            subdomain_layout=self.subdomain_layout,
+            overlap=self.overlap,
+            rank_extent=self.rank_extent,
+            z_feature_size=z_feature_size,
+        )
+
     def get_no_overlap_rank_divider(self):
         if self.overlap == 0:
             return self

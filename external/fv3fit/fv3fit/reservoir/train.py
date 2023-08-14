@@ -11,7 +11,7 @@ from typing import Optional, List, Union, cast, Mapping
 from .. import Predictor
 from .utils import (
     square_even_terms,
-    process_batch_Xy_data,
+    process_batch_data,
     get_ordered_X,
     SynchronziationTracker,
     get_standard_normalizing_transformer,
@@ -93,7 +93,6 @@ def train_reservoir_model(
         overlap_rank_extent=rank_extent,
         z_feature_size=transformers.input.n_latent_dims,
     )
-    no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
 
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
@@ -112,43 +111,53 @@ def train_reservoir_model(
         n_synchronize=hyperparameters.n_timesteps_synchronize
     )
     for b, batch_data in enumerate(train_batches):
-        time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
+        input_time_series = process_batch_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
             autoencoder=transformers.input,
+            trim_halo=False,
         )
         # If the output variables differ from inputs, use the transformer specific
         # to the output set to transform the output data
-        if hyperparameters.output_variables != hyperparameters.input_variables:
-            _, time_series_without_overlap = process_batch_Xy_data(
-                variables=hyperparameters.output_variables,
-                batch_data=batch_data,
-                rank_divider=rank_divider,
-                autoencoder=transformers.output,
-            )
+        _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.output.n_latent_dims
+        )
+        output_time_series = process_batch_data(
+            variables=hyperparameters.output_variables,
+            batch_data=batch_data,
+            rank_divider=_output_rank_divider_with_overlap,
+            autoencoder=transformers.output,
+            trim_halo=True,
+        )
 
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
         reservoir_state_time_series = _get_reservoir_state_time_series(
-            time_series_with_overlap, hyperparameters.input_noise, reservoir
+            input_time_series, hyperparameters.input_noise, reservoir
         )
         sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
 
         hybrid_time_series: Optional[np.ndarray]
+
+        _hybrid_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.hybrid.n_latent_dims
+        )
+
         if hyperparameters.hybrid_variables is not None:
-            _, hybrid_time_series = process_batch_Xy_data(
+            hybrid_time_series = process_batch_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
-                rank_divider=rank_divider,
+                rank_divider=_hybrid_rank_divider_with_overlap,
                 autoencoder=transformers.hybrid,
+                trim_halo=True,
             )
         else:
             hybrid_time_series = None
 
         readout_input, readout_output = _construct_readout_inputs_outputs(
             reservoir_state_time_series,
-            time_series_without_overlap,
+            output_time_series,
             hyperparameters.square_half_hidden_state,
             hybrid_time_series=hybrid_time_series,
         )
@@ -163,7 +172,10 @@ def train_reservoir_model(
             readout_input = rank_divider.subdomains_to_leading_axis(
                 readout_input, flat_feature=True
             )
-            readout_output = no_overlap_divider.subdomains_to_leading_axis(
+            output_rank_divider = (
+                _output_rank_divider_with_overlap.get_no_overlap_rank_divider()
+            )
+            readout_output = output_rank_divider.subdomains_to_leading_axis(
                 readout_output, flat_feature=True
             )
             jobs = [

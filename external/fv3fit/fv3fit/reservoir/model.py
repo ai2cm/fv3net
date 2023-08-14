@@ -63,7 +63,13 @@ class HybridReservoirComputingModel(Predictor):
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
         self.transformers = transformers
-        self._no_overlap_divider = self.rank_divider.get_no_overlap_rank_divider()
+        no_overlap_divider = self.rank_divider.get_no_overlap_rank_divider()
+        self._output_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.output.n_latent_dims
+        )
+        self._hybrid_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.hybrid.n_latent_dims
+        )
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
@@ -72,7 +78,7 @@ class HybridReservoirComputingModel(Predictor):
             input_arrs=hybrid_input, transformer=self.transformers.hybrid
         )
 
-        flat_hybrid_in = self._no_overlap_divider.get_all_subdomains_with_flat_feature(
+        flat_hybrid_in = self._hybrid_rank_divider.get_all_subdomains_with_flat_feature(
             encoded_hybrid_input
         )
         readout_input = self._concatenate_readout_inputs(
@@ -80,7 +86,7 @@ class HybridReservoirComputingModel(Predictor):
         )
 
         flat_prediction = self.readout.predict(readout_input)
-        prediction = self._no_overlap_divider.merge_all_flat_feature_subdomains(
+        prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
         decoded_prediction = decode_columns(
@@ -206,7 +212,10 @@ class ReservoirComputingModel(Predictor):
         self.rank_divider = rank_divider
         self.transformers = transformers
 
-        self._no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
+        no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
+        self._output_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.output.n_latent_dims
+        )
 
     def process_state_to_readout_input(self):
         readout_input = self.reservoir.state
@@ -219,7 +228,7 @@ class ReservoirComputingModel(Predictor):
         # Returns raw readout prediction of latent state.
         readout_input = self.process_state_to_readout_input()
         flat_prediction = self.readout.predict(readout_input)
-        prediction = self._no_overlap_divider.merge_all_flat_feature_subdomains(
+        prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
         decoded_prediction = decode_columns(

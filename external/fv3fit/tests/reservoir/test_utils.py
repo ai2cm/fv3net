@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from fv3fit.reservoir.utils import (
     square_even_terms,
-    process_batch_Xy_data,
+    process_batch_data,
     SynchronziationTracker,
 )
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
@@ -37,9 +37,11 @@ def test__square_even_terms(arr, axis, expected):
     np.testing.assert_array_equal(square_even_terms(arr, axis=axis), expected)
 
 
-@pytest.mark.parametrize("nz", [1, 3])
-def test_process_batch_Xy_data(nz):
-    overlap = 1
+@pytest.mark.parametrize(
+    "nz, overlap, trim_halo",
+    [(1, 1, False), (3, 1, False), (1, 0, False), (3, 0, False), (3, 1, True)],
+)
+def test_process_batch_data(nz, overlap, trim_halo):
     nt, nx, ny = 10, 8, 8
     subdomain_layout = (2, 2)
     autoencoder = DoNothingAutoencoder([nz, nz])
@@ -47,29 +49,25 @@ def test_process_batch_Xy_data(nz):
         "a": np.ones((nt, nx, ny, nz)),
         "b": np.ones((nt, nx, ny, nz)),
     }
-    overlap_rank_divider = RankXYDivider(
+    rank_divider = RankXYDivider(
         subdomain_layout=subdomain_layout,
         overlap=overlap,
         overlap_rank_extent=(nx, ny),
         z_feature_size=autoencoder.n_latent_dims,
     )
-    rank_divider = overlap_rank_divider.get_no_overlap_rank_divider()
 
-    time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
+    time_series = process_batch_data(
         variables=["a", "b"],
         batch_data=batch_data,
-        rank_divider=overlap_rank_divider,
+        rank_divider=rank_divider,
         autoencoder=autoencoder,
+        trim_halo=trim_halo,
     )
-    features_per_subdomain_with_overlap = overlap_rank_divider.flat_subdomain_len
-    features_per_subdomain_without_overlap = rank_divider.flat_subdomain_len
-    assert time_series_with_overlap.shape == (
-        nt,
-        overlap_rank_divider.n_subdomains,
-        features_per_subdomain_with_overlap,
-    )
-    assert time_series_without_overlap.shape == (
-        nt,
-        rank_divider.n_subdomains,
-        features_per_subdomain_without_overlap,
-    )
+
+    if trim_halo is True:
+        features_per_subdomain = (
+            rank_divider.get_no_overlap_rank_divider().flat_subdomain_len
+        )
+    else:
+        features_per_subdomain = rank_divider.flat_subdomain_len
+    assert time_series.shape == (nt, rank_divider.n_subdomains, features_per_subdomain,)

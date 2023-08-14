@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Tuple
+from typing import Iterable, Mapping
 from fv3fit.reservoir.transformers import (
     # ReloadableTransformer,
     Transformer,
@@ -64,28 +64,34 @@ def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
     return assure_txyz_dims(ordered_tensors)
 
 
-def process_batch_Xy_data(
+def process_batch_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: RankXYDivider,
     autoencoder: Transformer,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """ Convert physical state to corresponding reservoir hidden state,
+    trim_halo: bool,
+):
+    """ Converts physical state to latent state
     and reshape data into the format used in training.
+    The rank divider provided includes the full overlap, since
+    the data it is operating on includes all halo points.
+    The rank
     """
-    batch_X = get_ordered_X(batch_data, variables)
+    data = get_ordered_X(batch_data, variables)
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    batch_data_encoded = encode_columns(batch_X, autoencoder)
+    data_encoded = encode_columns(data, autoencoder)
 
-    X_flat = rank_divider.get_all_subdomains_with_flat_feature(batch_data_encoded)
-    Y_no_halo = rank_divider.trim_halo_from_rank_data(batch_data_encoded)
-
-    no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
-    Y_flat = no_overlap_divider.get_all_subdomains_with_flat_feature(Y_no_halo)
-
-    return X_flat, Y_flat
+    if trim_halo:
+        data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
+        no_overlap_rank_divider = rank_divider.get_no_overlap_rank_divider()
+        return no_overlap_rank_divider.get_all_subdomains_with_flat_feature(
+            data_trimmed
+        )
+    else:
+        data_trimmed = data_encoded
+        return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
 
 
 def get_standard_normalizing_transformer(variables, sample_batch):
