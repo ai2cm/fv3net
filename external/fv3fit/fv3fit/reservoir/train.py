@@ -16,7 +16,7 @@ from .utils import (
     SynchronziationTracker,
     get_standard_normalizing_transformer,
 )
-from .transformers import TransformerGroup
+from .transformers import TransformerGroup, Transformer
 from .._shared import register_training_function
 from . import (
     ReservoirComputingModel,
@@ -26,7 +26,6 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-from fv3fit.reservoir.transformers import Transformer
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +60,8 @@ def _get_transformers(
         transformers["output"] = get_standard_normalizing_transformer(
             hyperparameters.output_variables, sample_batch
         )
+    else:
+        transformers["output"] = transformers["input"]
 
     # If hybrid variables transformer not specified, and hybrid variables are defined,
     # create a separate standard norm transform
@@ -68,7 +69,6 @@ def _get_transformers(
         transformers["hybrid"] = get_standard_normalizing_transformer(
             hyperparameters.hybrid_variables, sample_batch
         )
-
     return TransformerGroup(**transformers)
 
 
@@ -140,11 +140,10 @@ def train_reservoir_model(
 
         hybrid_time_series: Optional[np.ndarray]
 
-        _hybrid_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
-            z_feature_size=transformers.hybrid.n_latent_dims
-        )
-
         if hyperparameters.hybrid_variables is not None:
+            _hybrid_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
+                z_feature_size=transformers.hybrid.n_latent_dims  # type: ignore
+            )
             hybrid_time_series = process_batch_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,

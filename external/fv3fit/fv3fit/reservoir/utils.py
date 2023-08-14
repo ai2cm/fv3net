@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Optional
 from fv3fit.reservoir.transformers import (
     # ReloadableTransformer,
     Transformer,
@@ -68,7 +68,7 @@ def process_batch_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: RankXYDivider,
-    autoencoder: Transformer,
+    autoencoder: Optional[Transformer],
     trim_halo: bool,
 ):
     """ Converts physical state to latent state
@@ -81,7 +81,8 @@ def process_batch_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    data_encoded = encode_columns(data, autoencoder)
+    if autoencoder is not None:
+        data_encoded = encode_columns(data, autoencoder)
 
     if trim_halo:
         data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)

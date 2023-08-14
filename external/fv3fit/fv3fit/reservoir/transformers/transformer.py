@@ -83,43 +83,35 @@ class TransformerGroup:
     INPUT_DIR = "input_transformer"
     OUTPUT_DIR = "output_transformer"
     HYBRID_DIR = "hybrid_transformer"
+    CONFIG_NAME = "config.yaml"
 
     def __init__(
         self,
         input: Transformer,
-        output: Optional[Transformer] = None,
+        output: Transformer,
         hybrid: Optional[Transformer] = None,
     ):
         self.input = input
-        self._output_same_as_input = True if output is None else False
-        self._hybrid_same_as_input = True if hybrid is None else False
-        self.output = output or input
-        self.hybrid = hybrid or input
+        self.output = output
+        self.hybrid = hybrid
 
     def dump(self, path):
+
         self.input.dump(os.path.join(path, self.INPUT_DIR))
-        if not self._output_same_as_input:
-            self.output.dump(os.path.join(path, self.OUTPUT_DIR))
-        if not self._hybrid_same_as_input:
+        self.output.dump(os.path.join(path, self.OUTPUT_DIR))
+        if self.hybrid is not None:
             self.hybrid.dump(os.path.join(path, self.HYBRID_DIR))
 
     @classmethod
     def load(cls, path) -> "TransformerGroup":
         input = cast(Transformer, fv3fit.load(os.path.join(path, cls.INPUT_DIR)))
-
-        try:
-            output: Optional[Transformer] = cast(
-                Transformer, fv3fit.load(os.path.join(path, cls.OUTPUT_DIR))
-            )
-        except (KeyError):
-            output = None
+        output = cast(Transformer, fv3fit.load(os.path.join(path, cls.OUTPUT_DIR)))
         try:
             hybrid: Optional[Transformer] = cast(
                 Transformer, fv3fit.load(os.path.join(path, cls.HYBRID_DIR))
             )
         except (KeyError):
             hybrid = None
-
         return cls(input=input, output=output, hybrid=hybrid)
 
 

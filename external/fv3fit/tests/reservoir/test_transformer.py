@@ -10,47 +10,24 @@ from fv3fit.reservoir.transformers.transformer import (
 )
 
 
-@pytest.mark.parametrize(
-    "nz_input, nz_output, nz_hybrid, output_same_as_input,  \
-        hybrid_same_as_input, n_saved_transformers",
-    [
-        (2, None, None, True, True, 1),
-        (2, 3, None, False, True, 2),
-        (2, 3, 4, False, False, 3),
-    ],
-)
-def test_TransformerGroup(
-    tmpdir,
-    nz_input,
-    nz_output,
-    nz_hybrid,
-    output_same_as_input,
-    hybrid_same_as_input,
-    n_saved_transformers,
-):
-    if nz_output is not None:
-        output_transformer = DoNothingAutoencoder([nz_output])
-    else:
-        output_transformer = None
-    if nz_hybrid is not None:
-        hybrid_transformer = DoNothingAutoencoder([nz_hybrid])
-    else:
-        hybrid_transformer = None
+@pytest.mark.parametrize("hybrid_transformer", [None, DoNothingAutoencoder([2])])
+def test_TransformerGroup(tmpdir, hybrid_transformer):
+    input_transformer = DoNothingAutoencoder([4])
+    output_transformer = DoNothingAutoencoder([2])
 
     transformers = TransformerGroup(
-        input=DoNothingAutoencoder([nz_input]),
-        output=output_transformer,
-        hybrid=hybrid_transformer,
+        input=input_transformer, output=output_transformer, hybrid=hybrid_transformer,
     )
-    assert transformers._hybrid_same_as_input == hybrid_same_as_input
-    assert transformers._output_same_as_input == output_same_as_input
-
+    n_saved_transformers = 3 if hybrid_transformer is not None else 2
     transformers.dump(str(tmpdir))
     assert len(os.listdir(str(tmpdir))) == n_saved_transformers
     loaded_transformers = TransformerGroup.load(str(tmpdir))
 
-    assert loaded_transformers._hybrid_same_as_input == hybrid_same_as_input
-    assert loaded_transformers._output_same_as_input == output_same_as_input
+    x = np.random.rand(2)
+    if hybrid_transformer is not None:
+        np.testing.assert_array_equal(
+            loaded_transformers.hybrid.encode([x]), hybrid_transformer.encode([x])
+        )
 
 
 @pytest.mark.parametrize("nz, nvars", [(2, 2), (2, 1), (1, 2), (1, 1)])
