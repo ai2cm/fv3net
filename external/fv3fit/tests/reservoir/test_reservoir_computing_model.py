@@ -53,7 +53,7 @@ def get_ReservoirComputingModel(
         coefficients=np.random.rand(rank_divider.n_subdomains, state_size, input_size),
         intercepts=np.random.rand(input_size),
     )
-    transformers = TransformerGroup(input=autoencoder)
+    transformers = TransformerGroup(input=autoencoder, output=autoencoder)
     predictor = ReservoirComputingModel(
         input_variables=variables,
         output_variables=variables,
@@ -136,8 +136,8 @@ def test_ReservoirComputingModel_state_increment():
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
 
     input = [(0.25 * np.ones((*rank_divider.rank_extent, 1)))]
-
-    transformers = TransformerGroup(input=DoNothingAutoencoder([1]))
+    transformer = DoNothingAutoencoder([1])
+    transformers = TransformerGroup(input=transformer, output=transformer)
     transformers.input.encode(input)
     predictor = ReservoirComputingModel(
         input_variables=["a", "b"],

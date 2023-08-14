@@ -36,7 +36,10 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
 def get_initialized_model(hybrid: bool):
     # expects rank size (including halos) in latent space
     divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature_size=6)
-    transformers = TransformerGroup(input=DoNothingAutoencoder([3, 3]))
+    transformer = DoNothingAutoencoder([3, 3])
+    transformers = TransformerGroup(
+        input=transformer, output=transformer, hybrid=transformer
+    )
     state_size = 25
     hyperparameters = ReservoirHyperparameters(
         state_size=state_size,
