@@ -83,7 +83,6 @@ class TransformerGroup:
     INPUT_DIR = "input_transformer"
     OUTPUT_DIR = "output_transformer"
     HYBRID_DIR = "hybrid_transformer"
-    CONFIG_NAME = "config.yaml"
 
     def __init__(
         self,
