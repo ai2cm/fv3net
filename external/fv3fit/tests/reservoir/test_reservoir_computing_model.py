@@ -120,7 +120,7 @@ def test_prediction_shape(nz, nvars):
 
 
 def test_ReservoirComputingModel_state_increment():
-    rank_divider = RankXYDivider((1, 1), 0, rank_extent=(2, 2))
+    rank_divider = RankXYDivider((1, 1), 0, rank_extent=(2, 2), z_feature_size=1)
     input_size = rank_divider.flat_subdomain_len
     state_size = 3
     hyperparameters = ReservoirHyperparameters(
@@ -135,7 +135,7 @@ def test_ReservoirComputingModel_state_increment():
 
     readout = MultiOutputMeanRegressor(n_outputs=input_size)
 
-    input = [(0.25 * np.ones((input_size))).reshape(rank_divider.rank_extent)]
+    input = [(0.25 * np.ones((*rank_divider.rank_extent, 1)))]
 
     transformers = TransformerGroup(input=DoNothingAutoencoder([1]))
     transformers.input.encode(input)
