@@ -14,6 +14,14 @@ test_inputs = [
 ]
 
 
+def test_decode_single_output_returns_list():
+    model = build_concat_and_scale_only_autoencoder(["a"], [a])
+    encoded = model.encode([test_inputs[0]])
+    decoded = model.decode(encoded)
+    assert isinstance(decoded, list)
+    assert len(decoded) == 1
+
+
 def test_build_concat_and_scale_only_autoencoder_normalize():
     model = build_concat_and_scale_only_autoencoder(["a", "b"], [a, b])
     np.testing.assert_array_almost_equal(

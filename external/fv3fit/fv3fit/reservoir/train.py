@@ -7,15 +7,16 @@ from fv3fit.reservoir.readout import (
 )
 import numpy as np
 import tensorflow as tf
-from typing import Optional, List, Union
+from typing import Optional, List, Union, cast, Mapping
 from .. import Predictor
 from .utils import (
     square_even_terms,
-    process_batch_Xy_data,
+    process_batch_data,
     get_ordered_X,
     SynchronziationTracker,
+    get_standard_normalizing_transformer,
 )
-from .transformers.autoencoder import build_concat_and_scale_only_autoencoder
+from .transformers import TransformerGroup, Transformer
 from .._shared import register_training_function
 from . import (
     ReservoirComputingModel,
@@ -25,8 +26,6 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-from ._reshaping import stack_array_preserving_last_dim
-from fv3fit.reservoir.transformers import ReloadableTransfomer
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +34,44 @@ logger.setLevel(logging.INFO)
 
 def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
+
+
+def _get_transformers(
+    sample_batch: Mapping[str, tf.Tensor], hyperparameters: ReservoirTrainingConfig
+) -> TransformerGroup:
+    # Load transformers with specified paths
+    transformers = {}
+    for variable_group in ["input", "output", "hybrid"]:
+        path = getattr(hyperparameters.transformers, variable_group, None)
+        if path is not None:
+            transformers[variable_group] = cast(Transformer, fv3fit.load(path))
+
+    # If input transformer not specified, always create a standard norm transform
+    if "input" not in transformers:
+        transformers["input"] = get_standard_normalizing_transformer(
+            hyperparameters.input_variables, sample_batch
+        )
+
+    # If output transformer not specified and output_variables != input_variables,
+    # create a separate standard norm transform
+    if "output" not in transformers:
+        if hyperparameters.output_variables != hyperparameters.input_variables:
+            transformers["output"] = get_standard_normalizing_transformer(
+                hyperparameters.output_variables, sample_batch
+            )
+        else:
+            transformers["output"] = transformers["input"]
+
+    # If hybrid variables transformer not specified, and hybrid variables are defined,
+    # create a separate standard norm transform
+    if "hybrid" not in transformers:
+        if hyperparameters.hybrid_variables is not None:
+            transformers["hybrid"] = get_standard_normalizing_transformer(
+                hyperparameters.hybrid_variables, sample_batch
+            )
+        else:
+            transformers["hybrid"] = transformers["input"]
+    return TransformerGroup(**transformers)
 
 
 @register_training_function("reservoir", ReservoirTrainingConfig)
@@ -47,18 +84,7 @@ def train_reservoir_model(
     sample_batch = next(iter(train_batches))
     sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
-    if hyperparameters.autoencoder_path is not None:
-        autoencoder: ReloadableTransfomer = fv3fit.load(
-            hyperparameters.autoencoder_path
-        )  # type: ignore
-    else:
-        sample_X_stacked = [
-            stack_array_preserving_last_dim(arr).numpy() for arr in sample_X
-        ]
-        autoencoder = build_concat_and_scale_only_autoencoder(
-            variables=hyperparameters.input_variables, X=sample_X_stacked
-        )
-
+    transformers = _get_transformers(sample_batch, hyperparameters)
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
@@ -67,9 +93,8 @@ def train_reservoir_model(
         subdomain_layout=subdomain_config.layout,
         overlap=subdomain_config.overlap,
         overlap_rank_extent=rank_extent,
-        z_feature_size=autoencoder.n_latent_dims,
+        z_feature_size=transformers.input.n_latent_dims,
     )
-    no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
 
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
@@ -88,33 +113,52 @@ def train_reservoir_model(
         n_synchronize=hyperparameters.n_timesteps_synchronize
     )
     for b, batch_data in enumerate(train_batches):
-        time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
+        input_time_series = process_batch_data(
             variables=hyperparameters.input_variables,
             batch_data=batch_data,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            autoencoder=transformers.input,
+            trim_halo=False,
+        )
+        # If the output variables differ from inputs, use the transformer specific
+        # to the output set to transform the output data
+        _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.output.n_latent_dims
+        )
+        output_time_series = process_batch_data(
+            variables=hyperparameters.output_variables,
+            batch_data=batch_data,
+            rank_divider=_output_rank_divider_with_overlap,
+            autoencoder=transformers.output,
+            trim_halo=True,
         )
 
         # reservoir increment occurs in this call, so always call this
         # function even if X, Y are not used for readout training.
         reservoir_state_time_series = _get_reservoir_state_time_series(
-            time_series_with_overlap, hyperparameters.input_noise, reservoir
+            input_time_series, hyperparameters.input_noise, reservoir
         )
         sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
+
         hybrid_time_series: Optional[np.ndarray]
+
         if hyperparameters.hybrid_variables is not None:
-            _, hybrid_time_series = process_batch_Xy_data(
+            _hybrid_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
+                z_feature_size=transformers.hybrid.n_latent_dims
+            )
+            hybrid_time_series = process_batch_data(
                 variables=hyperparameters.hybrid_variables,
                 batch_data=batch_data,
-                rank_divider=rank_divider,
-                autoencoder=autoencoder,
+                rank_divider=_hybrid_rank_divider_with_overlap,
+                autoencoder=transformers.hybrid,
+                trim_halo=True,
             )
         else:
             hybrid_time_series = None
 
         readout_input, readout_output = _construct_readout_inputs_outputs(
             reservoir_state_time_series,
-            time_series_without_overlap,
+            output_time_series,
             hyperparameters.square_half_hidden_state,
             hybrid_time_series=hybrid_time_series,
         )
@@ -129,7 +173,10 @@ def train_reservoir_model(
             readout_input = rank_divider.subdomains_to_leading_axis(
                 readout_input, flat_feature=True
             )
-            readout_output = no_overlap_divider.subdomains_to_leading_axis(
+            output_rank_divider = (
+                _output_rank_divider_with_overlap.get_no_overlap_rank_divider()
+            )
+            readout_output = output_rank_divider.subdomains_to_leading_axis(
                 readout_output, flat_feature=True
             )
             jobs = [
@@ -150,7 +197,7 @@ def train_reservoir_model(
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,  # type: ignore
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
         return ReservoirDatasetAdapter(
             model=model,
@@ -166,7 +213,7 @@ def train_reservoir_model(
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,  # type: ignore
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
         return HybridReservoirDatasetAdapter(
             model=model,

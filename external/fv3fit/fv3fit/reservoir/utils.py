@@ -1,9 +1,15 @@
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Tuple
-from fv3fit.reservoir.transformers import ReloadableTransfomer, encode_columns
+from typing import Iterable, Mapping, Optional
+from fv3fit.reservoir.transformers import (
+    # ReloadableTransformer,
+    Transformer,
+    encode_columns,
+    build_concat_and_scale_only_autoencoder,
+)
 from fv3fit.reservoir.domain import assure_txyz_dims
 from fv3fit.reservoir.domain2 import RankXYDivider
+from ._reshaping import stack_array_preserving_last_dim
 
 
 class SynchronziationTracker:
@@ -58,25 +64,41 @@ def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
     return assure_txyz_dims(ordered_tensors)
 
 
-def process_batch_Xy_data(
+def process_batch_data(
     variables: Iterable[str],
     batch_data: Mapping[str, tf.Tensor],
     rank_divider: RankXYDivider,
-    autoencoder: ReloadableTransfomer,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """ Convert physical state to corresponding reservoir hidden state,
+    autoencoder: Optional[Transformer],
+    trim_halo: bool,
+):
+    """ Converts physical state to latent state
     and reshape data into the format used in training.
+    The rank divider provided includes the full overlap, since
+    the data it is operating on includes all halo points.
     """
-    batch_X = get_ordered_X(batch_data, variables)
+    data = get_ordered_X(batch_data, variables)
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
-    batch_data_encoded = encode_columns(batch_X, autoencoder)
+    if autoencoder is not None:
+        data_encoded = encode_columns(data, autoencoder)
 
-    X_flat = rank_divider.get_all_subdomains_with_flat_feature(batch_data_encoded)
-    Y_no_halo = rank_divider.trim_halo_from_rank_data(batch_data_encoded)
+    if trim_halo:
+        data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
+        no_overlap_rank_divider = rank_divider.get_no_overlap_rank_divider()
+        return no_overlap_rank_divider.get_all_subdomains_with_flat_feature(
+            data_trimmed
+        )
+    else:
+        data_trimmed = data_encoded
+        return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
 
-    no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
-    Y_flat = no_overlap_divider.get_all_subdomains_with_flat_feature(Y_no_halo)
 
-    return X_flat, Y_flat
+def get_standard_normalizing_transformer(variables, sample_batch):
+    variable_data = get_ordered_X(sample_batch, variables)
+    variable_data_stacked = [
+        stack_array_preserving_last_dim(arr).numpy() for arr in variable_data
+    ]
+    return build_concat_and_scale_only_autoencoder(
+        variables=variables, X=variable_data_stacked
+    )
