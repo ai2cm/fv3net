@@ -4,6 +4,9 @@ import pace.util
 import numpy as np
 import fsspec
 import yaml
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _check_feature_dims_consistent(data_shape, feature_shape):
@@ -338,10 +341,12 @@ class RankXYDivider:
         Remove halo points (the overlap) from the rank data.
         """
 
-        if self.overlap == 0:
-            raise ValueError("Cannot trim halo from rank data with no overlap")
-
         _check_feature_dims_consistent(data.shape, self._rank_extent_all_features)
+
+        if self.overlap == 0:
+            logger.debug("No overlap to trim, returning original data.")
+            return data
+
         no_overlap_slice = slice(self.overlap, -self.overlap)
         slices = [no_overlap_slice, no_overlap_slice]
         slices = self._maybe_append_feature_value(slices, slice(None))
