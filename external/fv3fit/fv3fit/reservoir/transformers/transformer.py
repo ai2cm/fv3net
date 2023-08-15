@@ -36,7 +36,7 @@ class Transformer(BaseTransformer, Reloadable):
 
 
 @io.register("do-nothing-transformer")
-class DoNothingAutoencoder(Transformer, Reloadable):
+class DoNothingAutoencoder(Transformer):
     _CONFIG_NAME = "mock_transformer.yaml"
 
     """Useful class for tests. Encode just concatenates input

@@ -75,7 +75,6 @@ def process_batch_data(
     and reshape data into the format used in training.
     The rank divider provided includes the full overlap, since
     the data it is operating on includes all halo points.
-    The rank
     """
     data = get_ordered_X(batch_data, variables)
 

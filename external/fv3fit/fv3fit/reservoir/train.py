@@ -54,23 +54,23 @@ def _get_transformers(
 
     # If output transformer not specified and output_variables != input_variables,
     # create a separate standard norm transform
-    if "output" not in transformers and (
-        hyperparameters.output_variables != hyperparameters.input_variables
-    ):
-        transformers["output"] = get_standard_normalizing_transformer(
-            hyperparameters.output_variables, sample_batch
-        )
-    else:
-        transformers["output"] = transformers["input"]
+    if "output" not in transformers:
+        if hyperparameters.output_variables != hyperparameters.input_variables:
+            transformers["output"] = get_standard_normalizing_transformer(
+                hyperparameters.output_variables, sample_batch
+            )
+        else:
+            transformers["output"] = transformers["input"]
 
     # If hybrid variables transformer not specified, and hybrid variables are defined,
     # create a separate standard norm transform
-    if "hybrid" not in transformers and hyperparameters.hybrid_variables is not None:
-        transformers["hybrid"] = get_standard_normalizing_transformer(
-            hyperparameters.hybrid_variables, sample_batch
-        )
-    else:
-        transformers["hybrid"] = transformers["input"]
+    if "hybrid" not in transformers:
+        if hyperparameters.hybrid_variables is not None:
+            transformers["hybrid"] = get_standard_normalizing_transformer(
+                hyperparameters.hybrid_variables, sample_batch
+            )
+        else:
+            transformers["hybrid"] = transformers["input"]
     return TransformerGroup(**transformers)
 
 
