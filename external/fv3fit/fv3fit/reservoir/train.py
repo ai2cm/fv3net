@@ -69,6 +69,8 @@ def _get_transformers(
         transformers["hybrid"] = get_standard_normalizing_transformer(
             hyperparameters.hybrid_variables, sample_batch
         )
+    else:
+        transformers["hybrid"] = transformers["input"]
     return TransformerGroup(**transformers)
 
 
@@ -142,7 +144,7 @@ def train_reservoir_model(
 
         if hyperparameters.hybrid_variables is not None:
             _hybrid_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
-                z_feature_size=transformers.hybrid.n_latent_dims  # type: ignore
+                z_feature_size=transformers.hybrid.n_latent_dims
             )
             hybrid_time_series = process_batch_data(
                 variables=hyperparameters.hybrid_variables,

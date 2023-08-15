@@ -3,7 +3,7 @@ import fsspec
 import numpy as np
 import os
 import tensorflow as tf
-from typing import Union, Sequence, Optional, cast
+from typing import Union, Sequence, cast
 import yaml
 import fv3fit
 from fv3fit._shared.predictor import Reloadable
@@ -76,20 +76,15 @@ class DoNothingAutoencoder(Transformer, Reloadable):
 
 class TransformerGroup:
     """For convenience, keep all the transformers together in a single
-    object and only save output/hybrid transformers if they are
-    different from the input transformer.
+    object. To streamline the logic, there may be replicated transformers
+    stored when variable groups are identical sets.
     """
 
     INPUT_DIR = "input_transformer"
     OUTPUT_DIR = "output_transformer"
     HYBRID_DIR = "hybrid_transformer"
 
-    def __init__(
-        self,
-        input: Transformer,
-        output: Transformer,
-        hybrid: Optional[Transformer] = None,
-    ):
+    def __init__(self, input: Transformer, output: Transformer, hybrid: Transformer):
         self.input = input
         self.output = output
         self.hybrid = hybrid
@@ -98,19 +93,13 @@ class TransformerGroup:
 
         self.input.dump(os.path.join(path, self.INPUT_DIR))
         self.output.dump(os.path.join(path, self.OUTPUT_DIR))
-        if self.hybrid is not None:
-            self.hybrid.dump(os.path.join(path, self.HYBRID_DIR))
+        self.hybrid.dump(os.path.join(path, self.HYBRID_DIR))
 
     @classmethod
     def load(cls, path) -> "TransformerGroup":
         input = cast(Transformer, fv3fit.load(os.path.join(path, cls.INPUT_DIR)))
         output = cast(Transformer, fv3fit.load(os.path.join(path, cls.OUTPUT_DIR)))
-        try:
-            hybrid: Optional[Transformer] = cast(
-                Transformer, fv3fit.load(os.path.join(path, cls.HYBRID_DIR))
-            )
-        except (KeyError):
-            hybrid = None
+        hybrid = cast(Transformer, fv3fit.load(os.path.join(path, cls.HYBRID_DIR)))
         return cls(input=input, output=output, hybrid=hybrid)
 
 

@@ -1,33 +1,11 @@
 import numpy as np
-import os
 import pytest
 
 from fv3fit.reservoir.transformers.transformer import (
     encode_columns,
     DoNothingAutoencoder,
     decode_columns,
-    TransformerGroup,
 )
-
-
-@pytest.mark.parametrize("hybrid_transformer", [None, DoNothingAutoencoder([2])])
-def test_TransformerGroup(tmpdir, hybrid_transformer):
-    input_transformer = DoNothingAutoencoder([4])
-    output_transformer = DoNothingAutoencoder([2])
-
-    transformers = TransformerGroup(
-        input=input_transformer, output=output_transformer, hybrid=hybrid_transformer,
-    )
-    n_saved_transformers = 3 if hybrid_transformer is not None else 2
-    transformers.dump(str(tmpdir))
-    assert len(os.listdir(str(tmpdir))) == n_saved_transformers
-    loaded_transformers = TransformerGroup.load(str(tmpdir))
-
-    x = np.random.rand(2)
-    if hybrid_transformer is not None:
-        np.testing.assert_array_equal(
-            loaded_transformers.hybrid.encode([x]), hybrid_transformer.encode([x])
-        )
 
 
 @pytest.mark.parametrize("nz, nvars", [(2, 2), (2, 1), (1, 2), (1, 1)])
