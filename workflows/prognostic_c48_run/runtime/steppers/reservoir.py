@@ -9,6 +9,16 @@ import fv3fit
 from fv3fit._shared import put_dir
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
+from runtime.names import SST
+from .prescriber import sst_update_from_reference
+
+
+RESERVOIR_NAME_TO_STATE_NAME = {"sst": SST}
+
+
+def _get_state_name(key):
+    """Returns original key if translation not present"""
+    return RESERVOIR_NAME_TO_STATE_NAME.get(key, key)
 
 
 @dataclasses.dataclass
@@ -149,7 +159,8 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
     def increment_reservoir(self, state):
         """Should be called at beginning of time loop"""
-        reservoir_inputs = state[self.model.input_variables]
+        input_vars = [_get_state_name(k) for k in self.model.input_variables]
+        reservoir_inputs = state[input_vars]
 
         try:
             n_halo_points = self.model.rank_divider.overlap
@@ -189,20 +200,28 @@ class ReservoirPredictStepper(_ReservoirStepper):
     def predict(self, state):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
 
-        updated_state = {}
+        output_state = {}
         diags = {}
 
-        inputs = state[self.model.input_variables]
+        input_variables = [_get_state_name(k) for k in self.model.input_variables]
+        inputs = state[input_variables]
         self._state_machine(self._state_machine.PREDICT)
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
         if self._state_machine.completed_increments >= self.synchronize_steps + 1:
             result = self.model.predict(inputs)
-            updated_state.update({k: result[k] for k in self.model.output_variables})
-            diags.update({f"{k}_rc_out": v for k, v in updated_state.items()})
+            output_state.update(
+                {_get_state_name[k]: result[k] for k in self.model.output_variables}
+            )
+            diags.update({f"{k}_rc_out": v for k, v in output_state.items()})
 
-        return {}, diags, updated_state
+        # SST consistency update
+        output_state = sst_update_from_reference(
+            state, output_state, reference_sst_name=SST
+        )
+
+        return {}, diags, output_state
 
     def __call__(self, time, state):
 
