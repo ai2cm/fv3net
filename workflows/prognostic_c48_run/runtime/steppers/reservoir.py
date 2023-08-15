@@ -33,6 +33,7 @@ class ReservoirConfig:
     models: Mapping[int, str]
     synchronize_steps: int = 1
     reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
+    diagnostic_only: bool = False
 
 
 class _FiniteStateMachine:
@@ -103,12 +104,14 @@ class _ReservoirStepper:
         model_timestep_seconds: int = 900,
         state_machine: Optional[_FiniteStateMachine] = None,
         init_time_store: Optional[_InitTimeStore] = None,
+        diagnostic_only: bool = False,
     ):
         self.model = model
         self.rc_timestep = reservoir_timestep
         self.synchronize_steps = synchronize_steps
         self.dt_atmos = timedelta(seconds=model_timestep_seconds)
         self._init_time = None
+        self.diagnostic = diagnostic_only
 
         if state_machine is None:
             self._state_machine = _FiniteStateMachine()
@@ -216,10 +219,13 @@ class ReservoirPredictStepper(_ReservoirStepper):
             )
             diags.update({f"{k}_rc_out": v for k, v in output_state.items()})
 
-        # SST consistency update
-        output_state = sst_update_from_reference(
-            state, output_state, reference_sst_name=SST
-        )
+        if not self.diagnostic:
+            # SST consistency update
+            output_state = sst_update_from_reference(
+                state, output_state, reference_sst_name=SST
+            )
+        else:
+            output_state = {}
 
         return {}, diags, output_state
 
@@ -274,5 +280,6 @@ def get_reservoir_steppers(config: ReservoirConfig, rank: int):
         config.synchronize_steps,
         state_machine=state_machine,
         init_time_store=init_time_store,
+        diagnostic_only=config.diagnostic_only,
     )
     return incrementer, predictor
