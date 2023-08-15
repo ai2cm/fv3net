@@ -1,12 +1,12 @@
 import pytest
 import xarray as xr
-from runtime.steppers.machine_learning import (
+from vcm import (
     non_negative_sphum,
     update_temperature_tendency_to_conserve_mse,
     update_moisture_tendency_to_ensure_non_negative_humidity,
     non_negative_sphum_mse_conserving,
+    moist_static_energy_tendency,
 )
-import vcm
 
 
 sphum = 1.0e-3 * xr.DataArray(data=[1.0, 1.0, 1.0], dims=["x"])  # type: ignore
@@ -62,8 +62,8 @@ def test_update_q1_to_conserve_mse():
     q2_limited = xr.DataArray([-1, -1])
     q1_limited = update_temperature_tendency_to_conserve_mse(q1, q2, q2_limited)
     xr.testing.assert_identical(
-        vcm.moist_static_energy_tendency(q1, q2),
-        vcm.moist_static_energy_tendency(q1_limited, q2_limited),
+        moist_static_energy_tendency(q1, q2),
+        moist_static_energy_tendency(q1_limited, q2_limited),
     )
 
 

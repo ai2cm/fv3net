@@ -25,5 +25,6 @@ pip install -c constraints.txt \
   -e workflows/dataflow \
   -e workflows/diagnostics \
   -e workflows/prognostic_scream_run \
-  -e external/wandb-query
+  -e external/wandb-query \
+  -e external/xtorch_harmonics
 set +e

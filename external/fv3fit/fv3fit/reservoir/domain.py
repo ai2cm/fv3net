@@ -25,6 +25,9 @@ class RankDivider:
         overlap: int,
     ):
         """ Divides a rank of data into subdomains for use in training.
+        When dividing a tensor into subdomains, it is assumed that the input rank
+        data always includes <overlap> number of halo points.
+
         Args:
             subdomain_layout: layout describing subdomain grid within the rank
                 ex. [2,2] means the rank is divided into 4 subdomains
@@ -139,7 +142,13 @@ class RankDivider:
     def get_subdomain_tensor_slice(
         self, tensor_data: tf.Tensor, subdomain_index: int, with_overlap: bool,
     ) -> tf.Tensor:
-
+        if tensor_data.shape[:2] != tuple(self.rank_extent):
+            raise ValueError(
+                f"Data array being divided must be of shape {self.rank_extent}, "
+                f"which is the rank shape {self.rank_extent_without_overlap} plus "
+                f"{self.overlap} halo points. "
+                f"Array provided was shape {tensor_data.shape}"
+            )
         subdomain_slice = self.subdomain_slice(subdomain_index, with_overlap)
         x_ind, y_ind = self._x_ind, self._y_ind
         tensor_data_xsliced = slice_along_axis(

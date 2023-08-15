@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set
+from typing import Sequence, Optional, Set, Tuple
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,7 +8,7 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Sequence[int]
+    layout: Tuple[int, int]
     overlap: int
     rank_dims: Sequence[str]
 
@@ -65,7 +65,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     output_variables: time series variables, must be subset of input_variables
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
-    n_batches_burn: number of training batches at start of time series to use
+    n_timesteps_synchronize: number of timesteps at start of time series to use
         for synchronizaton.  This data is  used to update the reservoir state
         but is not included in training.
     input_noise: stddev of normal distribution which is sampled to add input
@@ -88,7 +88,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
-    n_batches_burn: int
+    n_timesteps_synchronize: int
     input_noise: float
     seed: int = 0
     n_jobs: Optional[int] = 1
@@ -124,7 +124,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
         kwargs = {**kwargs}
-        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
+        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float, tuple])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
             data_class=ReservoirHyperparameters,
             data=kwargs.get("reservoir_hyperparameters", {}),
@@ -148,7 +148,7 @@ class ReservoirTrainingConfig(Hyperparameters):
 
     def dump(self, path: str):
         metadata = {
-            "n_batches_burn": self.n_batches_burn,
+            "n_timesteps_synchronize": self.n_timesteps_synchronize,
             "input_noise": self.input_noise,
             "seed": self.seed,
             "n_jobs": self.n_jobs,

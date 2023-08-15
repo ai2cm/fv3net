@@ -60,6 +60,12 @@ from .calc.thermo.local import (
     temperature_tendency,
     moist_static_energy_tendency,
 )
+from .calc.thermo.non_negative_sphum import (
+    non_negative_sphum,
+    update_moisture_tendency_to_ensure_non_negative_humidity,
+    update_temperature_tendency_to_conserve_mse,
+    non_negative_sphum_mse_conserving,
+)
 from .calc.histogram import histogram, histogram2d
 from .calc.clouds import gridcell_to_incloud_condensate, incloud_to_gridcell_condensate
 

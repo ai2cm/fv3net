@@ -132,6 +132,10 @@ RUN pip install -e /fv3net/workflows/prognostic_scream_run
 RUN pip uninstall -y tensorflow h5py
 RUN pip install tensorflow==2.8.0
 
+# this is a workaround because python does not recognize the already installed py package
+RUN pip uninstall -y py
+RUN pip install py==1.11.0
+
 COPY docker/prognostic_scream_run/precompile_scream.sh /src/precompile_scream.sh
 ENV CC=/opt/conda/bin/mpicc
 ENV CXX=/opt/conda/bin/mpicxx
