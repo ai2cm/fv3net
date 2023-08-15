@@ -135,48 +135,6 @@ class HybridReservoirComputingModel(Predictor):
         )
 
 
-class HybridDatasetAdapter:
-    def __init__(self, model: HybridReservoirComputingModel) -> None:
-        self.model = model
-
-    def predict(self, inputs: xr.Dataset) -> xr.Dataset:
-        # TODO: potentially use in train.py instead of special functions there
-        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
-
-        prediction_arr = self.model.predict(xy_input_arrs)
-        return self._output_array_to_ds(prediction_arr, dims=list(inputs.dims))
-
-    def increment_state(self, inputs: xr.Dataset):
-        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
-        self.model.increment_state(xy_input_arrs)
-
-    def reset_state(self):
-        self.model.reset_state()
-
-    def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence[np.ndarray]:
-        # Converts from xr dataset to sequence of variable ndarrays expected by encoder
-        # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(ds=inputs)
-        input_arrs = []
-        for variable in self.model.input_variables:
-            da = transposed_inputs[variable]
-            if "z" not in da.dims:
-                da = da.expand_dims("z", axis=-1)
-            input_arrs.append(da.values)
-        return input_arrs
-
-    def _output_array_to_ds(
-        self, outputs: Sequence[np.ndarray], dims: Sequence[str]
-    ) -> xr.Dataset:
-        ds = xr.Dataset(
-            {
-                var: (dims, outputs[i])
-                for i, var in enumerate(self.model.output_variables)
-            }
-        )
-        return ds
-
-
 @io.register("pure-reservoir")
 class ReservoirComputingModel(Predictor):
     _RESERVOIR_SUBDIR = "reservoir"
