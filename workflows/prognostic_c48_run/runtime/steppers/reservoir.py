@@ -9,7 +9,7 @@ import xarray as xr
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST
+from runtime.names import SST, MASK
 from .prescriber import sst_update_from_reference
 
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 RESERVOIR_NAME_TO_STATE_NAME = {"sst": SST}
 VARIABLE_UNITS = {SST: "degK"}
+LAND_MASK_FILL_VALUE = 270.0
 
 
 def _get_state_name(key):
@@ -163,6 +164,11 @@ def _add_units(ds):
     return ds
 
 
+def _fill_land_points(sst_da, land_sea_mask, fill_value):
+    land_points = land_sea_mask.values.round().astype("int") == 1
+    return xr.where(land_points, fill_value, sst_da)
+
+
 class ReservoirIncrementOnlyStepper(_ReservoirStepper):
     """
     Stepper that only increments the state of the reservoir.  Useful because we
@@ -179,6 +185,9 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             {k: state[_get_state_name(k)] for k in self.model.input_variables}
         )
 
+        if SST in reservoir_inputs:
+            reservoir_inputs[MASK] = state[MASK]
+
         try:
             n_halo_points = self.model.input_overlap
             rc_in_with_halos = append_halos_using_mpi(reservoir_inputs, n_halo_points)
@@ -192,6 +201,15 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             self.model.reset_state()
 
         self._state_machine(self._state_machine.INCREMENT)
+
+        # TODO: if the models automatically mask, then we don't need to do this
+        # Need to add consistent fill values for land areas
+        if SST in rc_in_with_halos:
+            land_points = rc_in_with_halos[MASK].values.round().astype("int") == 1
+            rc_in_with_halos[SST] = xr.where(
+                land_points, LAND_MASK_FILL_VALUE, rc_in_with_halos[SST]
+            )
+
         self.model.increment_state(rc_in_with_halos)
 
     def __call__(self, time, state):
