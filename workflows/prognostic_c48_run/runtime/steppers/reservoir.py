@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 RESERVOIR_NAME_TO_STATE_NAME = {"sst": SST}
 VARIABLE_UNITS = {SST: "degK"}
-LAND_MASK_FILL_VALUE = 270.0  # TODO: have this value stored in the sst model?
+LAND_MASK_FILL_VALUE = 291.0  # TODO: have this value stored in the sst model?
 
 
 def _get_state_name(key):
