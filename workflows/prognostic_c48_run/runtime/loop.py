@@ -683,7 +683,6 @@ class TimeLoop(
 
     def _increment_reservoir(self) -> Diagnostics:
         if self._reservior_increment_stepper is not None:
-            self._log_info("Incrementing reservoir state.")
             [_, diags, _] = self._reservior_increment_stepper(
                 self._state.time, self._state
             )
@@ -694,7 +693,6 @@ class TimeLoop(
     def _apply_reservoir_update_to_state(self) -> Diagnostics:
         # TODO: handle tendencies
         if self._reservoir_predict_stepper is not None:
-            self._log_info("Applying reservior prediction to state.")
             [_, diags, state] = self._reservoir_predict_stepper(
                 self._state.time, self._state
             )

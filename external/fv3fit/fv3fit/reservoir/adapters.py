@@ -91,6 +91,11 @@ class ReservoirDatasetAdapter(Predictor):
             output_variables=self.output_variables,
         )
 
+    @property
+    def input_overlap(self):
+        """Number of halo points expected for reservoir increment inputs"""
+        return self.model.rank_divider.overlap
+
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # inputs arg is not used, but is required by Predictor signature and prog run
         prediction_arr = self.model.predict()
@@ -147,6 +152,11 @@ class HybridReservoirDatasetAdapter(Predictor):
             input_variables=self.input_variables,
             output_variables=model.output_variables,
         )
+
+    @property
+    def input_overlap(self):
+        """Number of halo points expected for reservoir increment inputs"""
+        return self.model.rank_divider.overlap
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         xy_input_arrs = self.model_adapter.input_dataset_to_arrays(

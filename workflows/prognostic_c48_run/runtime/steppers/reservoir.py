@@ -1,19 +1,23 @@
 import cftime
 import dataclasses
+import logging
 from datetime import timedelta
 import pandas as pd
 from typing import Optional, MutableMapping, Hashable, Mapping, cast
 import xarray as xr
 
 import fv3fit
-from fv3fit._shared import put_dir
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 from runtime.names import SST
 from .prescriber import sst_update_from_reference
 
 
+logger = logging.getLogger(__name__)
+
+
 RESERVOIR_NAME_TO_STATE_NAME = {"sst": SST}
+VARIABLE_UNITS = {SST: "degK"}
 
 
 def _get_state_name(key):
@@ -143,11 +147,20 @@ class _ReservoirStepper:
                 " that a _ReservoirStateStepper has an init time specified or that the"
                 " reservoir increment stepper is called at least once."
             )
-        return (time - self.init_time) % self.rc_timestep == timedelta(seconds=0)
+        time_diff = time - self.init_time
+        logger.debug(f"Reservoir increment time check: {self.init_time},{time_diff}")
+        return time_diff % self.rc_timestep == timedelta(seconds=0)
 
     def get_diagnostics(self, state, tendency):
         diags: MutableMapping[Hashable, xr.DataArray] = {}
         return diags, xr.DataArray()
+
+
+def _add_units(ds):
+    for k, v in ds.items():
+        if k in VARIABLE_UNITS:
+            ds[k].attrs["units"] = VARIABLE_UNITS[k]
+    return ds
 
 
 class ReservoirIncrementOnlyStepper(_ReservoirStepper):
@@ -162,11 +175,12 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
     def increment_reservoir(self, state):
         """Should be called at beginning of time loop"""
-        input_vars = [_get_state_name(k) for k in self.model.input_variables]
-        reservoir_inputs = state[input_vars]
+        reservoir_inputs = xr.Dataset(
+            {k: state[_get_state_name(k)] for k in self.model.input_variables}
+        )
 
         try:
-            n_halo_points = self.model.rank_divider.overlap
+            n_halo_points = self.model.input_overlap
             rc_in_with_halos = append_halos_using_mpi(reservoir_inputs, n_halo_points)
         except RuntimeError:
             raise ValueError(
@@ -186,6 +200,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             self._init_time_store.set_init_time(time)
 
         if self._is_rc_update_step(time):
+            logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(state)
 
         return {}, {}, {}
@@ -206,8 +221,9 @@ class ReservoirPredictStepper(_ReservoirStepper):
         output_state = {}
         diags = {}
 
-        input_variables = [_get_state_name(k) for k in self.model.input_variables]
-        inputs = state[input_variables]
+        inputs = xr.Dataset(
+            {k: state[_get_state_name(k)] for k in self.model.input_variables}
+        )
         self._state_machine(self._state_machine.PREDICT)
 
         # no halo necessary for potential hybrid inputs
@@ -215,17 +231,26 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self._state_machine.completed_increments >= self.synchronize_steps + 1:
             result = self.model.predict(inputs)
             output_state.update(
-                {_get_state_name[k]: result[k] for k in self.model.output_variables}
+                {_get_state_name(k): result[k] for k in self.model.output_variables}
             )
+            _add_units(output_state)
             diags.update({f"{k}_rc_out": v for k, v in output_state.items()})
 
-        if not self.diagnostic:
-            # SST consistency update
-            output_state = sst_update_from_reference(
-                state, output_state, reference_sst_name=SST
-            )
+            if not self.diagnostic:
+                # SST consistency update
+                output_state = sst_update_from_reference(
+                    state, output_state, reference_sst_name=SST
+                )
+            else:
+                output_state = {}
         else:
-            output_state = {}
+            # Necessary for diags to work when syncing reservoir
+            diags.update(
+                {
+                    f"{_get_state_name(k)}_rc_out": state[_get_state_name(k)]
+                    for k in self.model.output_variables
+                }
+            )
 
         return {}, diags, output_state
 
@@ -238,6 +263,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # hybrid quantites from t -> t + k, make the rc prediction for t + k, and then
         # increment during the next time loop based on those outputs.
         if self._is_rc_update_step(time):
+            logger.info(f"Predicting rc at time {time}")
             tendencies, diags, state = self.predict(state)
         else:
             tendencies, diags, state = {}, {}, {}
@@ -246,8 +272,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:
-    with put_dir(path) as local_path:
-        return cast(ReservoirDatasetAdapter, fv3fit.load(local_path))
+    return cast(ReservoirDatasetAdapter, fv3fit.load(path))
 
 
 def get_reservoir_steppers(config: ReservoirConfig, rank: int):

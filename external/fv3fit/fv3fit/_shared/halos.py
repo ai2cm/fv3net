@@ -102,7 +102,7 @@ def _get_cubed_sphere_communicator(comm):
     # configuration of the prognostic run
     #
     # This could possibly be changed if/when we integrate with the DSL model
-    layout_1d = int((comm.total_ranks / 6.0) ** 0.5)
+    layout_1d = int((comm.Get_size() / 6.0) ** 0.5)
     return pace.util.CubedSphereCommunicator(
         comm=comm,
         partitioner=pace.util.CubedSpherePartitioner(
@@ -115,7 +115,7 @@ def append_halos_using_mpi(ds: xr.Dataset, n_halo: int) -> xr.Dataset:
     comm = _get_comm()
     if comm.Get_size() < 6:
         raise RuntimeError("to halo update over MPI we need at least 6 ranks")
-    _append_halos_using_mpi(ds=ds, n_halo=n_halo, comm=comm)
+    return _append_halos_using_mpi(ds=ds, n_halo=n_halo, comm=comm)
 
 
 def _append_halos_using_mpi(ds: xr.Dataset, n_halo: int, comm):
