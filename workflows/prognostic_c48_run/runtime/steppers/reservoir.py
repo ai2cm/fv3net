@@ -236,12 +236,12 @@ class ReservoirPredictStepper(_ReservoirStepper):
             _add_units(output_state)
             diags.update({f"{k}_rc_out": v for k, v in output_state.items()})
 
-            if not self.diagnostic:
-                # SST consistency update
+            if SST in output_state:
                 output_state = sst_update_from_reference(
                     state, output_state, reference_sst_name=SST
                 )
-            else:
+
+            if self.diagnostic:
                 output_state = {}
         else:
             # Necessary for diags to work when syncing reservoir
