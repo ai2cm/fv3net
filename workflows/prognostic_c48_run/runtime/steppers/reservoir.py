@@ -109,6 +109,12 @@ class TimeAverageInputs:
         self._n = 0
 
     def get_averages(self):
+        if not self._running_total and self.variables:
+            raise ValueError(
+                f"Average called when no fields ({self.variables})"
+                " present in running average."
+            )
+
         averaged_data = {key: val / self._n for key, val in self._running_total.items()}
         for key in averaged_data:
             averaged_data[key].attrs["units"] = self._recorded_units[key]

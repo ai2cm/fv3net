@@ -11,6 +11,7 @@ from runtime.steppers.reservoir import (
     ReservoirPredictStepper,
     _FiniteStateMachine,
     IntervalAveragedTimes,
+    TimeAverageInputs,
     ReservoirConfig,
 )
 from datetime import datetime, timedelta
@@ -32,7 +33,7 @@ def test_reservoir_stepper_state():
     assert fsm.completed_increments == 2
 
 
-def test_reservior_stepper_state_call():
+def test_state_machine_call():
 
     fsm = _FiniteStateMachine()
     fsm(fsm.INCREMENT)
@@ -41,13 +42,58 @@ def test_reservior_stepper_state_call():
         fsm("unknown_state")
 
 
-def test_reservoir_stepper_state_predict_without_increment():
+def test_state_machine_predict_without_increment():
     fsm = _FiniteStateMachine()
 
     # Test that predict() raises a ValueError when increment() has not been called
     fsm._last_called = None
     with pytest.raises(ValueError):
         fsm.to_predicted()
+
+
+def test_input_averager_increment_running_average():
+    averager = TimeAverageInputs(["a"])
+    data = xr.Dataset({"a": xr.DataArray(np.ones(1), dims=["x"])})
+
+    averager.increment_running_average(data)
+    xr.testing.assert_equal(averager._running_total["a"], data["a"])
+
+    # add an extra variable to check that it's ignored
+    data["b"] = np.ones(1) * 5
+    averager.increment_running_average(data)
+    assert len(averager._running_total) == 1
+    xr.testing.assert_equal(averager._running_total["a"], data["a"] * 2)
+
+    with pytest.raises(KeyError):
+        averager.increment_running_average({})
+
+
+def test_input_averager_get_averages():
+    averager = TimeAverageInputs(["a"])
+    data = xr.Dataset({"a": xr.DataArray(np.ones(1), dims=["x"])})
+
+    with pytest.raises(ValueError):
+        averager.get_averages()
+
+    # single increment
+    averager.increment_running_average(data)
+    result = averager.get_averages()
+    assert len(result) == 1
+    xr.testing.assert_equal(result["a"], data["a"])
+    averager.reset_running_average()
+
+    # multiple increments
+    averager.increment_running_average(data)
+    averager.increment_running_average(data * 2)
+    averager.increment_running_average(data * 3)
+    result = averager.get_averages()
+    xr.testing.assert_equal(result["a"], xr.DataArray(np.ones(1) * 2.0, dims=["x"]))
+
+
+def test_input_averager_no_variables():
+    averager = TimeAverageInputs([])
+    averager.increment_running_average({})
+    averager.get_averages()
 
 
 class MockState(dict):
@@ -172,6 +218,8 @@ def test_get_reservoir_steppers(patched_reservoir_module):
     # Check that both steppers share model and state machine objects
     assert incrementer.model is predictor.model
     assert incrementer._state_machine is predictor._state_machine
+    assert incrementer.input_averager.variables == ["a"]
+    assert predictor.input_averager.variables == ["a"]
 
     # check that call methods point to correct methods
     state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
