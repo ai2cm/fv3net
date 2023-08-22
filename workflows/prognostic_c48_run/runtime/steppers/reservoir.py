@@ -236,6 +236,12 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         self._state_machine(self._state_machine.INCREMENT)
         self.model.increment_state(inputs)
 
+    @staticmethod
+    def _rename_halo_dims(da):
+        """Prevents name conflict with hybrid input / outputs with no halo points"""
+        if "x" and "y" in da.dims:
+            return da.rename({"x": "x_halo", "y": "y_halo"})
+
     def __call__(self, time, state):
 
         diags = {}
@@ -253,10 +259,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
             diags.update(
-                {
-                    f"{k}_rc_in": v.rename({"y": "y_halo", "x": "x_halo"})
-                    for k, v in inputs.items()
-                }
+                {f"{k}_rc_in": self._rename_halo_dims(v) for k, v in inputs.items()}
             )
 
         return {}, diags, {}
