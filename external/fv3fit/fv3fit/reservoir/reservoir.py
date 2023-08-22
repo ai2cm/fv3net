@@ -40,6 +40,7 @@ class Reservoir:
         input_size: int,
         W_in: Optional[scipy.sparse.csc_matrix] = None,
         W_res: Optional[scipy.sparse.csc_matrix] = None,
+        input_mask_array: Optional[np.ndarray] = None,
     ):
         """
 
@@ -58,13 +59,19 @@ class Reservoir:
         self.W_in = W_in if W_in is not None else self._generate_W_in()
         self.W_res = W_res if W_res is not None else self._generate_W_res()
         self.state: Optional[np.ndarray] = None
+        self.input_mask_array = input_mask_array
 
     def increment_state(self, input):
         # input: [subdomain, features]
+        # (optional) input_mask: [subdomain, features]
         # W_in: [features, state_size]
         # W_res: [state_size, state_size]
         # output: [subdomain, state_size]
-        self.state = np.tanh(input @ self.W_in.T + self.state @ self.W_res.T)
+        if self.input_mask_array is not None:
+            masked_input = input * self.input_mask_array
+        else:
+            masked_input = input
+        self.state = np.tanh(masked_input @ self.W_in.T + self.state @ self.W_res.T)
 
     def reset_state(self, input_shape: tuple):
         logger.info("Resetting reservoir state.")
