@@ -109,14 +109,14 @@ class IntervalAveragedTimes(TimeContainer):
     initial_time: cftime.DatetimeJulian
     includes_lower: bool = False
 
-    def is_endpoint(self, time: cftime.DatetimeJulian) -> bool:
+    def _is_endpoint(self, time: cftime.DatetimeJulian) -> bool:
         remainder = (time - self.initial_time) % self.frequency
         return remainder == datetime.timedelta(0)
 
     def indicator(self, time: cftime.DatetimeJulian) -> Optional[cftime.DatetimeJulian]:
         n = (time - self.initial_time) // self.frequency
 
-        if self.is_endpoint(time) and not self.includes_lower:
+        if self._is_endpoint(time) and not self.includes_lower:
             n = n - 1
 
         return n * self.frequency + self.frequency / 2 + self.initial_time
