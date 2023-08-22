@@ -252,7 +252,12 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
-            diags.update({f"{k}_rc_in": v for k, v in inputs.items()})
+            diags.update(
+                {
+                    f"{k}_rc_in": v.rename({"y": "y_halo", "x": "x_halo"})
+                    for k, v in inputs.items()
+                }
+            )
 
         return {}, diags, {}
 
