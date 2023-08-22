@@ -270,6 +270,7 @@ class TimeLoop(
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
         hydrostatic = namelist["fv_core_nml"]["hydrostatic"]
+        init_time = cftime.DatetimeJulian(*namelist["coupler_nml"]["current_date"])
 
         self._prephysics_only_diagnostic_ml: bool = self._use_diagnostic_ml_prephysics(
             getattr(config, "prephysics")
@@ -298,7 +299,7 @@ class TimeLoop(
         [
             self._reservior_increment_stepper,
             self._reservoir_predict_stepper,
-        ] = self._get_reservoir_stepper(config)
+        ] = self._get_reservoir_stepper(config, init_time)
         self._log_info(self._fv3gfs.get_tracer_metadata())
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -455,12 +456,12 @@ class TimeLoop(
         return stepper
 
     def _get_reservoir_stepper(
-        self, config: UserConfig
+        self, config: UserConfig, init_time: cftime.DatetimeJulian,
     ) -> Tuple[Optional[Stepper], Optional[Stepper]]:
         if config.reservoir_corrector is not None:
             res_config = config.reservoir_corrector
             incrementer, predictor = get_reservoir_steppers(
-                res_config, MPI.COMM_WORLD.Get_rank()
+                res_config, MPI.COMM_WORLD.Get_rank(), init_time=init_time
             )
         else:
             incrementer, predictor = None, None

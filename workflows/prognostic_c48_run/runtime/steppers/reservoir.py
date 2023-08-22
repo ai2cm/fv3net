@@ -1,14 +1,14 @@
 import cftime
 import dataclasses
 import logging
-from datetime import timedelta
 import pandas as pd
-from typing import Optional, MutableMapping, Hashable, Mapping, cast
+from typing import Optional, MutableMapping, Hashable, Mapping, cast, Sequence, Dict
 import xarray as xr
 
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
+from runtime.diagnostics.time import IntervalAveragedTimes
 from runtime.names import SST, MASK
 from .prescriber import sst_update_from_reference
 
@@ -16,8 +16,8 @@ from .prescriber import sst_update_from_reference
 logger = logging.getLogger(__name__)
 
 
-RESERVOIR_NAME_TO_STATE_NAME = {"sst": SST}
-VARIABLE_UNITS = {SST: "degK"}
+RESERVOIR_SST = "sst"
+RESERVOIR_NAME_TO_STATE_NAME = {RESERVOIR_SST: SST}
 LAND_MASK_FILL_VALUE = 291.0  # TODO: have this value stored in the sst model?
 
 
@@ -80,21 +80,44 @@ class _FiniteStateMachine:
             )
 
 
-class _InitTimeStore:
+class TimeAverageInputs:
     """
-    A time store to keep a shared init time variable between the increment
-    and predict steppers that are separated across the time loop.
+    Copy of time averaging components from runtime.diagnostics.manager to
+    use for averaging inputs to the reservoir model.
     """
 
-    def __init__(self):
-        self._init_time = None
+    def __init__(self, variables: Sequence[str]):
+        self.variables = variables
+        self._running_total: Dict[str, xr.DataArray] = {}
+        self._n = 0
+        self.recorded_units: Dict[str, str] = {}
 
-    @property
-    def init_time(self):
-        return self._init_time
+    def increment_running_average(self, inputs: Mapping[str, xr.DataArray]):
+        for key in inputs:
+            self.recorded_units[key] = inputs[key].attrs.get("units", "unknown")
 
-    def set_init_time(self, time: cftime.DatetimeJulian):
-        self._init_time = time
+        for key in self.variables:
+            if key in self._running_total:
+                self._running_total[key] += inputs[key]
+            else:
+                self._running_total[key] = inputs[key].copy()
+
+        self._n += 1
+
+    def reset_running_average(self):
+        self._running_total = {}
+        self._n = 0
+
+    def get_averages(self):
+        averaged_data = {key: val / self._n for key, val in self._running_total.items()}
+        for key in averaged_data:
+            averaged_data[key].attrs["units"] = self.recorded_units[key]
+
+        logger.info(
+            "Retrieved time averaged input data for reservoir:"
+            f" {averaged_data.keys()}"
+        )
+        return averaged_data
 
 
 class _ReservoirStepper:
@@ -104,18 +127,15 @@ class _ReservoirStepper:
     def __init__(
         self,
         model: ReservoirDatasetAdapter,
-        reservoir_timestep: timedelta,
+        time_checker: IntervalAveragedTimes,
         synchronize_steps: int,
-        model_timestep_seconds: int = 900,
         state_machine: Optional[_FiniteStateMachine] = None,
-        init_time_store: Optional[_InitTimeStore] = None,
         diagnostic_only: bool = False,
+        input_averager: Optional[TimeAverageInputs] = None,
     ):
         self.model = model
-        self.rc_timestep = reservoir_timestep
         self.synchronize_steps = synchronize_steps
-        self.dt_atmos = timedelta(seconds=model_timestep_seconds)
-        self._init_time = None
+        self.time_checker = time_checker
         self.diagnostic = diagnostic_only
 
         if state_machine is None:
@@ -123,14 +143,14 @@ class _ReservoirStepper:
         else:
             self._state_machine = state_machine
 
-        if init_time_store is None:
-            self._init_time_store = _InitTimeStore()
+        if input_averager is None:
+            self.input_averager = TimeAverageInputs(model.input_variables)
         else:
-            self._init_time_store = init_time_store
+            self.input_averager = input_averager
 
     @property
-    def init_time(self):
-        return self._init_time_store.init_time
+    def initial_time(self):
+        return self.time_checker.initial_time
 
     @property
     def completed_sync_steps(self):
@@ -142,31 +162,11 @@ class _ReservoirStepper:
         )
 
     def _is_rc_update_step(self, time):
-        if self.init_time is None:
-            raise ValueError(
-                "Cannot determine reservoir update status without init time.  Ensure"
-                " that a _ReservoirStateStepper has an init time specified or that the"
-                " reservoir increment stepper is called at least once."
-            )
-        time_diff = time - self.init_time
-        logger.debug(f"Reservoir increment time check: {self.init_time},{time_diff}")
-        return time_diff % self.rc_timestep == timedelta(seconds=0)
+        return self.time_checker.is_endpoint(time)
 
     def get_diagnostics(self, state, tendency):
         diags: MutableMapping[Hashable, xr.DataArray] = {}
         return diags, xr.DataArray()
-
-
-def _add_units(ds):
-    for k, v in ds.items():
-        if k in VARIABLE_UNITS:
-            ds[k].attrs["units"] = VARIABLE_UNITS[k]
-    return ds
-
-
-def _fill_land_points(sst_da, land_sea_mask, fill_value):
-    land_points = land_sea_mask.values.round().astype("int") == 1
-    return xr.where(land_points, fill_value, sst_da)
 
 
 class ReservoirIncrementOnlyStepper(_ReservoirStepper):
@@ -179,47 +179,64 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
     label = "reservoir_incrementer"
 
-    def increment_reservoir(self, state):
-        """Should be called at beginning of time loop"""
+    def _get_inputs_from_state(self, state):
+        """
+        Get all required inputs for incrementing w/ halos
+
+        Add the slmask if SST is an input variable for masking
+        """
+
         reservoir_inputs = xr.Dataset(
-            {k: state[_get_state_name(k)] for k in self.model.input_variables}
+            {k: state[_get_state_name(k)] for k in self.input_averager.variables}
         )
 
-        if SST in reservoir_inputs:
+        if RESERVOIR_SST in reservoir_inputs:
             reservoir_inputs[MASK] = state[MASK]
 
-        try:
-            n_halo_points = self.model.input_overlap
-            rc_in_with_halos = append_halos_using_mpi(reservoir_inputs, n_halo_points)
-        except RuntimeError:
-            raise ValueError(
-                "MPI not available or tile dimension does not exist in state fields"
-                " during reservoir increment update"
-            )
-
-        if self.completed_sync_steps == 0:
-            self.model.reset_state()
-
-        self._state_machine(self._state_machine.INCREMENT)
+        n_halo_points = self.model.input_overlap
+        if n_halo_points > 0:
+            try:
+                rc_in_with_halos = append_halos_using_mpi(
+                    reservoir_inputs, n_halo_points
+                )
+            except RuntimeError:
+                raise ValueError(
+                    "MPI not available or tile dimension does not exist in state fields"
+                    " during reservoir increment update"
+                )
+            reservoir_inputs = rc_in_with_halos
 
         # TODO: if the models automatically mask, then we don't need to do this
         # Need to add consistent fill values for land areas
-        if SST in rc_in_with_halos:
-            land_points = rc_in_with_halos[MASK].values.round().astype("int") == 1
-            rc_in_with_halos[SST] = xr.where(
-                land_points, LAND_MASK_FILL_VALUE, rc_in_with_halos[SST]
+        if RESERVOIR_SST in reservoir_inputs:
+            land_points = reservoir_inputs[MASK].values.round().astype("int") == 1
+            reservoir_inputs[RESERVOIR_SST] = xr.where(
+                land_points, LAND_MASK_FILL_VALUE, reservoir_inputs[SST]
             )
 
-        self.model.increment_state(rc_in_with_halos)
+        return reservoir_inputs
+
+    def increment_reservoir(self, inputs):
+        """Should be called at beginning of time loop"""
+
+        if self.completed_sync_steps == 0:
+            self.model.reset_state()
+        self._state_machine(self._state_machine.INCREMENT)
+        self.model.increment_state(inputs)
 
     def __call__(self, time, state):
 
-        if self.init_time is None:
-            self._init_time_store.set_init_time(time)
+        # add to averages
+        inputs = self._get_inputs_from_state(state)
+        self.input_averager.increment_running_average(inputs)
 
         if self._is_rc_update_step(time):
+            # update inputs w/ average quantities
+            inputs.update(self.input_averager.get_averages())
+
             logger.info(f"Incrementing rc at time {time}")
-            self.increment_reservoir(state)
+            self.increment_reservoir(inputs)
+            self.input_averager.reset_running_average()
 
         return {}, {}, {}
 
@@ -233,25 +250,24 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
     label = "reservoir_predictor"
 
-    def predict(self, state):
+    def predict(self, inputs, state):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
 
         output_state = {}
         diags = {}
 
-        inputs = xr.Dataset(
-            {k: state[_get_state_name(k)] for k in self.model.input_variables}
-        )
         self._state_machine(self._state_machine.PREDICT)
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
         if self._state_machine.completed_increments >= self.synchronize_steps + 1:
             result = self.model.predict(inputs)
+            for k, v in result.items():
+                v.attrs["units"] = self.input_averager.recorded_units[k]
+
             output_state.update(
                 {_get_state_name(k): result[k] for k in self.model.output_variables}
             )
-            _add_units(output_state)
             diags.update({f"{k}_rc_out": v for k, v in output_state.items()})
 
             if SST in output_state:
@@ -280,9 +296,17 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # steps prior to predict, we'll maybe use the integrated
         # hybrid quantites from t -> t + k, make the rc prediction for t + k, and then
         # increment during the next time loop based on those outputs.
+
+        inputs = xr.Dataset(
+            {k: state[_get_state_name(k)] for k in self.input_averager.variables}
+        )
+        self.input_averager.increment_running_average(inputs)
+
         if self._is_rc_update_step(time):
+            inputs.update(self.input_averager.get_averages())
+
             logger.info(f"Predicting rc at time {time}")
-            tendencies, diags, state = self.predict(state)
+            tendencies, diags, state = self.predict(inputs, state)
         else:
             tendencies, diags, state = {}, {}, {}
 
@@ -293,7 +317,11 @@ def open_rc_model(path: str) -> ReservoirDatasetAdapter:
     return cast(ReservoirDatasetAdapter, fv3fit.load(path))
 
 
-def get_reservoir_steppers(config: ReservoirConfig, rank: int):
+def get_reservoir_steppers(
+    config: ReservoirConfig,
+    rank: int,
+    init_time: Optional[cftime.DatetimeJulian] = None,
+):
     """
     Gets both steppers needed by the time loop to increment the state using
     inputs from the beginning of the timestep and applying hybrid readout
@@ -307,22 +335,32 @@ def get_reservoir_steppers(config: ReservoirConfig, rank: int):
             "Ensure that the rank key and model is present in the configuration."
         )
     state_machine = _FiniteStateMachine()
-    init_time_store = _InitTimeStore()
 
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
+    time_checker = IntervalAveragedTimes(rc_tdelta, init_time)
+
+    increment_averager = TimeAverageInputs(model.model.input_variables)
+    predict_averager: Optional[TimeAverageInputs]
+    if hasattr(model.model, "hybrid_variables"):
+        hybrid_inputs = model.model.hybrid_variables
+        variables = hybrid_inputs if hybrid_inputs is not None else []
+        predict_averager = TimeAverageInputs(variables)
+    else:
+        predict_averager = None
+
     incrementer = ReservoirIncrementOnlyStepper(
         model,
-        rc_tdelta,
+        time_checker,
         config.synchronize_steps,
         state_machine=state_machine,
-        init_time_store=init_time_store,
+        input_averager=increment_averager,
     )
     predictor = ReservoirPredictStepper(
         model,
-        rc_tdelta,
+        time_checker,
         config.synchronize_steps,
         state_machine=state_machine,
-        init_time_store=init_time_store,
         diagnostic_only=config.diagnostic_only,
+        input_averager=predict_averager,
     )
     return incrementer, predictor
