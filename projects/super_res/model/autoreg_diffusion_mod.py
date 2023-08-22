@@ -197,7 +197,7 @@ def flow_warp(x, flow, interp_mode='bilinear', padding_mode='border', align_corn
                                     torch.arange(0, w, dtype=x.dtype, device=x.device))
     grid = torch.stack((grid_x, grid_y), 2).float()  # W(x), H(y), 2
     grid.requires_grad = False
-
+    
     vgrid = grid + flow
 
     # scale grid to [-1,1]
@@ -993,7 +993,8 @@ class GaussianDiffusion(nn.Module):
 
         elif flow_mode == '2d':
 
-            warped = flow_warp(ures_flow, flow)
+            flow = self.unnormalize(flow)
+            warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
         
         res = sample_fn((b * (f - 2), 1, 8 * h, 8 * w), l_cond, context, return_all_timesteps = return_all_timesteps)
         sres = warped + res
@@ -1003,8 +1004,13 @@ class GaussianDiffusion(nn.Module):
         res = rearrange(res, '(b t) c h w -> b t c h w', b = b)
         flow = rearrange(flow, '(b t) c h w -> b t c h w', b = b)
         
-        return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
-    
+        if flow_mode == '2d':
+            
+            return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), flow
+        
+        elif flow_mode == '3d':
+
+            return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
 
     @torch.no_grad()
     def interpolate(self, x1, x2, t = None, lam = 0.5):
@@ -1057,7 +1063,8 @@ class GaussianDiffusion(nn.Module):
 
         elif flow_mode == '2d':
 
-            warped = flow_warp(ures_flow, flow)
+            flow = self.unnormalize(flow)
+            warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
         
         x_start = rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         x_start = x_start - warped
@@ -1210,21 +1217,23 @@ class Trainer(object):
             mixed_precision = 'fp16' if fp16 else 'no',
             log_with = 'wandb',
         )
-        self.accelerator.init_trackers("vsr-orig-autoreg-hres", 
-            init_kwargs={
-                "wandb": {
-                    "notes": "Use VSR to improve precipitation forecasting.",
-                    # Change "name" to set the name of the run.
-                    "name":  None,
-                }
-            },
-        )
+        # self.accelerator.init_trackers("vsr-orig-autoreg-hres", 
+        #     init_kwargs={
+        #         "wandb": {
+        #             "notes": "Use VSR to improve precipitation forecasting.",
+        #             # Change "name" to set the name of the run.
+        #             "name":  None,
+        #         }
+        #     },
+        # )
         self.config = config
         self.accelerator.native_amp = amp
         self.multi = config.data_config["multi"]
         self.rollout = config.rollout
+        self.rollout_batch = config.rollout_batch
         self.flow = config.data_config["flow"]
         self.minipatch = config.data_config["minipatch"]
+        self.logscale = config.data_config["logscale"]
 
         self.model = diffusion_model
 
@@ -1263,7 +1272,7 @@ class Trainer(object):
 
         self.model, self.opt, train_dl, val_dl = self.accelerator.prepare(self.model, self.opt, train_dl, val_dl)
         self.train_dl = cycle(train_dl)
-        self.val_dl = cycle(val_dl)        
+        self.val_dl = val_dl     
 
     def save(self, milestone):
         if not self.accelerator.is_local_main_process:
@@ -1409,7 +1418,7 @@ class Trainer(object):
                                     b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
                                 bias_color = np.stack(b_c, axis = 0)
 
-                                if not self.config.data_config.logscale:
+                                if not self.logscale:
                                     target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
                                     output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
                                     coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
@@ -1419,7 +1428,7 @@ class Trainer(object):
                                     output = videos.detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
                                     coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_lgmax - c48_lgmin) + c48_lgmin
                                 
-                                if self.config.data_config.logscale:
+                                if self.logscale:
                                     target = np.exp(target) + c384_gmin - 1e-14
                                     output = np.exp(output) + c384_gmin - 1e-14
                                     coarse = np.exp(coarse) + c48_gmin - 1e-14
@@ -1474,7 +1483,7 @@ class Trainer(object):
 
                                     flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
                                 
-                                if self.config.data_config.logscale:
+                                if self.logscale:
 
                                     accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
                                     accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
@@ -1522,8 +1531,15 @@ class Trainer(object):
         
         self.ema.ema_model.eval()
 
-        c384_norm= torch.from_numpy(np.load("data/only_precip/c384_lgnorm.npy"))
-        c48_norm = torch.from_numpy(np.load("data/only_precip/c48_lgnorm.npy"))
+        if self.logscale:
+
+            c384_norm= torch.from_numpy(np.load("data/only_precip/c384_lgnorm.npy"))
+            c48_norm = torch.from_numpy(np.load("data/only_precip/c48_lgnorm.npy"))
+
+        else:
+
+            c384_norm= torch.from_numpy(np.load("data/only_precip/c384_norm.npy"))
+            c48_norm = torch.from_numpy(np.load("data/only_precip/c48_norm.npy"))
 
         if self.multi:
             
@@ -1553,7 +1569,7 @@ class Trainer(object):
                         lres = c48_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
                         hres = c384_norm[tile,st:en,:,:,:].unsqueeze(0).to(device)
 
-                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi)
+                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
 
                         torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
                         torch.save(hres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
@@ -1566,7 +1582,7 @@ class Trainer(object):
                 if self.rollout == 'partial':
 
                     seq_len = self.rollout_batch
-                    indices = get_random_idx_with_difference(0, c48_norm.shape[1] - (seq_len + 2), 250 // seq_len, seq_len + 2) # 250 samples per tile
+                    indices = get_random_idx_with_difference(0, c48_norm.shape[1] - (seq_len + 2), 75 // seq_len, seq_len + 2) # 250 samples per tile
 
                     for count, st in enumerate(indices):
 
@@ -1575,7 +1591,7 @@ class Trainer(object):
                         lres = c48_norm[tile,st:st+(seq_len+2),:,:,:].unsqueeze(0).to(device)
                         hres = c384_norm[tile,st:st+(seq_len+2),:,:,:].unsqueeze(0).to(device)
 
-                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi)
+                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
 
                         torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
                         torch.save(hres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
