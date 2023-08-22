@@ -80,7 +80,6 @@ def test_input_averager_get_averages():
     result = averager.get_averages()
     assert len(result) == 1
     xr.testing.assert_equal(result["a"], data["a"])
-    averager.reset_running_average()
 
     # multiple increments
     averager.increment_running_average(data)

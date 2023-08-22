@@ -32,12 +32,21 @@ class ReservoirConfig:
     Reservoir model configuration.
 
     Attributes:
-        model: URL to the global hybrid RC model
+        models: Mapping from rank to reservoir model path to load
+        synchronize_steps: Number of steps to synchronize the reservoir
+            before prediction
+        reservoir_timestep: Timestep of the reservoir model
+        time_average_inputs: Whether to time average inputs to the reservoir
+            increment and prediction (if hybrid) steps.  Uses running averages
+            to match the reservoir timestep.
+        diagnostic_only: Whether to run the reservoir in diagnostic mode (no
+            state updates)
     """
 
     models: Mapping[int, str]
     synchronize_steps: int = 1
     reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
+    time_average_inputs: bool = False
     diagnostic_only: bool = False
 
 
@@ -104,7 +113,7 @@ class TimeAverageInputs:
 
         self._n += 1
 
-    def reset_running_average(self):
+    def _reset_running_average(self):
         self._running_total = {}
         self._n = 0
 
@@ -119,10 +128,12 @@ class TimeAverageInputs:
         for key in averaged_data:
             averaged_data[key].attrs["units"] = self._recorded_units[key]
 
+        self._reset_running_average()
         logger.info(
             "Retrieved time averaged input data for reservoir:"
             f" {averaged_data.keys()}"
         )
+
         return averaged_data
 
 
@@ -143,16 +154,12 @@ class _ReservoirStepper:
         self.synchronize_steps = synchronize_steps
         self.time_checker = time_checker
         self.diagnostic = diagnostic_only
+        self.input_averager = input_averager
 
         if state_machine is None:
             self._state_machine = _FiniteStateMachine()
         else:
             self._state_machine = state_machine
-
-        if input_averager is None:
-            self.input_averager = TimeAverageInputs(model.input_variables)
-        else:
-            self.input_averager = input_averager
 
     @property
     def initial_time(self):
@@ -234,15 +241,16 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
         # add to averages
         inputs = self._get_inputs_from_state(state)
-        self.input_averager.increment_running_average(inputs)
+        if self.input_averager is not None:
+            self.input_averager.increment_running_average(inputs)
 
         if self._is_rc_update_step(time):
-            # update inputs w/ average quantities
-            inputs.update(self.input_averager.get_averages())
+            if self.input_averager is not None:
+                # update inputs w/ average quantities
+                inputs.update(self.input_averager.get_averages())
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
-            self.input_averager.reset_running_average()
 
         return {}, {}, {}
 
@@ -306,10 +314,12 @@ class ReservoirPredictStepper(_ReservoirStepper):
         inputs = xr.Dataset(
             {k: state[_get_state_name(k)] for k in self.input_averager.variables}
         )
-        self.input_averager.increment_running_average(inputs)
+        if self.input_averager is not None:
+            self.input_averager.increment_running_average(inputs)
 
         if self._is_rc_update_step(time):
-            inputs.update(self.input_averager.get_averages())
+            if self.input_averager is not None:
+                inputs.update(self.input_averager.get_averages())
 
             logger.info(f"Predicting rc at time {time}")
             tendencies, diags, state = self.predict(inputs, state)
@@ -321,6 +331,19 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:
     return cast(ReservoirDatasetAdapter, fv3fit.load(path))
+
+
+def _get_time_averagers(model):
+    increment_averager = TimeAverageInputs(model.model.input_variables)
+    predict_averager: Optional[TimeAverageInputs]
+    if hasattr(model.model, "hybrid_variables"):
+        hybrid_inputs = model.model.hybrid_variables
+        variables = hybrid_inputs if hybrid_inputs is not None else []
+        predict_averager = TimeAverageInputs(variables)
+    else:
+        predict_averager = None
+
+    return increment_averager, predict_averager
 
 
 def get_reservoir_steppers(
@@ -343,14 +366,10 @@ def get_reservoir_steppers(
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
     time_checker = IntervalAveragedTimes(rc_tdelta, init_time)
 
-    increment_averager = TimeAverageInputs(model.model.input_variables)
-    predict_averager: Optional[TimeAverageInputs]
-    if hasattr(model.model, "hybrid_variables"):
-        hybrid_inputs = model.model.hybrid_variables
-        variables = hybrid_inputs if hybrid_inputs is not None else []
-        predict_averager = TimeAverageInputs(variables)
+    if config.time_average_inputs:
+        increment_averager, predict_averager = _get_time_averagers(model)
     else:
-        predict_averager = None
+        increment_averager, predict_averager = None, None
 
     incrementer = ReservoirIncrementOnlyStepper(
         model,
