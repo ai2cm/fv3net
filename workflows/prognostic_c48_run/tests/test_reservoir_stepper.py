@@ -214,8 +214,6 @@ def test_get_reservoir_steppers(patched_reservoir_module):
     # Check that both steppers share model and state machine objects
     assert incrementer.model is predictor.model
     assert incrementer._state_machine is predictor._state_machine
-    assert incrementer.input_averager.variables == ["a"]
-    assert predictor.input_averager.variables == ["a"]
 
     # check that call methods point to correct methods
     state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))

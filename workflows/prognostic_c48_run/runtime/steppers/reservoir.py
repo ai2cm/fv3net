@@ -199,7 +199,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         """
 
         reservoir_inputs = xr.Dataset(
-            {k: state[_get_state_name(k)] for k in self.input_averager.variables}
+            {k: state[_get_state_name(k)] for k in self.model.input_variables}
         )
 
         if RESERVOIR_SST in reservoir_inputs:
@@ -311,7 +311,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # increment during the next time loop based on those outputs.
 
         inputs = xr.Dataset(
-            {k: state[_get_state_name(k)] for k in self.input_averager.variables}
+            {k: state[_get_state_name(k)] for k in self.model.input_variables}
         )
         if self.input_averager is not None:
             self.input_averager.increment_running_average(inputs)
