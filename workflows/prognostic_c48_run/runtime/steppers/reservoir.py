@@ -333,15 +333,18 @@ def open_rc_model(path: str) -> ReservoirDatasetAdapter:
     return cast(ReservoirDatasetAdapter, fv3fit.load(path))
 
 
-def _get_time_averagers(model):
-    increment_averager = TimeAverageInputs(model.model.input_variables)
-    predict_averager: Optional[TimeAverageInputs]
-    if hasattr(model.model, "hybrid_variables"):
-        hybrid_inputs = model.model.hybrid_variables
-        variables = hybrid_inputs if hybrid_inputs is not None else []
-        predict_averager = TimeAverageInputs(variables)
+def _get_time_averagers(model, do_time_average):
+    if do_time_average:
+        increment_averager = TimeAverageInputs(model.model.input_variables)
+        predict_averager: Optional[TimeAverageInputs]
+        if hasattr(model.model, "hybrid_variables"):
+            hybrid_inputs = model.model.hybrid_variables
+            variables = hybrid_inputs if hybrid_inputs is not None else []
+            predict_averager = TimeAverageInputs(variables)
+        else:
+            predict_averager = None
     else:
-        predict_averager = None
+        increment_averager, predict_averager = None, None
 
     return increment_averager, predict_averager
 
@@ -366,10 +369,9 @@ def get_reservoir_steppers(
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
     time_checker = IntervalAveragedTimes(rc_tdelta, init_time)
 
-    if config.time_average_inputs:
-        increment_averager, predict_averager = _get_time_averagers(model)
-    else:
-        increment_averager, predict_averager = None, None
+    increment_averager, predict_averager = _get_time_averagers(
+        model, config.time_average_inputs
+    )
 
     incrementer = ReservoirIncrementOnlyStepper(
         model,
