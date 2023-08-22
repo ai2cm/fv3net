@@ -2,13 +2,15 @@
 Unit tests for the reservoir stepper.
 """
 
+import numpy as np
+import xarray as xr
 import pytest
 import runtime.steppers.reservoir as reservoir
 from runtime.steppers.reservoir import (
     ReservoirIncrementOnlyStepper,
     ReservoirPredictStepper,
     _FiniteStateMachine,
-    _InitTimeStore,
+    IntervalAveragedTimes,
     ReservoirConfig,
 )
 from datetime import datetime, timedelta
@@ -59,12 +61,14 @@ class MockState(dict):
 
 
 def get_mock_reservoir_model():
-
     mock_model = MagicMock()
     mock_model.input_variables = ["a"]
-    mock_model.hybrid_variables = ["a"]
-    mock_model.rank_divider.overlap = 1
-    mock_model.predict.return_value = {}
+    mock_model.output_variables = ["a"]
+    mock_model.model.input_variables = ["a"]
+    mock_model.model.hybrid_variables = ["a"]
+    mock_model.input_overlap = 1
+    out_data = xr.DataArray(np.ones(1), dims=["x"])
+    mock_model.predict.return_value = {"a": out_data}
 
     return mock_model
 
@@ -73,24 +77,24 @@ def get_mock_ReservoirSteppers():
 
     model = get_mock_reservoir_model()
     state_machine = _FiniteStateMachine()
-    time_store = _InitTimeStore()
-    time_store.set_init_time(datetime(1, 1, 1, 0, 0, 0))
+
+    time_checker = IntervalAveragedTimes(
+        timedelta(minutes=10), datetime(1, 1, 1, 0, 0, 0)
+    )
 
     # Create a _ReservoirStepper object with mock objects
     incrementer = ReservoirIncrementOnlyStepper(
         model=model,
-        reservoir_timestep=timedelta(minutes=10),
+        time_checker=time_checker,
         synchronize_steps=2,
         state_machine=state_machine,
-        init_time_store=time_store,
     )
 
     predictor = ReservoirPredictStepper(
         model=model,
-        reservoir_timestep=timedelta(minutes=10),
+        time_checker=time_checker,
         synchronize_steps=2,
         state_machine=state_machine,
-        init_time_store=time_store,
     )
 
     return incrementer, predictor
@@ -98,8 +102,8 @@ def get_mock_ReservoirSteppers():
 
 @pytest.fixture(scope="function")
 def patched_reservoir_module(monkeypatch):
-    def append_halos_using_mpi(a, b):
-        return {}
+    def append_halos_using_mpi(inputs, nhalo):
+        return inputs
 
     monkeypatch.setattr(reservoir, "append_halos_using_mpi", append_halos_using_mpi)
 
@@ -116,7 +120,7 @@ def test__ReservoirStepper__is_rc_update_step():
 
     stepper, _ = get_mock_ReservoirSteppers()
 
-    time = stepper.init_time
+    time = stepper.initial_time
     assert stepper._is_rc_update_step(time)
     assert not stepper._is_rc_update_step(time + timedelta(minutes=5))
     assert stepper._is_rc_update_step(time + timedelta(minutes=10))
@@ -145,33 +149,32 @@ def test__ReservoirStepper_model_predict(patched_reservoir_module):
     # also check that completed sync steps is updated correctly
 
     incrementer, predictor = get_mock_ReservoirSteppers()
-    mock_state = MockState(a=1)
+    mock_state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
 
     # no call to predict when at or below required number of sync steps
     for i in range(incrementer.synchronize_steps):
         incrementer.increment_reservoir(mock_state)
-        predictor.predict(mock_state)
+        predictor.predict(mock_state, mock_state)
         predictor.model.predict.assert_not_called()
 
     # call to predict when past synchronization period
     incrementer.increment_reservoir(mock_state)
-    predictor.predict(mock_state)
+    predictor.predict(mock_state, mock_state)
     predictor.model.predict.assert_called_once()
 
 
 def test_get_reservoir_steppers(patched_reservoir_module):
 
     config = ReservoirConfig({0: "model"}, 0, reservoir_timestep="10m")
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0)
+    time = datetime(2020, 1, 1, 0, 0, 0)
+    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, time)
 
     # Check that both steppers share model and state machine objects
     assert incrementer.model is predictor.model
     assert incrementer._state_machine is predictor._state_machine
-    assert incrementer._init_time_store is predictor._init_time_store
 
     # check that call methods point to correct methods
-    time = datetime(1, 1, 1, 0, 0, 0)
-    state = MockState(a=1)
+    state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
     incrementer(time, state)
     incrementer.model.increment_state.assert_called()
     predictor(time, state)
@@ -181,11 +184,11 @@ def test_get_reservoir_steppers(patched_reservoir_module):
 def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 
     config = ReservoirConfig({0: "model"}, 0, reservoir_timestep="10m")
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0)
+    time = datetime(2020, 1, 1, 0, 0, 0)
+    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, time)
 
     # check that steppers respect state machine limit
-    time = datetime(1, 1, 1, 0, 0, 0)
-    state = MockState(a=1)
+    state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
     incrementer(time, state)
     incrementer(time, state)
     predictor(time, state)
@@ -196,4 +199,4 @@ def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 def test_model_paths_and_rank_index_mismatch_on_load():
     config = ReservoirConfig({1: "model"}, 0, reservoir_timestep="10m")
     with pytest.raises(KeyError):
-        reservoir.get_reservoir_steppers(config, 1)
+        reservoir.get_reservoir_steppers(config, 1, datetime(2020, 1, 1))

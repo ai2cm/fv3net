@@ -90,11 +90,11 @@ class TimeAverageInputs:
         self.variables = variables
         self._running_total: Dict[str, xr.DataArray] = {}
         self._n = 0
-        self.recorded_units: Dict[str, str] = {}
+        self._recorded_units: Dict[str, str] = {}
 
     def increment_running_average(self, inputs: Mapping[str, xr.DataArray]):
         for key in inputs:
-            self.recorded_units[key] = inputs[key].attrs.get("units", "unknown")
+            self._recorded_units[key] = inputs[key].attrs.get("units", "unknown")
 
         for key in self.variables:
             if key in self._running_total:
@@ -111,7 +111,7 @@ class TimeAverageInputs:
     def get_averages(self):
         averaged_data = {key: val / self._n for key, val in self._running_total.items()}
         for key in averaged_data:
-            averaged_data[key].attrs["units"] = self.recorded_units[key]
+            averaged_data[key].attrs["units"] = self._recorded_units[key]
 
         logger.info(
             "Retrieved time averaged input data for reservoir:"
@@ -262,12 +262,12 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # +1 to align with the necessary increment before any prediction
         if self._state_machine.completed_increments >= self.synchronize_steps + 1:
             result = self.model.predict(inputs)
-            for k, v in result.items():
-                v.attrs["units"] = self.input_averager.recorded_units[k]
 
             output_state.update(
                 {_get_state_name(k): result[k] for k in self.model.output_variables}
             )
+            for k, v in output_state.items():
+                v.attrs["units"] = state[k].attrs.get("units", "unknown")
             diags.update({f"{k}_rc_out": v for k, v in output_state.items()})
 
             if SST in output_state:
@@ -318,9 +318,7 @@ def open_rc_model(path: str) -> ReservoirDatasetAdapter:
 
 
 def get_reservoir_steppers(
-    config: ReservoirConfig,
-    rank: int,
-    init_time: Optional[cftime.DatetimeJulian] = None,
+    config: ReservoirConfig, rank: int, init_time: cftime.DatetimeJulian,
 ):
     """
     Gets both steppers needed by the time loop to increment the state using
