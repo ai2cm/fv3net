@@ -223,7 +223,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         if RESERVOIR_SST in reservoir_inputs:
             land_points = reservoir_inputs[MASK].values.round().astype("int") == 1
             reservoir_inputs[RESERVOIR_SST] = xr.where(
-                land_points, LAND_MASK_FILL_VALUE, reservoir_inputs[SST]
+                land_points, LAND_MASK_FILL_VALUE, reservoir_inputs[RESERVOIR_SST]
             )
 
         return reservoir_inputs
