@@ -238,6 +238,8 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
     def __call__(self, time, state):
 
+        diags = {}
+
         # add to averages
         inputs = self._get_inputs_from_state(state)
         if self.input_averager is not None:
@@ -250,8 +252,9 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
+            diags.update({f"{k}_rc_in": v for k, v in inputs.items()})
 
-        return {}, {}, {}
+        return {}, diags, {}
 
 
 class ReservoirPredictStepper(_ReservoirStepper):
@@ -322,6 +325,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
             logger.info(f"Predicting rc at time {time}")
             tendencies, diags, state = self.predict(inputs, state)
+            diags.update({f"{k}_hyb_in": v for k, v in inputs.items()})
         else:
             tendencies, diags, state = {}, {}, {}
 
