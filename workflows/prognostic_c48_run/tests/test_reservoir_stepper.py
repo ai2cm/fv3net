@@ -10,7 +10,6 @@ from runtime.steppers.reservoir import (
     ReservoirIncrementOnlyStepper,
     ReservoirPredictStepper,
     _FiniteStateMachine,
-    IntervalAveragedTimes,
     TimeAverageInputs,
     ReservoirConfig,
 )
@@ -123,22 +122,20 @@ def get_mock_ReservoirSteppers():
     model = get_mock_reservoir_model()
     state_machine = _FiniteStateMachine()
 
-    time_checker = IntervalAveragedTimes(
-        timedelta(minutes=10), datetime(1, 1, 1, 0, 0, 0)
-    )
-
     # Create a _ReservoirStepper object with mock objects
     incrementer = ReservoirIncrementOnlyStepper(
-        model=model,
-        time_checker=time_checker,
-        synchronize_steps=2,
+        model,
+        datetime(1, 1, 1, 0, 0, 0),
+        timedelta(minutes=10),
+        2,
         state_machine=state_machine,
     )
 
     predictor = ReservoirPredictStepper(
-        model=model,
-        time_checker=time_checker,
-        synchronize_steps=2,
+        model,
+        datetime(1, 1, 1, 0, 0, 0),
+        timedelta(minutes=10),
+        2,
         state_machine=state_machine,
     )
 

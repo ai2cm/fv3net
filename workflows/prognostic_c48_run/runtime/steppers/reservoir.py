@@ -2,13 +2,13 @@ import cftime
 import dataclasses
 import logging
 import pandas as pd
-from typing import Optional, MutableMapping, Hashable, Mapping, cast, Sequence, Dict
 import xarray as xr
+from datetime import timedelta
+from typing import Optional, MutableMapping, Hashable, Mapping, cast, Sequence, Dict
 
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.diagnostics.time import IntervalAveragedTimes
 from runtime.names import SST, MASK
 from .prescriber import sst_update_from_reference
 
@@ -144,7 +144,8 @@ class _ReservoirStepper:
     def __init__(
         self,
         model: ReservoirDatasetAdapter,
-        time_checker: IntervalAveragedTimes,
+        init_time: cftime.DatetimeJulian,
+        reservoir_timestep: timedelta,
         synchronize_steps: int,
         state_machine: Optional[_FiniteStateMachine] = None,
         diagnostic_only: bool = False,
@@ -152,7 +153,8 @@ class _ReservoirStepper:
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
-        self.time_checker = time_checker
+        self.initial_time = init_time
+        self.timestep = reservoir_timestep
         self.diagnostic = diagnostic_only
         self.input_averager = input_averager
 
@@ -160,10 +162,6 @@ class _ReservoirStepper:
             self._state_machine = _FiniteStateMachine()
         else:
             self._state_machine = state_machine
-
-    @property
-    def initial_time(self):
-        return self.time_checker.initial_time
 
     @property
     def completed_sync_steps(self):
@@ -175,7 +173,8 @@ class _ReservoirStepper:
         )
 
     def _is_rc_update_step(self, time):
-        return self.time_checker.is_endpoint(time)
+        remainder = (time - self.initial_time) % self.timestep
+        return remainder == timedelta(0)
 
     def get_diagnostics(self, state, tendency):
         diags: MutableMapping[Hashable, xr.DataArray] = {}
@@ -365,24 +364,23 @@ def get_reservoir_steppers(
             "Ensure that the rank key and model is present in the configuration."
         )
     state_machine = _FiniteStateMachine()
-
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
-    time_checker = IntervalAveragedTimes(rc_tdelta, init_time)
-
     increment_averager, predict_averager = _get_time_averagers(
         model, config.time_average_inputs
     )
 
     incrementer = ReservoirIncrementOnlyStepper(
         model,
-        time_checker,
+        init_time,
+        rc_tdelta,
         config.synchronize_steps,
         state_machine=state_machine,
         input_averager=increment_averager,
     )
     predictor = ReservoirPredictStepper(
         model,
-        time_checker,
+        init_time,
+        rc_tdelta,
         config.synchronize_steps,
         state_machine=state_machine,
         diagnostic_only=config.diagnostic_only,
