@@ -32,6 +32,8 @@ from .domain2 import RankXYDivider
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+LAND_MASK = "land_sea_mask"
+
 
 def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
@@ -75,6 +77,19 @@ def _get_transformers(
     return TransformerGroup(**transformers)
 
 
+def _get_input_mask_array(
+    sample_batch: Mapping[str, tf.Tensor], rank_divider: RankXYDivider
+) -> np.ndarray:
+    if LAND_MASK not in sample_batch:
+        raise KeyError(
+            "'land_sea_mask' must be included in training data if "
+            "the mask_land option is selected."
+        )
+    return rank_divider.get_all_subdomains_with_flat_feature(
+        np.where(assure_txyz_dims(sample_batch[LAND_MASK])[0] == 1.0, 0, 1)
+    )
+
+
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -97,14 +112,11 @@ def train_reservoir_model(
         z_feature_size=transformers.input.n_latent_dims,
     )
 
-    if hyperparameters.mask_land is True:
-        input_mask_array: Optional[
-            np.ndarray
-        ] = rank_divider.get_all_subdomains_with_flat_feature(
-            np.where(assure_txyz_dims(sample_batch["land_sea_mask"])[0] == 1.0, 0, 1)
-        )
-    else:
-        input_mask_array = None
+    input_mask_array: Optional[np.ndarray] = (
+        _get_input_mask_array(sample_batch, rank_divider)
+        if hyperparameters.mask_land is True
+        else None
+    )
 
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
