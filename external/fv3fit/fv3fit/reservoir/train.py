@@ -85,9 +85,14 @@ def _get_input_mask_array(
             f"'{mask_variable}' must be included in training data if "
             "the mask_variable is specified in training configuration."
         )
-    return rank_divider.get_all_subdomains_with_flat_feature(
-        np.where(assure_txyz_dims(sample_batch[mask_variable])[0] == 1.0, 0, 1)
+    mask = rank_divider.get_all_subdomains_with_flat_feature(
+        assure_txyz_dims(sample_batch[mask_variable])[0]
     )
+    if set(np.unique(mask)) != {0, 1}:
+        raise ValueError(
+            f"Mask variable values in field {mask_variable} are not " "all in {0, 1}."
+        )
+    return mask
 
 
 @register_training_function("reservoir", ReservoirTrainingConfig)
