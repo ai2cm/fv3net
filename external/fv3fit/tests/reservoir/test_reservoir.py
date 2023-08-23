@@ -113,3 +113,50 @@ def test_increment_state_2d_input():
 
     reservoir.increment_state(input)
     assert reservoir.state.shape == (input_matrix_columns, state_size)
+
+
+def test_input_mask_array():
+    state_size = 15
+    adjacency_matrix_sparsity = 0.0
+    spectral_radius = 1.0
+    n_subdomains = 3
+    flat_subdomain_len = 4
+
+    hyperparameters = ReservoirHyperparameters(
+        state_size=state_size,
+        adjacency_matrix_sparsity=adjacency_matrix_sparsity,
+        spectral_radius=spectral_radius,
+        seed=0,
+    )
+
+    input_state = np.random.rand(n_subdomains, flat_subdomain_len)
+    input_mask_array = np.random.choice([0, 1], input_state.shape)
+
+    reservoir = Reservoir(
+        hyperparameters,
+        input_size=flat_subdomain_len,
+        input_mask_array=input_mask_array,
+    )
+
+    # reservoir with an input mask should have the same hidden state when
+    # synchronized on time series with different values at masked points
+    time_series = [np.random.rand(n_subdomains, flat_subdomain_len) for t in range(50)]
+
+    mask_adjustment = np.where(input_mask_array == 0.0, 10, 0)
+    time_series_with_mask_adjustment = [x + mask_adjustment for x in time_series]
+
+    reservoir_shape = (
+        n_subdomains,
+        hyperparameters.state_size,
+    )
+    reservoir.reset_state(reservoir_shape)
+    for t in time_series:
+        reservoir.increment_state(t)
+    state_0 = reservoir.state
+
+    reservoir.reset_state(reservoir_shape)
+    for t in time_series_with_mask_adjustment:
+        reservoir.increment_state(t)
+    state_1 = reservoir.state
+
+    np.testing.assert_array_equal(state_0, state_1)
