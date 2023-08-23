@@ -88,9 +88,9 @@ class ReservoirTrainingConfig(Hyperparameters):
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     transformers: optional TransformerConfig for autoencoders to use in
         encoding input, output, and/or hybrid variable sets.
-    mask_land: if True, save mask array that is multiplied to the input array
-        before multiplication with W_in. This zeros any land points so they do
-        affect the hidden state.
+    mask_variable: if specified, save mask array that is multiplied to the input array
+        before multiplication with W_in. This applies a mask using the
+        mask_variable field.
     """
 
     input_variables: Sequence[str]
@@ -105,7 +105,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     hybrid_variables: Optional[Sequence[str]] = None
-    mask_land: bool = False
+    mask_variable: Optional[str] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
@@ -130,8 +130,8 @@ class ReservoirTrainingConfig(Hyperparameters):
             additional_vars = list(self.hybrid_variables)  # type: ignore
         else:
             additional_vars = []
-        if self.mask_land is True:
-            additional_vars.append("land_sea_mask")
+        if self.mask_variable is not None:
+            additional_vars.append(self.mask_variable)
         return set(list(self.input_variables) + additional_vars)
 
     @classmethod
