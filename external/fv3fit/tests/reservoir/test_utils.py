@@ -4,6 +4,7 @@ from fv3fit.reservoir.utils import (
     square_even_terms,
     process_batch_data,
     SynchronziationTracker,
+    assure_txyz_dims,
 )
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
 from fv3fit.reservoir.domain2 import RankXYDivider
@@ -71,3 +72,17 @@ def test_process_batch_data(nz, overlap, trim_halo):
     else:
         features_per_subdomain = rank_divider.flat_subdomain_len
     assert time_series.shape == (nt, rank_divider.n_subdomains, features_per_subdomain,)
+
+
+def test_assure_txyz_dims():
+    nt, nx, ny, nz = 5, 4, 4, 6
+    arr_3d = np.ones((nt, nx, ny, nz))
+    arr_2d = np.ones((nt, nx, ny))
+    assert assure_txyz_dims(arr_3d).shape == (nt, nx, ny, nz)
+    assert assure_txyz_dims(arr_2d).shape == (nt, nx, ny, 1)
+
+
+def test_assure_txyz_dims_incompatible_shapes():
+    nt, nx, ny, nz = 5, 4, 4, 6
+    with pytest.raises(ValueError):
+        assure_txyz_dims(np.ones((nt, nx, ny, nz, 2)))
