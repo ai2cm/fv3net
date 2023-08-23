@@ -3,6 +3,7 @@ import dataclasses
 import fsspec
 import logging
 import numpy as np
+import os
 import scipy
 from typing import Optional
 import yaml
@@ -33,6 +34,7 @@ class Reservoir:
     _INPUT_WEIGHTS_NAME = "reservoir_W_in.npz"
     _RESERVOIR_WEIGHTS_NAME = "reservoir_W_res.npz"
     _METADATA_NAME = "metadata.bin"
+    _INPUT_MASK_NAME = "input_mask.npy"
 
     def __init__(
         self,
@@ -133,10 +135,15 @@ class Reservoir:
             "reservoir_hyperparameters": dataclasses.asdict(self.hyperparameters,),
             "input_size": self.input_size,
         }
-        with fs.open(f"{path}/{self._INPUT_WEIGHTS_NAME}", "wb") as f:
+        with fs.open(os.path.join(path, self._INPUT_WEIGHTS_NAME), "wb") as f:
             scipy.sparse.save_npz(f, self.W_in)
-        with fs.open(f"{path}/{self._RESERVOIR_WEIGHTS_NAME}", "wb") as f:
+        with fs.open(os.path.join(path, self._RESERVOIR_WEIGHTS_NAME), "wb") as f:
             scipy.sparse.save_npz(f, self.W_res)
+
+        if self.input_mask_array is not None:
+            with fsspec.open(os.path.join(path, self._INPUT_MASK_NAME), "wb") as f:
+                np.save(f, self.input_mask_array, allow_pickle=False)
+
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
@@ -153,9 +160,16 @@ class Reservoir:
             reservoir_W_in = scipy.sparse.load_npz(f)
         with fs.open(f"{path}/{cls._RESERVOIR_WEIGHTS_NAME}", "rb") as f:
             reservoir_W_res = scipy.sparse.load_npz(f)
+        try:
+            with fsspec.open(os.path.join(path, cls._INPUT_MASK_NAME), "rb") as f:
+                input_mask_array: Optional[np.ndarray] = np.load(f)
+        except (FileNotFoundError):
+            input_mask_array = None
+
         return cls(
             reservoir_hyperparameters,
             W_in=reservoir_W_in,
             W_res=reservoir_W_res,
             input_size=metadata["input_size"],
+            input_mask_array=input_mask_array,
         )
