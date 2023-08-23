@@ -13,6 +13,7 @@ from .utils import (
     square_even_terms,
     process_batch_data,
     get_ordered_X,
+    assure_txyz_dims,
     SynchronziationTracker,
     get_standard_normalizing_transformer,
 )
@@ -100,7 +101,7 @@ def train_reservoir_model(
         input_mask_array: Optional[
             np.ndarray
         ] = rank_divider.get_all_subdomains_with_flat_feature(
-            np.where(sample_batch["land_sea_mask"] == 1.0, 0, 1)
+            np.where(assure_txyz_dims(sample_batch["land_sea_mask"])[0] == 1.0, 0, 1)
         )
     else:
         input_mask_array = None
