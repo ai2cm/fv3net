@@ -110,7 +110,7 @@ class TrainingConfig:
         hyperparameter_class = get_hyperparameter_class(kwargs["model_type"])
         # custom enums must be specified for dacite to handle correctly
         dacite_config = dacite.Config(
-            strict=True, cast=[bool, str, int, float, StdDevMethod, MeanMethod]
+            strict=True, cast=[bool, str, int, float, StdDevMethod, MeanMethod, tuple]
         )
         kwargs["hyperparameters"] = dacite.from_dict(
             data_class=hyperparameter_class,
