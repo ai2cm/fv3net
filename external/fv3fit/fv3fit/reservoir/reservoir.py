@@ -3,6 +3,7 @@ import dataclasses
 import fsspec
 import logging
 import numpy as np
+import os
 import scipy
 from typing import Optional
 import yaml
@@ -33,6 +34,7 @@ class Reservoir:
     _INPUT_WEIGHTS_NAME = "reservoir_W_in.npz"
     _RESERVOIR_WEIGHTS_NAME = "reservoir_W_res.npz"
     _METADATA_NAME = "metadata.bin"
+    _INPUT_MASK_NAME = "input_mask.npy"
 
     def __init__(
         self,
@@ -40,6 +42,7 @@ class Reservoir:
         input_size: int,
         W_in: Optional[scipy.sparse.csc_matrix] = None,
         W_res: Optional[scipy.sparse.csc_matrix] = None,
+        input_mask_array: Optional[np.ndarray] = None,
     ):
         """
 
@@ -58,13 +61,19 @@ class Reservoir:
         self.W_in = W_in if W_in is not None else self._generate_W_in()
         self.W_res = W_res if W_res is not None else self._generate_W_res()
         self.state: Optional[np.ndarray] = None
+        self.input_mask_array = input_mask_array
 
     def increment_state(self, input):
         # input: [subdomain, features]
+        # (optional) input_mask: [subdomain, features]
         # W_in: [features, state_size]
         # W_res: [state_size, state_size]
         # output: [subdomain, state_size]
-        self.state = np.tanh(input @ self.W_in.T + self.state @ self.W_res.T)
+        if self.input_mask_array is not None:
+            masked_input = input * self.input_mask_array
+        else:
+            masked_input = input
+        self.state = np.tanh(masked_input @ self.W_in.T + self.state @ self.W_res.T)
 
     def reset_state(self, input_shape: tuple):
         logger.info("Resetting reservoir state.")
@@ -126,10 +135,15 @@ class Reservoir:
             "reservoir_hyperparameters": dataclasses.asdict(self.hyperparameters,),
             "input_size": self.input_size,
         }
-        with fs.open(f"{path}/{self._INPUT_WEIGHTS_NAME}", "wb") as f:
+        with fs.open(os.path.join(path, self._INPUT_WEIGHTS_NAME), "wb") as f:
             scipy.sparse.save_npz(f, self.W_in)
-        with fs.open(f"{path}/{self._RESERVOIR_WEIGHTS_NAME}", "wb") as f:
+        with fs.open(os.path.join(path, self._RESERVOIR_WEIGHTS_NAME), "wb") as f:
             scipy.sparse.save_npz(f, self.W_res)
+
+        if self.input_mask_array is not None:
+            with fsspec.open(os.path.join(path, self._INPUT_MASK_NAME), "wb") as f:
+                np.save(f, self.input_mask_array, allow_pickle=False)
+
         mapper[self._METADATA_NAME] = yaml.safe_dump(metadata).encode("UTF-8")
 
     @classmethod
@@ -146,9 +160,16 @@ class Reservoir:
             reservoir_W_in = scipy.sparse.load_npz(f)
         with fs.open(f"{path}/{cls._RESERVOIR_WEIGHTS_NAME}", "rb") as f:
             reservoir_W_res = scipy.sparse.load_npz(f)
+        try:
+            with fsspec.open(os.path.join(path, cls._INPUT_MASK_NAME), "rb") as f:
+                input_mask_array: Optional[np.ndarray] = np.load(f)
+        except (FileNotFoundError):
+            input_mask_array = None
+
         return cls(
             reservoir_hyperparameters,
             W_in=reservoir_W_in,
             W_res=reservoir_W_res,
             input_size=metadata["input_size"],
+            input_mask_array=input_mask_array,
         )

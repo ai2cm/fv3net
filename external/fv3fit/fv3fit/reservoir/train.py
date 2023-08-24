@@ -13,6 +13,7 @@ from .utils import (
     square_even_terms,
     process_batch_data,
     get_ordered_X,
+    assure_txyz_dims,
     SynchronziationTracker,
     get_standard_normalizing_transformer,
 )
@@ -74,6 +75,26 @@ def _get_transformers(
     return TransformerGroup(**transformers)
 
 
+def _get_input_mask_array(
+    mask_variable: str,
+    sample_batch: Mapping[str, tf.Tensor],
+    rank_divider: RankXYDivider,
+) -> np.ndarray:
+    if mask_variable not in sample_batch:
+        raise KeyError(
+            f"'{mask_variable}' must be included in training data if "
+            "the mask_variable is specified in training configuration."
+        )
+    mask = rank_divider.get_all_subdomains_with_flat_feature(
+        assure_txyz_dims(sample_batch[mask_variable])[0]
+    )
+    if set(np.unique(mask)) != {0, 1}:
+        raise ValueError(
+            f"Mask variable values in field {mask_variable} are not " "all in {0, 1}."
+        )
+    return mask
+
+
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -96,11 +117,19 @@ def train_reservoir_model(
         z_feature_size=transformers.input.n_latent_dims,
     )
 
+    if hyperparameters.mask_variable is not None:
+        input_mask_array: Optional[np.ndarray] = _get_input_mask_array(
+            hyperparameters.mask_variable, sample_batch, rank_divider
+        )
+    else:
+        input_mask_array = None
+
     # First data dim is time, the rest of the elements of each
     # subdomain+halo are are flattened into feature dimension
     reservoir = Reservoir(
         hyperparameters=hyperparameters.reservoir_hyperparameters,
         input_size=rank_divider.flat_subdomain_len,
+        input_mask_array=input_mask_array,
     )
 
     # One readout is trained per subdomain when iterating over batches,

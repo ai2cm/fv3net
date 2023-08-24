@@ -7,9 +7,26 @@ from fv3fit.reservoir.transformers import (
     encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
-from fv3fit.reservoir.domain import assure_txyz_dims
 from fv3fit.reservoir.domain2 import RankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
+
+
+def assure_txyz_dims(var_data: tf.Tensor) -> tf.Tensor:
+    # Assumes dims 1, 2, 3 are t, x, y.
+    # If variable data has 3 dims, adds a 4th feature dim of size 1.
+    # reshaped_tensors = []
+    # for var_data in variable_tensors:
+    if len(var_data.shape) == 4:
+        reshaped_tensor = var_data
+    elif len(var_data.shape) == 3:
+        orig_shape = var_data.shape
+        reshaped_tensor = tf.reshape(var_data, shape=(*orig_shape, 1))
+    else:
+        raise ValueError(
+            f"Tensor data has {len(var_data.shape)} dims, must either "
+            "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)."
+        )
+    return reshaped_tensor
 
 
 class SynchronziationTracker:
@@ -61,7 +78,8 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
 
 def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
     ordered_tensors = [X[v] for v in variables]
-    return assure_txyz_dims(ordered_tensors)
+    reshaped_tensors = [assure_txyz_dims(var_tensor) for var_tensor in ordered_tensors]
+    return reshaped_tensors
 
 
 def process_batch_data(
