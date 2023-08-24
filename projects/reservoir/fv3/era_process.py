@@ -9,6 +9,8 @@ import cftime
 import argparse
 import logging
 import os
+import atexit
+import shutil
 
 
 FREGRID_EXAMPLE_SOURCE_DATA = (
@@ -38,8 +40,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # example execution: python era_process.py
-# --out_path /home/paulah/data/era5/fv3net/val/
-# --start_date 2006-01-01 --end_date 2014-12-31
+# --out_path /home/paulah/data/era5/fvtest/val/
+# --start_date 2006-01-01 --end_date 2006-03-31
 # --variables sst temp2m u_wind v_wind --in_path /home/paulah/data/era5/
 
 
@@ -53,15 +55,21 @@ def add_arguments():
         help="path to save regridded data, should include whether train/val/test",
     )
     parser.add_argument(
-        "--train_val_test", help="whether you are creating train, val or test data"
-    )
-    parser.add_argument(
         "--start_date", help="start date as a string in the format of YYYY-MM-DD"
     )
     parser.add_argument(
         "--end_date", help="end date as a string in the format of YYYY-MM-DD"
     )
     parser.add_argument("--variables", nargs="+", help="list of variables to process")
+    parser.add_argument(
+        "--fill_value_sst", default=291, type=float, help="value to fill sst nans"
+    )
+    parser.add_argument(
+        "--fill_value_sst_tend",
+        default=1.6e-10,
+        type=float,
+        help="value to fill sst tend nans",
+    )
     # dates to split val, test
     return parser.parse_args()
 
@@ -79,15 +87,22 @@ def main(args):
     full_variables = merge_into_weekly_file(path, variables, args, tempdirname)
     # do time shift, add tendency by doing xarray operations
     # on the full dataset, no need to write it in between steps
-    full_variables["sst_tendency"] = calculate_sst_tendency(full_variables.sst)
+
     for var in TIME_SHIFTED_VARIABLES:
         full_variables[var] = full_variables[var].shift(time=-1)
     # masking, etc.
     regrid_to_cubed_sphere(full_variables, variables, tempdirname)
     interpolated = interpolate_nans(variables, tempdirname)
-    masked = mask(interpolated)
-    save_data_as_tiles(masked, args)
-    os.system("rm -r " + tempdirname)
+    interpolated["sst"] = mask(interpolated["sst"], args)
+    if "sst" in variables:
+        variables.append("sst_tendency")
+        interpolated["sst_tendency"] = calculate_sst_tendency(interpolated.sst)
+        interpolated["sst_tendency"].fillna(args.fill_value_sst_tend)
+    for var in variables:
+        var_id = var_id_mapping[var]
+        interpolated = interpolated.rename_vars({var_id: shift_rename_mapping[var_id]})
+    save_data_as_tiles(interpolated, args)
+    atexit.register(shutil.rmtree, tempdirname)
 
 
 def download_source_data(tempdirname):
@@ -236,8 +251,8 @@ def regrid_to_cubed_sphere(full_variables, variables, tempdir):
 
 
 def interpolate_nans(variables, tempdir):
-    file_list = glob.glob(tempdir + "/fregrid-example/full_cubed.*nc")  # maybe change
-    file_list.reverse()
+    file_list = glob.glob(tempdir + "/fregrid-example/full_cubed.*nc")
+    file_list.sort()
     dt_lis = [xr.open_dataset(f, decode_times=False) for f in file_list]
     grid = vcm.catalog.catalog["grid/c48"].to_dask()
     new_lis = []
@@ -257,9 +272,10 @@ def interpolate_nans(variables, tempdir):
     return ds
 
 
-def mask(coarsened):
+def mask(coarsened, args):
     land_sea_mask_c48 = catalog["landseamask/c48"].read()
     masked = coarsened.where(land_sea_mask_c48["land_sea_mask"] != 1)
+    masked.fillna(args.fill_value_sst)
     logger.info("is masked")
     return masked
 
@@ -288,7 +304,9 @@ def calculate_sst_tendency(sst_dataset):
 
 def save_data_as_tiles(data, args):
     # save each tile individually in seperate folder
+
     for i in range(len(data.tile)):
+        os.system("mkdir -p " + os.path.join(args.out_path, "tile-" + str(i)))
         data.isel(tile=i).to_netcdf(
             os.path.join(args.out_path, "tile-" + str(i), "regridded.nc")
         )
