@@ -5,9 +5,16 @@ from fv3fit.reservoir.utils import (
     process_batch_data,
     SynchronziationTracker,
     assure_txyz_dims,
+    split_multi_subdomain_model,
+    # generate_subdomain_models_for_tile,
+    # generate_subdomain_models_from_all_tiles,
 )
+
+from .convenience import get_ReservoirComputingModel
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
 from fv3fit.reservoir.domain2 import RankXYDivider
+
+# from fv3fit.reservoir.model import ReservoirComputingModel
 
 
 def test_SynchronziationTracker():
@@ -86,3 +93,32 @@ def test_assure_txyz_dims_incompatible_shapes():
     nt, nx, ny, nz = 5, 4, 4, 6
     with pytest.raises(ValueError):
         assure_txyz_dims(np.ones((nt, nx, ny, nz, 2)))
+
+
+def test_split_multi_subdomain_model():
+    divider = RankXYDivider(
+        subdomain_layout=(2, 2), overlap=1, rank_extent=(2, 2), z_feature_size=1
+    )
+    no_overlap_divider = divider.get_no_overlap_rank_divider()
+    model = get_ReservoirComputingModel(rank_divider=divider, variables=["a"],)
+
+    data = np.random.randn(10, 4, 4, 1)
+
+    model.reset_state()
+    model.increment_state(data)
+    result = model.predict(data)
+
+    divided_data = divider.get_subdomain()
+    split_models = split_multi_subdomain_model(model)
+    for i, subdomain_model in enumerate(split_models):
+        subdomain_data = divided_data[i]
+        subdomain_model.reset_state()
+        subdomain_model.increment_state(subdomain_data)
+        subdomain_result = subdomain_model.predict(subdomain_data)
+        expected = no_overlap_divider.get_subdomain(result, i)
+        np.testing.assert_array_equal(subdomain_result, expected)
+
+
+# test saved model for single tile
+
+# test saved model for multiple tiles
