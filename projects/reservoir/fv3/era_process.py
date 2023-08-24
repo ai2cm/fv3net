@@ -110,7 +110,9 @@ def download_source_data(tempdirname):
     os.system(
         "gsutil -m cp "
         + FREGRID_EXAMPLE_SOURCE_DATA
-        + " temp/fregrid-example/source-grid-data/"
+        + " "
+        + tempdirname
+        + "/fregrid-example/source-grid-data/"
     )
 
 
@@ -236,7 +238,9 @@ def regrid_to_cubed_sphere(full_variables, variables, tempdir):
     var_id_commas_string = var_id_commas_string[:-1]
     command = (
         "sudo docker run \
-        -v $(pwd)/temp/fregrid-example:/work \
+        -v $(pwd)/"
+        + tempdir
+        + "/fregrid-example:/work \
         us.gcr.io/vcm-ml/post_process_run:latest \
         fregrid \
         --input_mosaic /work/era5_lonlat_grid_mosaic.nc \
