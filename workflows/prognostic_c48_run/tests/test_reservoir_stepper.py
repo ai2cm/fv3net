@@ -110,9 +110,10 @@ def get_mock_reservoir_model():
     mock_model.output_variables = ["a"]
     mock_model.model.input_variables = ["a"]
     mock_model.model.hybrid_variables = ["a"]
+    mock_model.is_hybrid.return_value = True
     mock_model.input_overlap = 1
     out_data = xr.DataArray(np.ones(1), dims=["x"])
-    mock_model.predict.return_value = {"a": out_data}
+    mock_model.predict.return_value = xr.Dataset({"a": out_data})
 
     return mock_model
 
@@ -252,6 +253,36 @@ def test_reservoir_steppers_with_interval_averaging(patched_reservoir_module):
     for i in range(1, 4):
         predictor(init_time + timedelta(minutes=10 * i), state)
         incrementer(init_time + timedelta(minutes=10 * i), state)
+
+
+def test_reservoir_steppers_diagnostic_only(patched_reservoir_module):
+    config = ReservoirConfig(
+        {0: "model"}, 0, reservoir_timestep="10m", diagnostic_only=True
+    )
+    init_time = datetime(2020, 1, 1, 0, 0, 0)
+    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, init_time)
+
+    state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
+    incrementer(init_time, state)
+    _, _, state = predictor(init_time, state)
+    assert not state
+
+
+def test_reservoir_steppers_renaming(patched_reservoir_module):
+    # wrapper state uses b, but model expects a
+    config = ReservoirConfig(
+        {0: "model"}, 0, reservoir_timestep="10m", rename_mapping={"a": "b"}
+    )
+    init_time = datetime(2020, 1, 1, 0, 0, 0)
+    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, init_time)
+
+    res_input = MockState(b=xr.DataArray(np.ones(3), dims=["x"]))
+    # different dimension to test diagnostics dims renaming
+    hyb_input = MockState(b=xr.DataArray(np.ones(1), dims=["x"]))
+    incrementer(init_time, res_input)
+    _, diags, state = predictor(init_time, hyb_input)
+
+    assert "b" in state
 
 
 def test_model_paths_and_rank_index_mismatch_on_load():

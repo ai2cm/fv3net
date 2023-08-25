@@ -442,6 +442,7 @@ reservoir_corrector:
     3: gs://vcm-ml-scratch/rc-model-tile-3
     4: gs://vcm-ml-scratch/rc-model-tile-4
     5: gs://vcm-ml-scratch/rc-model-tile-5
+  rename_mapping: {}
   reservoir_timestep: 900s
   synchronize_steps: 12
   time_average_inputs: false

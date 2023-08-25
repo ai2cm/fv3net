@@ -27,17 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 RESERVOIR_SST = "sst"
-RESERVOIR_NAME_TO_STATE_NAME = {RESERVOIR_SST: SST}
 LAND_MASK_FILL_VALUE = 291.0  # TODO: have this value stored in the sst model?
-
-
-def _get_state_name(key):
-    """Returns original key if translation not present"""
-    return RESERVOIR_NAME_TO_STATE_NAME.get(key, key)
-
-
-def _get_default_rename_dict():
-    return {RESERVOIR_SST: SST}
 
 
 @dataclasses.dataclass
@@ -64,9 +54,7 @@ class ReservoirConfig:
     reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
     time_average_inputs: bool = False
     diagnostic_only: bool = False
-    rename_mapping: NameDict = dataclasses.field(
-        default_factory=_get_default_rename_dict
-    )
+    rename_mapping: NameDict = dataclasses.field(default_factory=dict)
 
 
 class _FiniteStateMachine:
@@ -330,6 +318,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             # Necessary for diags to work when syncing reservoir
             fv3_output_variables = self._renamed_variables(self.model.output_variables)
             diags = xr.Dataset({f"{k}_rc_out": state[k] for k in fv3_output_variables})
+            output_state = {}
 
         return {}, diags, output_state
 
@@ -344,7 +333,10 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         if self.model.is_hybrid:
             inputs = xr.Dataset(
-                {k: state[self.rename_mapping[k]] for k in self.model.model.hy}
+                {
+                    k: state[self.rename_mapping.get(k, k)]
+                    for k in self.model.model.hybrid_variables
+                }
             )
         else:
             inputs = xr.Dataset()
@@ -416,6 +408,7 @@ def get_reservoir_steppers(
         config.synchronize_steps,
         state_machine=state_machine,
         input_averager=increment_averager,
+        rename_mapping=config.rename_mapping,
     )
     predictor = ReservoirPredictStepper(
         model,
@@ -425,5 +418,6 @@ def get_reservoir_steppers(
         state_machine=state_machine,
         diagnostic_only=config.diagnostic_only,
         input_averager=predict_averager,
+        rename_mapping=config.rename_mapping,
     )
     return incrementer, predictor
