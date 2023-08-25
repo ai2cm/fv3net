@@ -12,7 +12,6 @@ from typing import (
     cast,
     Sequence,
     Dict,
-    Set,
 )
 
 import fv3fit
@@ -20,7 +19,7 @@ from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 from runtime.names import SST
 from .prescriber import sst_update_from_reference
-from .machine_learning import rename_dataset_members, invert_dict, NameDict
+from .machine_learning import rename_dataset_members, NameDict
 
 
 logger = logging.getLogger(__name__)
@@ -187,10 +186,6 @@ class _ReservoirStepper:
         diags: MutableMapping[Hashable, xr.DataArray] = {}
         return diags, xr.DataArray()
 
-    def _renamed_variables(self, variables: Sequence[str]) -> Set[str]:
-        inverted_rename_mapping = invert_dict(self.rename_mapping)
-        return {inverted_rename_mapping.get(var, var) for var in variables}
-
 
 class ReservoirIncrementOnlyStepper(_ReservoirStepper):
     """
@@ -301,7 +296,9 @@ class ReservoirPredictStepper(_ReservoirStepper):
                 output_state = {}
         else:
             # Necessary for diags to work when syncing reservoir
-            fv3_output_variables = self._renamed_variables(self.model.output_variables)
+            fv3_output_variables = [
+                self.rename_mapping.get(k, k) for k in self.model.output_variables
+            ]
             diags = xr.Dataset({f"{k}_rc_out": state[k] for k in fv3_output_variables})
             output_state = {}
 
