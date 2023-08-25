@@ -64,8 +64,18 @@ class MachineLearningConfig:
     scaling: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
 
-def _invert_dict(d: Mapping) -> Mapping:
+def invert_dict(d: Mapping) -> Mapping:
     return dict(zip(d.values(), d.keys()))
+
+
+def rename_dataset_members(ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
+    all_names = set(ds.dims) & set(rename)
+    rename_restricted = {key: rename[key] for key in all_names}
+    redimed = ds.rename_dims(rename_restricted)
+
+    all_names = set(ds.data_vars) & set(rename)
+    rename_restricted = {key: rename[key] for key in all_names}
+    return redimed.rename(rename_restricted)
 
 
 class RenamingAdapter:
@@ -85,24 +95,15 @@ class RenamingAdapter:
         self.rename_in = rename_in
         self.rename_out = {} if rename_out is None else rename_out
 
-    def _rename(self, ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
-        all_names = set(ds.dims) & set(rename)
-        rename_restricted = {key: rename[key] for key in all_names}
-        redimed = ds.rename_dims(rename_restricted)
-
-        all_names = set(ds.data_vars) & set(rename)
-        rename_restricted = {key: rename[key] for key in all_names}
-        return redimed.rename(rename_restricted)
-
     def _rename_inputs(self, ds: xr.Dataset) -> xr.Dataset:
-        return self._rename(ds, self.rename_in)
+        return rename_dataset_members(ds, self.rename_in)
 
     def _rename_outputs(self, ds: xr.Dataset) -> xr.Dataset:
-        return self._rename(ds, _invert_dict(self.rename_out))
+        return rename_dataset_members(ds, invert_dict(self.rename_out))
 
     @property
     def input_variables(self) -> Set[str]:
-        invert_rename_in = _invert_dict(self.rename_in)
+        invert_rename_in = invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
