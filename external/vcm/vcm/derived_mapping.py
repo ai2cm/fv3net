@@ -422,3 +422,31 @@ def relative_humidity(self):
         self["air_temperature"], self["specific_humidity"], self["pressure"]
     )
     return result.assign_attrs(long_name="relative humidity", units="-")
+
+
+@DerivedMapping.register(
+    "lowest_level_air_temperature", required_inputs=["air_temperature"]
+)
+def lowest_level_air_temperature(self):
+    return self["air_temperature"].isel(z=-1).squeeze()
+
+
+@DerivedMapping.register(
+    "lowest_level_specific_humidity", required_inputs=["specific_humidity"]
+)
+def lowest_level_specific_humidity(self):
+    return self["specific_humidity"].isel(z=-1).squeeze()
+
+
+@DerivedMapping.register(
+    "lowest_level_northward_wind", required_inputs=["northward_wind"]
+)
+def lowest_level_northward_wind(self):
+    return self["northward_wind"].isel(z=-1).squeeze()
+
+
+@DerivedMapping.register(
+    "lowest_level_eastward_wind", required_inputs=["eastward_wind"]
+)
+def lowest_level_easthward_wind(self):
+    return self["eastward_wind"].isel(z=-1).squeeze()
