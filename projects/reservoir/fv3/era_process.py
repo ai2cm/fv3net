@@ -9,15 +9,41 @@ import cftime
 import argparse
 import logging
 import os
+import atexit
+import shutil
+
+# todo: add land mask
 
 FREGRID_EXAMPLE_SOURCE_DATA = (
     "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C48/*.nc"
 )
 
-var_id_mapping = {"sst": "sst", "temp2m": "t2m", "u_wind": "u10", "v_wind": "v10"}
+TIME_SHIFTED_VARIABLES = ["t2m", "u10", "v10"]
 
+var_id_mapping = {
+    "sst": "sst",
+    "sst_tendency": "sst_tendency",
+    "temp2m": "t2m",
+    "u_wind": "u10",
+    "v_wind": "v10",
+}
+
+shift_rename_mapping = {
+    "sst": "sst",
+    "sst_tendency": "sst_tendency",
+    "t2m": "t2m_at_next_timestep",
+    "u10": "u10_at_next_timestep",
+    "v10": "v10_at_next_timestep",
+}
+
+logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# example execution: python era_process.py
+# --out_path /home/paulah/data/era5/fvtest/val/
+# --start_date 2006-01-01 --end_date 2006-03-31
+# --variables sst temp2m u_wind v_wind --in_path /home/paulah/data/era5/
 
 
 def add_arguments():
@@ -25,47 +51,80 @@ def add_arguments():
     parser.add_argument(
         "--in_path", help="path to directory /var/downloaded which contains raw data"
     )
-    parser.add_argument("--out_path", help="path to save regridded data")
+    parser.add_argument(
+        "--out_path",
+        help="path to save regridded data, should include whether train/val/test",
+    )
+    parser.add_argument(
+        "--start_date", help="start date as a string in the format of YYYY-MM-DD"
+    )
+    parser.add_argument(
+        "--end_date", help="end date as a string in the format of YYYY-MM-DD"
+    )
     parser.add_argument("--variables", nargs="+", help="list of variables to process")
+    parser.add_argument(
+        "--fill_value_sst", default=291, type=float, help="value to fill sst nans"
+    )
+    parser.add_argument(
+        "--fill_value_sst_tend",
+        default=1.6e-10,
+        type=float,
+        help="value to fill sst tend nans",
+    )
+    # dates to split val, test
     return parser.parse_args()
 
 
 # raw nc input files are expected to be in path+var+'/downloaded/
 def main(args):
+    tempdirname = "temp"
+    os.system("mkdir -p " + tempdirname)
+    atexit.register(shutil.rmtree, tempdirname)
     path = args.in_path
     variables = args.variables
-    setup_fregrid()
+    setup_fregrid(tempdirname)
+    # merge variables
     for var in variables:
         check_time_steps_complete(path, var)
-        weekdays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-        for i, day in enumerate(weekdays):
-            merge_into_file(path, var, i, day)
-            logger.info(f"{day} is merged")
-            regrid_to_cubed_sphere(path, var, day)
-            logger.info(f"{day} is regridded")
-            interpolated = interpolate_nans(var, day)
-            logger.info(f"{day} is interpolated")
-            masked = mask(interpolated)
-            logger.info(f"{day} is masked")
-            masked.to_netcdf(args.out_path + var + "_" + day + ".nc")
-            logger.info(f"{day} is done")
+    full_variables = merge_into_weekly_file(path, variables, args, tempdirname)
+    # do time shift, add tendency by doing xarray operations
+    # on the full dataset, no need to write it in between steps
+
+    for var in TIME_SHIFTED_VARIABLES:
+        full_variables[var] = full_variables[var].shift(time=-1)
+    # masking, etc.
+    regrid_to_cubed_sphere(full_variables, variables, tempdirname)
+    interpolated = interpolate_nans(variables, tempdirname)
+    interpolated["sst"] = mask(interpolated["sst"], args)
+    if "sst" in variables:
+        variables.append("sst_tendency")
+        interpolated["sst_tendency"] = calculate_sst_tendency(interpolated.sst)
+        interpolated["sst_tendency"].fillna(args.fill_value_sst_tend)
+    for var in variables:
+        var_id = var_id_mapping[var]
+        interpolated = interpolated.rename_vars({var_id: shift_rename_mapping[var_id]})
+    save_data_as_tiles(interpolated, args)
 
 
-def download_source_data():
-    os.system("mkdir -p fregrid-example/source-grid-data")
+def download_source_data(tempdirname):
+    os.system("mkdir -p " + tempdirname + "/fregrid-example/source-grid-data")
     os.system(
         "gsutil -m cp "
         + FREGRID_EXAMPLE_SOURCE_DATA
-        + " fregrid-example/source-grid-data/"
+        + " "
+        + tempdirname
+        + "/fregrid-example/source-grid-data/"
     )
 
 
-def setup_fregrid():
-    download_source_data()
+def setup_fregrid(tempdirname):
+    download_source_data(tempdirname)
     # create 1x1 grid lat lon grid
     os.system(
         "sudo docker run \
-            -v $(pwd)/fregrid-example:/work \
+            -v $(pwd)/"
+        + tempdirname
+        + "/fregrid-example:/work \
             us.gcr.io/vcm-ml/post_process_run:latest \
             make_hgrid \
             --grid_type regular_lonlat_grid \
@@ -81,7 +140,9 @@ def setup_fregrid():
     # create mosaic
     os.system(
         "sudo docker run \
-        -v $(pwd)/fregrid-example:/work \
+        -v $(pwd)/"
+        + tempdirname
+        + "/fregrid-example:/work \
         us.gcr.io/vcm-ml/post_process_run:latest \
         make_solo_mosaic \
         --num_tiles 1\
@@ -92,13 +153,14 @@ def setup_fregrid():
 
 
 def check_time_steps_complete(path, var):
-    # check if data is complete (all time steps are there)
-    time_step_list = []
-    for f in glob.glob(path + var + "/downloaded/*.nc"):
-        dataset = xr.open_dataset(f)
-        time_step_list.append(dataset["time"].data)
-    dataset.close()
-    arrs = list(np.concatenate(time_step_list))
+    arrs = list(
+        np.concatenate(
+            [
+                xr.open_dataset(f)["time"].data
+                for f in glob.glob(path + var + "/downloaded/*.nc")
+            ]
+        )
+    )
     arrs.sort()
     for i, date in enumerate(arrs[1:]):
         if not (arrs[i] + np.timedelta64(1, "D") == date):
@@ -108,26 +170,35 @@ def check_time_steps_complete(path, var):
     logger.info("all time steps checked.")
 
 
-def merge_into_file(path, var, day_of_week_index, day):
-    # create one file per weekday
-    for f in glob.glob(path + var + "/downloaded/*.nc"):
-        dataset = xr.open_dataset(f)
-        data_at_day = dataset.isel(time=slice(day_of_week_index, None)).isel(
-            time=slice(None, None, 7)
+def merge_into_weekly_file(path, variables, args, tempdir):
+    for var in variables:
+        weekly_merged = xr.concat(
+            [
+                xr.open_dataset(f)
+                for f in glob.glob(os.path.join(path, var + "/downloaded/*.nc"))
+            ],
+            dim="time",
         )
-        dataset.close()
+        weekly_merged = weekly_merged.sortby("time")
+        # get time chunk according to inout args todo
+        weekly_merged = weekly_merged.sel(time=slice(args.start_date, args.end_date))
+        # merge into weekly mean
+        weekly_merged = calculate_weekly_mean(weekly_merged)
+        # current_working_directory = os.getcwd()
+        weekly_merged_path = os.path.join(tempdir, var + "_weekly_mean.nc")
+        weekly_merged.to_netcdf(weekly_merged_path)
+        nc_int32_path = var + "_i32_time.nc"
+        save_nc_int32_time(
+            weekly_merged_path, os.path.join(tempdir, nc_int32_path),
+        )
+        logger.info(f"{var} is merged into weekly file")
+        weekly_merged.close()
 
-    sorted_data = data_at_day.sortby("time")
-    sorted_data.to_netcdf(path + var + "/merged/" + var + "_" + day + ".nc")
-    current_working_directory = os.getcwd()
-    save_nc_int32_time(
-        path + var + "/merged/" + var + "_" + day + ".nc",
-        current_working_directory
-        + "/fregrid-example/"
-        + var
-        + "_"
-        + day
-        + "_i32_time.nc",
+    return xr.merge(
+        [
+            xr.open_dataset(os.path.join(tempdir, var + "_i32_time.nc"))
+            for var in variables
+        ]
     )
 
 
@@ -159,36 +230,35 @@ def save_nc_int32_time(infile, outfile):
     out_nc.close()
 
 
-def regrid_to_cubed_sphere(path, var, day):
-    var_id = var_id_mapping[var]
-
-    os.system(
+def regrid_to_cubed_sphere(full_variables, variables, tempdir):
+    full_variables.to_netcdf(tempdir + "/fregrid-example/full_variables.nc")
+    full_variables.close()
+    var_id_commas_string = " "
+    for var in variables:
+        var_id_commas_string += var_id_mapping[var] + ","
+    var_id_commas_string = var_id_commas_string[:-1]
+    command = (
         "sudo docker run \
-        -v $(pwd)/fregrid-example:/work \
+        -v $(pwd)/"
+        + tempdir
+        + "/fregrid-example:/work \
         us.gcr.io/vcm-ml/post_process_run:latest \
         fregrid \
         --input_mosaic /work/era5_lonlat_grid_mosaic.nc \
         --output_mosaic /work/source-grid-data/grid_spec.nc \
-        --input_file /work/"
-        + var
-        + "_"
-        + day
-        + "_i32_time.nc \
-        --output_file /work/"
-        + var
-        + "_"
-        + day
-        + "_cubed.nc \
+        --input_file  /work/full_variables.nc \
+        --output_file /work/full_cubed.nc \
         --scalar_field "
-        + var_id
+        + var_id_commas_string
     )
+    os.system(command)
+    logger.info("is regridded")
 
 
-def interpolate_nans(var, day):
-    dt_lis = [
-        xr.open_dataset(f, decode_times=False)
-        for f in glob.glob("fregrid-example/" + var + "_" + day + "_cubed.*nc")
-    ]
+def interpolate_nans(variables, tempdir):
+    file_list = glob.glob(tempdir + "/fregrid-example/full_cubed.*nc")
+    file_list.sort()
+    dt_lis = [xr.open_dataset(f, decode_times=False) for f in file_list]
     grid = vcm.catalog.catalog["grid/c48"].to_dask()
     new_lis = []
     for d in dt_lis:
@@ -197,19 +267,54 @@ def interpolate_nans(var, day):
         d["x"] = grid["x"]
         new_lis.append(d)
     ds = xr.concat(new_lis, dim="tile")
-    var_id = var_id_mapping[var]
-    cubed = ds[var_id]
+    for var in variables:
+        var_id = var_id_mapping[var]
+        cubed = ds[var_id]
+        # interpolate nans, because of mitmatch of era5 and c48 land-sea mask mismatch
+        cubed = cubed.interpolate_na(dim="x")
+        cubed = cubed.interpolate_na(dim="y")
+    logger.info("is interpolated")
+    return ds
 
-    # interpolate nans, because of mitmatch of era5 and c48 land-sea mask mismatch
-    cubed = cubed.interpolate_na(dim="x")
-    cubed = cubed.interpolate_na(dim="y")
-    return cubed
 
-
-def mask(coarsened):
+def mask(coarsened, args):
     land_sea_mask_c48 = catalog["landseamask/c48"].read()
     masked = coarsened.where(land_sea_mask_c48["land_sea_mask"] != 1)
+    masked.fillna(args.fill_value_sst)
+    logger.info("is masked")
     return masked
+
+
+def calculate_weekly_mean(sorted_data):
+    weekly_merged = xr.concat(
+        [
+            sorted_data.isel(time=slice(i * 7, (i + 1) * 7)).mean("time")
+            for i in range(int(sorted_data.time.shape[0] / 7))
+        ],
+        dim="time",
+    )
+    n = len(weekly_merged["time"])
+    weekly_merged["time"] = sorted_data["time"][::7][:n]
+    return weekly_merged
+
+
+def calculate_sst_tendency(sst_dataset):
+    seven_days_in_seconds = 604800
+    sst_resid_data_set = sst_dataset.copy()
+    sst_resid_data_set = (
+        sst_resid_data_set.shift(time=-1) - sst_resid_data_set
+    ) / seven_days_in_seconds
+    return sst_resid_data_set
+
+
+def save_data_as_tiles(data, args):
+    # save each tile individually in seperate folder
+
+    for i in range(len(data.tile)):
+        os.system("mkdir -p " + os.path.join(args.out_path, "tile-" + str(i)))
+        data.isel(tile=i).to_netcdf(
+            os.path.join(args.out_path, "tile-" + str(i), "regridded.nc")
+        )
 
 
 if __name__ == "__main__":
