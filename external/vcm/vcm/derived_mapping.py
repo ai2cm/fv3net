@@ -432,13 +432,6 @@ def lowest_level_air_temperature(self):
 
 
 @DerivedMapping.register(
-    "lowest_level_specific_humidity", required_inputs=["specific_humidity"]
-)
-def lowest_level_specific_humidity(self):
-    return self["specific_humidity"].isel(z=-1).squeeze()
-
-
-@DerivedMapping.register(
     "lowest_level_northward_wind", required_inputs=["northward_wind"]
 )
 def lowest_level_northward_wind(self):
