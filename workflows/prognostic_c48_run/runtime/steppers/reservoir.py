@@ -18,16 +18,12 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST, MASK
+from runtime.names import SST
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, invert_dict, NameDict
 
 
 logger = logging.getLogger(__name__)
-
-
-RESERVOIR_SST = "sst"
-LAND_MASK_FILL_VALUE = 291.0  # TODO: have this value stored in the sst model?
 
 
 @dataclasses.dataclass
@@ -220,9 +216,6 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             }
         )
 
-        if RESERVOIR_SST in reservoir_inputs:
-            reservoir_inputs[MASK] = state[MASK]
-
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
             try:
@@ -235,14 +228,6 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                     " during reservoir increment update"
                 )
             reservoir_inputs = rc_in_with_halos
-
-        # TODO: if the models automatically mask, then we don't need to do this
-        # Need to add consistent fill values for land areas
-        if RESERVOIR_SST in reservoir_inputs:
-            land_points = reservoir_inputs[MASK].values.round().astype("int") == 1
-            reservoir_inputs[RESERVOIR_SST] = xr.where(
-                land_points, LAND_MASK_FILL_VALUE, reservoir_inputs[RESERVOIR_SST]
-            )
 
         return reservoir_inputs
 
