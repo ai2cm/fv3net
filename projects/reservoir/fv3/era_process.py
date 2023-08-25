@@ -12,6 +12,7 @@ import os
 import atexit
 import shutil
 
+# todo: add land mask
 
 FREGRID_EXAMPLE_SOURCE_DATA = (
     "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data/C48/*.nc"
@@ -78,6 +79,7 @@ def add_arguments():
 def main(args):
     tempdirname = "temp"
     os.system("mkdir -p " + tempdirname)
+    atexit.register(shutil.rmtree, tempdirname)
     path = args.in_path
     variables = args.variables
     setup_fregrid(tempdirname)
@@ -102,7 +104,6 @@ def main(args):
         var_id = var_id_mapping[var]
         interpolated = interpolated.rename_vars({var_id: shift_rename_mapping[var_id]})
     save_data_as_tiles(interpolated, args)
-    atexit.register(shutil.rmtree, tempdirname)
 
 
 def download_source_data(tempdirname):
