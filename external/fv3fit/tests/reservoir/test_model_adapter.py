@@ -2,23 +2,18 @@ import numpy as np
 import pytest
 import xarray as xr
 import fv3fit
-from fv3fit.reservoir.transformers.transformer import (
-    DoNothingAutoencoder,
-    TransformerGroup,
-)
+from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
 from fv3fit.reservoir.domain2 import RankXYDivider
-from fv3fit.reservoir.readout import ReservoirComputingReadout
-from fv3fit.reservoir import (
-    Reservoir,
-    ReservoirHyperparameters,
-    HybridReservoirComputingModel,
-    ReservoirComputingModel,
-)
 from fv3fit.reservoir.adapters import (
     ReservoirDatasetAdapter,
     HybridReservoirDatasetAdapter,
     _transpose_xy_dims,
+    split_multi_subdomain_model,
+    generate_subdomain_models_for_tile,
+    generate_subdomain_models_from_all_tiles,
 )
+
+from helpers import get_reservoir_computing_model
 
 
 @pytest.mark.parametrize(
@@ -33,61 +28,13 @@ def test__transpose_xy_dims(original_dims, reordered_dims):
     assert list(_transpose_xy_dims(da, ("x", "y")).dims) == reordered_dims
 
 
-def get_initialized_model(hybrid: bool):
-    # expects rank size (including halos) in latent space
+def get_8x8_overlapped_model(hybrid: bool):
+
     divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature_size=6)
     transformer = DoNothingAutoencoder([3, 3])
-    transformers = TransformerGroup(
-        input=transformer, output=transformer, hybrid=transformer
+    return get_reservoir_computing_model(
+        divider=divider, encoder=transformer, state_size=25, hybrid=hybrid
     )
-    state_size = 25
-    hyperparameters = ReservoirHyperparameters(
-        state_size=state_size,
-        adjacency_matrix_sparsity=0.0,
-        spectral_radius=1.0,
-        input_coupling_sparsity=1,
-    )
-    reservoir = Reservoir(hyperparameters, input_size=divider.flat_subdomain_len)
-
-    no_overlap_divider = divider.get_no_overlap_rank_divider()
-    # multiplied by the number of subdomains since it's a combined readout
-
-    if hybrid:
-        coefs_feature_size = state_size + no_overlap_divider.flat_subdomain_len
-    else:
-        coefs_feature_size = state_size
-    readout = ReservoirComputingReadout(
-        coefficients=np.random.rand(
-            divider.n_subdomains,
-            coefs_feature_size,
-            no_overlap_divider.flat_subdomain_len,
-        ),
-        intercepts=np.random.rand(
-            divider.n_subdomains, no_overlap_divider.flat_subdomain_len
-        ),
-    )
-    if hybrid:
-        predictor = HybridReservoirComputingModel(
-            input_variables=["a", "b"],
-            output_variables=["a", "b"],
-            hybrid_variables=["a", "b"],
-            reservoir=reservoir,
-            readout=readout,
-            rank_divider=divider,
-            transformers=transformers,
-        )
-    else:
-        predictor = ReservoirComputingModel(
-            input_variables=["a", "b"],
-            output_variables=["a", "b"],
-            reservoir=reservoir,
-            readout=readout,
-            rank_divider=divider,
-            transformers=transformers,
-        )
-    predictor.reset_state()
-
-    return predictor
 
 
 def get_single_rank_xarray_data():
@@ -117,7 +64,7 @@ def get_single_rank_xarray_data_with_overlap():
 
 
 def test_adapter_predict(regtest):
-    hybrid_predictor = get_initialized_model(hybrid=True)
+    hybrid_predictor = get_8x8_overlapped_model(hybrid=True)
     data = get_single_rank_xarray_data_with_overlap()
 
     model = HybridReservoirDatasetAdapter(
@@ -134,7 +81,7 @@ def test_adapter_predict(regtest):
 
 
 def test_adapter_increment_state():
-    hybrid_predictor = get_initialized_model(hybrid=True)
+    hybrid_predictor = get_8x8_overlapped_model(hybrid=True)
     data = get_single_rank_xarray_data_with_overlap()
 
     model = HybridReservoirDatasetAdapter(
@@ -147,7 +94,7 @@ def test_adapter_increment_state():
 
 
 def test_nonhybrid_adapter_predict(regtest):
-    predictor = get_initialized_model(hybrid=False)
+    predictor = get_8x8_overlapped_model(hybrid=False)
     data = get_single_rank_xarray_data()
 
     model = ReservoirDatasetAdapter(
@@ -164,7 +111,7 @@ def test_nonhybrid_adapter_predict(regtest):
 
 
 def test_adapter_dump_and_load(tmpdir):
-    predictor = get_initialized_model(hybrid=False)
+    predictor = get_8x8_overlapped_model(hybrid=False)
     data = get_single_rank_xarray_data()
 
     model = ReservoirDatasetAdapter(
@@ -187,3 +134,80 @@ def test_adapter_dump_and_load(tmpdir):
     result1 = loaded_model.predict(data_without_overlap)
     for r0, r1 in zip(result0, result1):
         np.testing.assert_array_equal(r0, r1)
+
+
+def test_split_multi_subdomain_model():
+
+    divider = RankXYDivider((2, 2), 2, overlap_rank_extent=(8, 8), z_feature_size=3)
+    encoder = DoNothingAutoencoder([3])
+    model = get_reservoir_computing_model(
+        divider=divider, encoder=encoder, state_size=25, hybrid=True
+    )
+    data = get_single_rank_xarray_data_with_overlap()["a"]
+    hybrid_data = get_single_rank_xarray_data()["a"]
+
+    model.increment_state([data])
+    result = model.predict([hybrid_data])
+
+    no_overlap_divider = divider.get_no_overlap_rank_divider()
+
+    # 4 subdomains w/ 6 x 6 x 1 features
+    all_subdomain_data = divider.get_all_subdomains(data)
+    all_subdomain_hybrid_data = no_overlap_divider.get_all_subdomains(hybrid_data)
+    split_models = split_multi_subdomain_model(model)
+
+    # check that each subdomain model matches the expected subdomain
+    # decomposed result from the full rank model
+    for i, subdomain_model in enumerate(split_models):
+        subdomain_data = all_subdomain_data[i]
+        subdomain_hybrid_data = all_subdomain_hybrid_data[i]
+        subdomain_model.reset_state()
+        subdomain_model.increment_state([subdomain_data])
+        subdomain_result = subdomain_model.predict([subdomain_hybrid_data])[0]
+        expected = no_overlap_divider.get_subdomain(result[0], i)
+        np.testing.assert_array_equal(subdomain_result, expected)
+
+
+@pytest.mark.parametrize(
+    "is_hybrid, use_adapter", [(True, True), (False, True), (False, False)]
+)
+def test_generate_subdomain_models_for_tile(is_hybrid, use_adapter):
+    model = get_8x8_overlapped_model(hybrid=is_hybrid)
+    adapter_class = (
+        HybridReservoirDatasetAdapter if is_hybrid else ReservoirDatasetAdapter
+    )
+    if use_adapter:
+        model = adapter_class(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
+
+    split_models = split_multi_subdomain_model(model)
+    assert len(split_models) == 4
+
+
+# test saved model for single tile
+def test_generate_subdomain_models_for_saved_single_tile(tmpdir):
+    model = get_8x8_overlapped_model(hybrid=True)
+    save_path = str(tmpdir.join("model0"))
+    model.dump(save_path)
+    generate_subdomain_models_for_tile(save_path, str(tmpdir.join("new_models")))
+    for i in range(4):
+        fv3fit.load(str(tmpdir.join("new_models").join(f"subdomain_{i}")))
+
+
+# test saved model for multiple tiles
+
+
+def test_generate_subdomain_models_for_saved_all_tiles(tmpdir):
+    model = get_8x8_overlapped_model(hybrid=True)
+    model_map = {}
+    for i in range(6):
+        save_path = str(tmpdir.join(f"model{i}"))
+        model.dump(save_path)
+        model_map[i] = save_path
+
+    generate_subdomain_models_from_all_tiles(model_map, str(tmpdir.join("new_models")))
+    for i in range(24):
+        fv3fit.load(str(tmpdir.join("new_models").join(f"subdomain_{i}")))

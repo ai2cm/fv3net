@@ -1,11 +1,19 @@
+from copy import copy
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence
+import typing
+from typing import Iterable, Hashable, Sequence, Union
 import xarray as xr
 
+import fv3fit
 from fv3fit import Predictor
 from fv3fit._shared import io
-from .model import HybridReservoirComputingModel, ReservoirComputingModel
+from .model import (
+    HybridReservoirComputingModel,
+    ReservoirComputingModel,
+    ReservoirModelType,
+)
+from .domain2 import RankXYDivider
 
 
 def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
@@ -198,3 +206,87 @@ class HybridReservoirDatasetAdapter(Predictor):
             model=model,
         )
         return adapter
+
+
+ReservoirAdapterType = Union[ReservoirDatasetAdapter, HybridReservoirDatasetAdapter]
+ReservoirModelLike = Union[ReservoirModelType, ReservoirAdapterType]
+
+
+@typing.no_type_check
+def split_multi_subdomain_model(
+    model: ReservoirModelLike,
+) -> Sequence[ReservoirModelLike]:
+    """ Split a multi-subdomain model into a list of single subdomain models.
+    """
+    is_adapter = isinstance(model, ReservoirDatasetAdapter) or isinstance(
+        model, HybridReservoirDatasetAdapter
+    )
+    if is_adapter:
+        adapter = model
+        model = adapter.model
+        is_adapter = True
+    else:
+        adapter = None
+        is_adapter = False
+
+    rank_divider = model.rank_divider
+    readout = model.readout
+
+    if rank_divider.n_subdomains == 1:
+        raise ValueError("Model must have multiple subdomains to split.")
+
+    new_rank_divider = RankXYDivider(
+        subdomain_layout=(1, 1),
+        overlap=rank_divider.overlap,
+        overlap_rank_extent=rank_divider.subdomain_extent,
+        z_feature_size=rank_divider._z_feature_size,
+    )
+
+    new_kwargs = {
+        "input_variables": model.input_variables,
+        "output_variables": model.output_variables,
+        "reservoir": model.reservoir,
+        "transformers": model.transformers,
+        "square_half_hidden_state": model.square_half_hidden_state,
+    }
+
+    if isinstance(model, HybridReservoirComputingModel):
+        new_kwargs["hybrid_variables"] = model.hybrid_variables
+
+    new_models = []
+    for i in range(rank_divider.n_subdomains):
+        new_readout = readout.get_subdomain_readout(i)
+        new_model = model.__class__(
+            readout=new_readout, rank_divider=copy(new_rank_divider), **new_kwargs
+        )
+
+        if is_adapter and adapter is not None:
+            if adapter.is_hybrid:
+                _adapter_cls = HybridReservoirDatasetAdapter
+            else:
+                _adapter_cls = ReservoirDatasetAdapter
+
+            new_adapter = _adapter_cls(
+                new_model,
+                input_variables=model.input_variables,
+                output_variables=model.output_variables,
+            )
+            new_model = new_adapter
+
+        new_models.append(new_model)
+
+    return new_models
+
+
+def generate_subdomain_models_for_tile(model_path, output_path, tile_index=0):
+    model = fv3fit.load(model_path)
+    split_models = split_multi_subdomain_model(model)
+    for i, to_save in enumerate(split_models, start=tile_index * len(split_models)):
+        fv3fit.dump(to_save, os.path.join(output_path, f"subdomain_{i}"))
+
+
+def generate_subdomain_models_from_all_tiles(tile_model_map, output_path):
+    for tile_index, model_path in tile_model_map.items():
+        generate_subdomain_models_for_tile(
+            model_path, output_path, tile_index=tile_index
+        )

@@ -10,7 +10,8 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirHyperparameters,
 )
-from .convenience import get_ReservoirComputingModel
+
+from helpers import get_reservoir_computing_model
 
 
 class MultiOutputMeanRegressor:
@@ -35,7 +36,7 @@ def _sparse_allclose(A, B, atol=1e-8):
 
 
 def test_dump_load_optional_attrs(tmpdir):
-    predictor = get_ReservoirComputingModel()
+    predictor = get_reservoir_computing_model()
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
@@ -44,7 +45,7 @@ def test_dump_load_optional_attrs(tmpdir):
 
 
 def test_dump_load_preserves_matrices(tmpdir):
-    predictor = get_ReservoirComputingModel()
+    predictor = get_reservoir_computing_model()
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
 
@@ -71,10 +72,10 @@ def test_prediction_shape(nz, nvars):
     state_size = 1000
     transformer.encode([np.ones((input_size, nz)) for v in range(nvars)])
     variables = [f"var{v}" for v in range(nvars)]
-    predictor = get_ReservoirComputingModel(
+    predictor = get_reservoir_computing_model(
         state_size=state_size,
-        rank_divider=rank_divider,
-        autoencoder=transformer,
+        divider=rank_divider,
+        encoder=transformer,
         variables=variables,
     )
     predictor.reset_state()
@@ -131,7 +132,7 @@ def test_ReservoirComputingModel_state_increment():
 
 def test_prediction_after_load(tmpdir):
 
-    predictor = get_ReservoirComputingModel()
+    predictor = get_reservoir_computing_model()
     predictor.reset_state()
 
     n_times = 20

@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence
+from typing import Iterable, Hashable, Sequence, Union
 import xarray as xr
 import yaml
 
@@ -56,6 +56,7 @@ class HybridReservoirComputingModel(Predictor):
             rank_divider=rank_divider,
             transformers=transformers,
         )
+        self.reservoir = self.reservoir_model.reservoir
         self.input_variables = input_variables
         self.hybrid_variables = hybrid_variables
         self.output_variables = output_variables
@@ -265,3 +266,8 @@ class ReservoirComputingModel(Predictor):
             rank_divider=rank_divider,
             transformers=transformers,
         )
+
+
+ReservoirModelType = Union[
+    HybridReservoirComputingModel, ReservoirComputingModel,
+]

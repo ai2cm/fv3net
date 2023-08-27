@@ -1,8 +1,6 @@
-from copy import copy
 import numpy as np
-import os
 import tensorflow as tf
-from typing import Iterable, Mapping, Optional, Union, Sequence
+from typing import Iterable, Mapping, Optional
 
 from fv3fit.reservoir.transformers import (
     # ReloadableTransformer,
@@ -10,16 +8,7 @@ from fv3fit.reservoir.transformers import (
     encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
-import fv3fit
 from fv3fit.reservoir.domain2 import RankXYDivider
-from fv3fit.reservoir.adapters import (
-    HybridReservoirDatasetAdapter,
-    ReservoirDatasetAdapter,
-)
-from fv3fit.reservoir.model import (
-    HybridReservoirComputingModel,
-    ReservoirComputingModel,
-)
 from ._reshaping import stack_array_preserving_last_dim
 
 
@@ -132,70 +121,3 @@ def get_standard_normalizing_transformer(variables, sample_batch):
     return build_concat_and_scale_only_autoencoder(
         variables=variables, X=variable_data_stacked
     )
-
-
-ModelLike = Union[
-    HybridReservoirComputingModel,
-    ReservoirComputingModel,
-    HybridReservoirDatasetAdapter,
-    ReservoirDatasetAdapter,
-]
-ModelType = Union[
-    HybridReservoirComputingModel, ReservoirComputingModel,
-]
-
-
-def split_multi_subdomain_model(model: ModelType) -> Sequence[ModelType]:
-    """ Split a multi-subdomain model into a list of single subdomain models.
-    """
-    if isinstance(model, HybridReservoirDatasetAdapter) or isinstance(
-        model, ReservoirDatasetAdapter
-    ):
-        adapter = model
-        model = model.model
-        is_adapter = True
-    else:
-        adapter = None
-        is_adapter = False
-
-    rank_divider = model.rank_divider
-    readout = model.readout
-
-    if rank_divider.n_subdomains == 1:
-        raise ValueError("Model must have multiple subdomains to split.")
-
-    new_rank_divider = RankXYDivider(
-        subdomain_layout=(1, 1),
-        overlap=rank_divider.overlap,
-        overlap_rank_extent=rank_divider.subdomain_extent,
-        z_feature_size=rank_divider._z_feature_size,
-    )
-
-    new_models = []
-    for i in range(rank_divider.n_subdomains):
-        new_model = copy(model)
-        new_model.readout = readout.get_subdomain_readout(i)
-        new_model.rank_divider = copy(new_rank_divider)
-
-        if is_adapter and adapter is not None:
-            new_adapter = copy(adapter)
-            new_adapter.model = new_model
-            new_model = adapter
-
-        new_models.append(new_model)
-
-    return new_models
-
-
-def generate_subdomain_models_for_tile(model_path, output_path, tile_index=0):
-    model = fv3fit.load(model_path)
-    split_models = split_multi_subdomain_model(model)
-    for i, to_save in enumerate(split_models, start=tile_index * len(split_models)):
-        fv3fit.save(to_save, os.path.join(output_path, f"subdomain_{i}"))
-
-
-def generate_subdomain_models_from_all_tiles(tile_model_map, output_path):
-    for tile_index, model_path in tile_model_map.items():
-        generate_subdomain_models_for_tile(
-            model_path, output_path, tile_index=tile_index
-        )
