@@ -26,9 +26,11 @@ class FV3StateMapper(Mapping):
             "lat": "latitude",
             "physics_precip": PHYSICS_PRECIP_RATE,
         }
-        # A subset of the physics diagnostics are exposed to the wrapper
-        # Important: when adding new fields to this dict, first check that
-        # they are instantaneous in GFS_diagnostics.F90 of the fortran model
+        # Expose a subset of the physics diagnostics to the getter.  When adding
+        # fields to this dictionary it is important to check that they are
+        # instantaneous (as opposed to interval-averaged) diagnostics in FV3GFS;
+        # otherwise their meaning will change depending on the value of the
+        # gfs_physics_nml.fhzero namelist parameter.
         self._diagnostics = {
             "latent_heat_flux": "lhtfl",
             "eastward_wind_at_10m": "u10m",
