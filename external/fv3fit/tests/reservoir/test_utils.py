@@ -10,8 +10,6 @@ from fv3fit.reservoir.utils import (
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
 from fv3fit.reservoir.domain2 import RankXYDivider
 
-# from fv3fit.reservoir.model import ReservoirComputingModel
-
 
 def test_SynchronziationTracker():
     sync_tracker = SynchronziationTracker(n_synchronize=6)

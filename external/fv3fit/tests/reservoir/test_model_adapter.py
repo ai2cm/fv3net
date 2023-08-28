@@ -171,7 +171,7 @@ def test_split_multi_subdomain_model():
 @pytest.mark.parametrize(
     "is_hybrid, use_adapter", [(True, True), (False, True), (False, False)]
 )
-def test_generate_subdomain_models_for_tile(is_hybrid, use_adapter):
+def test_generate_subdomain_models_for_all_class_types(is_hybrid, use_adapter):
     model = get_8x8_overlapped_model(hybrid=is_hybrid)
     adapter_class = (
         HybridReservoirDatasetAdapter if is_hybrid else ReservoirDatasetAdapter
