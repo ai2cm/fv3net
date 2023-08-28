@@ -187,17 +187,16 @@ def test_generate_subdomain_models_for_tile(is_hybrid, use_adapter):
     assert len(split_models) == 4
 
 
-# test saved model for single tile
 def test_generate_subdomain_models_for_saved_single_tile(tmpdir):
     model = get_8x8_overlapped_model(hybrid=True)
     save_path = str(tmpdir.join("model0"))
     model.dump(save_path)
-    generate_subdomain_models_for_tile(save_path, str(tmpdir.join("new_models")))
+    tile_submodel_map = generate_subdomain_models_for_tile(
+        save_path, str(tmpdir.join("new_models"))
+    )
+    assert len(tile_submodel_map) == 4
     for i in range(4):
         fv3fit.load(str(tmpdir.join("new_models").join(f"subdomain_{i}")))
-
-
-# test saved model for multiple tiles
 
 
 def test_generate_subdomain_models_for_saved_all_tiles(tmpdir):
@@ -208,6 +207,9 @@ def test_generate_subdomain_models_for_saved_all_tiles(tmpdir):
         model.dump(save_path)
         model_map[i] = save_path
 
-    generate_subdomain_models_from_all_tiles(model_map, str(tmpdir.join("new_models")))
+    submodel_map = generate_subdomain_models_from_all_tiles(
+        model_map, str(tmpdir.join("new_models"))
+    )
+    assert len(submodel_map) == 24
     for i in range(24):
         fv3fit.load(str(tmpdir.join("new_models").join(f"subdomain_{i}")))

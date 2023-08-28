@@ -281,12 +281,22 @@ def split_multi_subdomain_model(
 def generate_subdomain_models_for_tile(model_path, output_path, tile_index=0):
     model = fv3fit.load(model_path)
     split_models = split_multi_subdomain_model(model)
+    submodel_map = {}
     for i, to_save in enumerate(split_models, start=tile_index * len(split_models)):
-        fv3fit.dump(to_save, os.path.join(output_path, f"subdomain_{i}"))
+        submodel_output_path = os.path.join(output_path, f"subdomain_{i}")
+        submodel_map[i] = submodel_output_path
+        fv3fit.dump(to_save, submodel_output_path)
+
+    return submodel_map
 
 
 def generate_subdomain_models_from_all_tiles(tile_model_map, output_path):
+    submodel_map = {}
     for tile_index, model_path in tile_model_map.items():
-        generate_subdomain_models_for_tile(
-            model_path, output_path, tile_index=tile_index
+        submodel_map.update(
+            generate_subdomain_models_for_tile(
+                model_path, output_path, tile_index=tile_index
+            )
         )
+
+    return submodel_map
