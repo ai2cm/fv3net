@@ -21,6 +21,8 @@ HYBRID_VARIABLES = [
     "v10_at_next_timestep",
 ]
 
+DELTA_T = 604800  # 7 days in seconds
+
 
 def parse_arguments():
     parser = ArgumentParser()
@@ -74,10 +76,8 @@ def main(args):
     rank_models = {r: fv3fit.load(args.model_path + f"-tile-{r}") for r in range(6)}
 
     # initialize stepper
-    if args.hybrid_or_sst_only == "hybrid":
-        stepper = HybridGlobalReservoirStepper(rank_models)
-    else:
-        stepper = GlobalReservoirStepper(rank_models)
+
+    stepper = GlobalReservoirStepper(rank_models)
 
     # single step prediction
     stepper.reset_states()
@@ -141,7 +141,7 @@ class GlobalReservoirStepper:
         for rank in range(self._TOTAL_RANKS):
             model_adapter = self.model_adapters[rank]
             rank_input = state_append_halos.sel(tile=rank)[
-                model_adapter.input_variables
+                model_adapter.model.input_variables
             ]
             model_adapter.increment_state(rank_input)
         return state_append_halos
@@ -155,15 +155,15 @@ class GlobalReservoirStepper:
             rank_predictions.append(self.model_adapters[rank].predict(dummy_inputs))
         return xr.concat(rank_predictions, dim="tile")
 
-    def reset_states(self):
+    def predict_global_state_tendency(self, true_sst: xr.Dataset):
+        rank_predictions = []
+        dummy_inputs = xr.Dataset({})
         for rank in range(self._TOTAL_RANKS):
-            self.model_adapters[rank].model.reset_state()
-
-
-# define child class of GlobalReservoirStepper that takes hybrid inputs
-class HybridGlobalReservoirStepper(GlobalReservoirStepper):
-    def __init__(self, model_adapters: Mapping[int, ReservoirDatasetAdapter]):
-        super().__init__(model_adapters)
+            full_prediction = true_sst + DELTA_T * self.model_adapters[rank].predict(
+                dummy_inputs
+            )
+            rank_predictions.append(full_prediction)
+        return xr.concat(rank_predictions, dim="tile")
 
     def predict_global_state_hybrid(self, hybrid_input: xr.Dataset):
         rank_predictions = []
@@ -173,6 +173,22 @@ class HybridGlobalReservoirStepper(GlobalReservoirStepper):
                 self.model_adapters[rank].predict(hybrid_input.sel(tile=rank))
             )
         return xr.concat(rank_predictions, dim="tile")
+
+    def predict_global_state_hybrid_tendency(
+        self, hybrid_input: xr.Dataset, true_sst: xr.Dataset
+    ):
+        rank_predictions = []
+        # hybrid_input gives the additional input variables for the reservoir
+        for rank in range(self._TOTAL_RANKS):
+            full_prediction = true_sst + DELTA_T * self.model_adapters[rank].predict(
+                hybrid_input.sel(tile=rank)
+            )
+            rank_predictions.append(full_prediction)
+        return xr.concat(rank_predictions, dim="tile")
+
+    def reset_states(self):
+        for rank in range(self._TOTAL_RANKS):
+            self.model_adapters[rank].model.reset_state()
 
 
 if __name__ == "__main__":
