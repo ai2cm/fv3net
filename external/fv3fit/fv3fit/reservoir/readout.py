@@ -1,3 +1,5 @@
+from __future__ import annotations  # allows self-reference in type hints
+
 import fsspec
 import numpy as np
 import os
@@ -115,6 +117,15 @@ class ReservoirComputingReadout:
         with fsspec.open(os.path.join(path, cls._INTERCEPTS_NAME), "rb") as f:
             intercepts = np.load(f)
         return cls(coefficients=coefficients, intercepts=intercepts)
+
+    def get_subdomain_readout(self, subdomain: int) -> ReservoirComputingReadout:
+        if len(self.coefficients.shape) == 2 and len(self.intercepts.shape) == 1:
+            raise ValueError("Cannot get subdomain readout from single domain readout")
+
+        return ReservoirComputingReadout(
+            coefficients=self.coefficients[subdomain],
+            intercepts=self.intercepts[subdomain],
+        )
 
 
 def combine_readouts_from_subdomain_regressors(

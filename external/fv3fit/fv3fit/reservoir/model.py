@@ -1,7 +1,8 @@
+from __future__ import annotations
 import fsspec
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence
+from typing import Iterable, Hashable, Sequence, Union
 import xarray as xr
 import yaml
 
@@ -56,6 +57,7 @@ class HybridReservoirComputingModel(Predictor):
             rank_divider=rank_divider,
             transformers=transformers,
         )
+        self.reservoir = self.reservoir_model.reservoir
         self.input_variables = input_variables
         self.hybrid_variables = hybrid_variables
         self.output_variables = output_variables
@@ -69,6 +71,21 @@ class HybridReservoirComputingModel(Predictor):
         )
         self._hybrid_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
             z_feature_size=transformers.hybrid.n_latent_dims
+        )
+
+    @classmethod
+    def from_reservoir_model(
+        cls, model: ReservoirComputingModel, hybrid_variables: Iterable[Hashable]
+    ) -> HybridReservoirComputingModel:
+        return cls(
+            input_variables=model.input_variables,
+            hybrid_variables=hybrid_variables,
+            output_variables=model.output_variables,
+            reservoir=model.reservoir,
+            readout=model.readout,
+            square_half_hidden_state=model.square_half_hidden_state,
+            rank_divider=model.rank_divider,
+            transformers=model.transformers,
         )
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
@@ -111,13 +128,26 @@ class HybridReservoirComputingModel(Predictor):
     def synchronize(self, synchronization_time_series):
         self.reservoir_model.synchronize(synchronization_time_series)
 
+    def get_model_from_subdomain(
+        self, subdomain_index: int
+    ) -> HybridReservoirComputingModel:
+        """Returns a new model instance for a single subdomain"""
+        if self.rank_divider.n_subdomains == 1:
+            raise ValueError("Model must have multiple subdomains to split.")
+
+        split_pure_model = self.reservoir_model.get_model_from_subdomain(
+            subdomain_index
+        )
+
+        return self.from_reservoir_model(split_pure_model, self.hybrid_variables)
+
     def dump(self, path: str) -> None:
         self.reservoir_model.dump(path)
         with fsspec.open(os.path.join(path, self._HYBRID_VARIABLES_NAME), "w") as f:
             f.write(yaml.dump({"hybrid_variables": self.hybrid_variables}))
 
     @classmethod
-    def load(cls, path: str) -> "HybridReservoirComputingModel":
+    def load(cls, path: str) -> HybridReservoirComputingModel:
         pure_reservoir_model = ReservoirComputingModel.load(path)
         with fsspec.open(os.path.join(path, cls._HYBRID_VARIABLES_NAME), "r") as f:
             hybrid_variables = yaml.safe_load(f)["hybrid_variables"]
@@ -221,6 +251,29 @@ class ReservoirComputingModel(Predictor):
         )
         self.reservoir.synchronize(encoded_flat)
 
+    def get_model_from_subdomain(self, subdomain_index: int) -> ReservoirComputingModel:
+        """Returns a new model instance for a single subdomain"""
+        if self.rank_divider.n_subdomains == 1:
+            raise ValueError("Model must have multiple subdomains to split.")
+
+        new_rank_divider = RankXYDivider(
+            subdomain_layout=(1, 1),
+            overlap=self.rank_divider.overlap,
+            overlap_rank_extent=self.rank_divider.subdomain_extent,
+            z_feature_size=self.rank_divider._z_feature_size,
+        )
+
+        new_readout = self.readout.get_subdomain_readout(subdomain_index)
+        return self.__class__(
+            input_variables=self.input_variables,
+            output_variables=self.output_variables,
+            reservoir=self.reservoir,
+            readout=new_readout,
+            rank_divider=new_rank_divider,
+            transformers=self.transformers,
+            square_half_hidden_state=self.square_half_hidden_state,
+        )
+
     def dump(self, path: str) -> None:
         """Dump data to a directory
 
@@ -242,7 +295,7 @@ class ReservoirComputingModel(Predictor):
         self.transformers.dump(os.path.join(path, self._TRANSFORMERS_SUBDIR))
 
     @classmethod
-    def load(cls, path: str) -> "ReservoirComputingModel":
+    def load(cls, path: str) -> ReservoirComputingModel:
         """Load a model from a remote path"""
         reservoir = Reservoir.load(os.path.join(path, cls._RESERVOIR_SUBDIR))
         readout = ReservoirComputingReadout.load(
@@ -265,3 +318,8 @@ class ReservoirComputingModel(Predictor):
             rank_divider=rank_divider,
             transformers=transformers,
         )
+
+
+ReservoirModelType = Union[
+    HybridReservoirComputingModel, ReservoirComputingModel,
+]

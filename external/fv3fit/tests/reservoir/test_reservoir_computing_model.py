@@ -1,5 +1,4 @@
 from fv3fit.reservoir.domain2 import RankXYDivider
-from fv3fit.reservoir.readout import ReservoirComputingReadout
 from fv3fit.reservoir.transformers import DoNothingAutoencoder, TransformerGroup
 import numpy as np
 import pytest
@@ -11,6 +10,8 @@ from fv3fit.reservoir import (
     Reservoir,
     ReservoirHyperparameters,
 )
+
+from helpers import get_reservoir_computing_model
 
 
 class MultiOutputMeanRegressor:
@@ -34,43 +35,8 @@ def _sparse_allclose(A, B, atol=1e-8):
         return np.allclose(v1, v2, atol=atol)
 
 
-def get_ReservoirComputingModel(
-    state_size=150,
-    rank_divider=RankXYDivider((2, 2), 0, rank_extent=(2, 2), z_feature_size=2),
-    autoencoder=DoNothingAutoencoder([1, 1]),
-    variables=("a", "b"),
-):
-
-    input_size = rank_divider.flat_subdomain_len
-    hyperparameters = ReservoirHyperparameters(
-        state_size=state_size,
-        adjacency_matrix_sparsity=0.0,
-        spectral_radius=1.0,
-        input_coupling_sparsity=0,
-    )
-    reservoir = Reservoir(hyperparameters, input_size=input_size)
-    readout = ReservoirComputingReadout(
-        coefficients=np.random.rand(rank_divider.n_subdomains, state_size, input_size),
-        intercepts=np.random.rand(input_size),
-    )
-    transformers = TransformerGroup(
-        input=autoencoder, output=autoencoder, hybrid=autoencoder
-    )
-    predictor = ReservoirComputingModel(
-        input_variables=variables,
-        output_variables=variables,
-        reservoir=reservoir,
-        readout=readout,
-        square_half_hidden_state=False,
-        rank_divider=rank_divider,
-        transformers=transformers,
-    )
-
-    return predictor
-
-
 def test_dump_load_optional_attrs(tmpdir):
-    predictor = get_ReservoirComputingModel()
+    predictor = get_reservoir_computing_model()
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
     loaded_predictor = ReservoirComputingModel.load(output_path)
@@ -79,7 +45,7 @@ def test_dump_load_optional_attrs(tmpdir):
 
 
 def test_dump_load_preserves_matrices(tmpdir):
-    predictor = get_ReservoirComputingModel()
+    predictor = get_reservoir_computing_model()
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
 
@@ -106,10 +72,10 @@ def test_prediction_shape(nz, nvars):
     state_size = 1000
     transformer.encode([np.ones((input_size, nz)) for v in range(nvars)])
     variables = [f"var{v}" for v in range(nvars)]
-    predictor = get_ReservoirComputingModel(
+    predictor = get_reservoir_computing_model(
         state_size=state_size,
-        rank_divider=rank_divider,
-        autoencoder=transformer,
+        divider=rank_divider,
+        encoder=transformer,
         variables=variables,
     )
     predictor.reset_state()
@@ -166,7 +132,7 @@ def test_ReservoirComputingModel_state_increment():
 
 def test_prediction_after_load(tmpdir):
 
-    predictor = get_ReservoirComputingModel()
+    predictor = get_reservoir_computing_model()
     predictor.reset_state()
 
     n_times = 20
