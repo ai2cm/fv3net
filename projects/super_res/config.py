@@ -11,15 +11,15 @@ config.diffusion_steps = 1500
 config.sampling_steps = 20
 config.loss = "l2"
 config.objective = "pred_v"
-config.lr = 8e-5
-config.steps = 5000000
+config.lr = 1e-4
+config.steps = 700000
 config.grad_acc = 1
-config.val_num_of_batch = 2
-config.save_and_sample_every = 5000
+config.val_num_of_batch = 5
+config.save_and_sample_every = 20000
 config.ema_decay = 0.995
 config.amp = False
 config.split_batches = True
-config.additional_note = "multichannel_minipatch"
+config.additional_note = "2d-nomulti-ls-ensemble"
 config.eval_folder = "./evaluate"
 config.results_folder = "./results"
 config.tensorboard_dir = "./tensorboard"
@@ -35,7 +35,7 @@ config.data_config = config_dict.ConfigDict({
     "img_channel": 1,
     "img_size": 384,
     "logscale": True,
-    "multi": True,
+    "multi": False,
     "flow": "2d",
     "minipatch": False
 })

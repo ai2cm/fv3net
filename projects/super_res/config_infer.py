@@ -14,12 +14,12 @@ config.objective = "pred_v"
 config.lr = 8e-5
 config.steps = 5000000
 config.grad_acc = 1
-config.val_num_of_batch = 1
-config.save_and_sample_every = 5000
+config.val_num_of_batch = 5
+config.save_and_sample_every = 50
 config.ema_decay = 0.995
 config.amp = False
 config.split_batches = True
-config.additional_note = ""
+config.additional_note = "2d_multi_nols"
 config.eval_folder = "./evaluate"
 config.results_folder = "./results"
 config.tensorboard_dir = "./tensorboard"
@@ -34,9 +34,9 @@ config.data_config = config_dict.ConfigDict({
     "channels": ["PRATEsfc_coarse"],
     "img_channel": 1,
     "img_size": 384,
-    "logscale": True,
-    "multi": False,
-    "flow": "3d",
+    "logscale": False,
+    "multi": True,
+    "flow": "2d",
     "minipatch": False
 })
 

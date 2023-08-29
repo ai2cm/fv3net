@@ -19,7 +19,7 @@ def load_data(data_config, batch_size, num_workers = 4, pin_memory = True):
 
     val = DataLoader(
                         val,
-                        batch_size = batch_size,
+                        batch_size = 5,
                         shuffle = False,
                         num_workers = num_workers,
                         pin_memory = pin_memory,

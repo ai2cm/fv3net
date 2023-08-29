@@ -8,9 +8,12 @@ def main():
 
     if config.data_config["multi"]:
 
-        in_ch_model = 2 * config.data_config["img_channel"] + 4 + 1 # all channels plus noise : (1 + 4 + 1) + 1 : (precip + multi + topo) + noise
-        in_ch_flow = 3 * (config.data_config["img_channel"] + 4 + 1) # all channels from current low res and past two high res : 3 * (1 + 4 + 1) : 3 * (precip + multi + topo)
-        in_ch_isr = config.data_config["img_channel"] + 4 + 1 # all channels from current low res : 1 + 4 + 1 : precip + multi + topo
+        # in_ch_model = 2 * config.data_config["img_channel"] + 4 + 1 # all channels plus noise : (1 + 4 + 1) + 1 : (precip + multi + topo) + noise
+        # in_ch_flow = 3 * (config.data_config["img_channel"] + 4 + 1) # all channels from current low res and past two high res : 3 * (1 + 4 + 1) : 3 * (precip + multi + topo)
+        # in_ch_isr = config.data_config["img_channel"] + 4 + 1 # all channels from current low res : 1 + 4 + 1 : precip + multi + topo
+        in_ch_model = 2 * config.data_config["img_channel"] + 10 + 1 # all channels plus noise : (1 + 4 + 1) + 1 : (precip + multi + topo) + noise
+        in_ch_flow = 3 * (config.data_config["img_channel"] + 10 + 1) # all channels from current low res and past two high res : 3 * (1 + 4 + 1) : 3 * (precip + multi + topo)
+        in_ch_isr = config.data_config["img_channel"] + 10 + 1 # all channels from current low res : 1 + 4 + 1 : precip + multi + topo
 
     else:
 

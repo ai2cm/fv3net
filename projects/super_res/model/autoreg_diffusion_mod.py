@@ -15,9 +15,13 @@ import wandb
 from torchvision.transforms.functional import crop
 
 import piq
+import pickle
+import cv2
+from scipy.stats import wasserstein_distance
 
 from kornia import filters
 from torch.optim import Adam
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
@@ -928,7 +932,7 @@ class GaussianDiffusion(nn.Module):
         b, f, c, h, w = lres.shape
         
         if multi:
-
+            
             topo = hres[:, :, 1:2, :, :]
             low_chans = lres[:, :, 1:, :, :]
             topo_low = rearrange(F.interpolate(rearrange(topo, 'b t c h w -> (b t) c h w'), size=(h, w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
@@ -961,14 +965,6 @@ class GaussianDiffusion(nn.Module):
         
         r = torch.roll(l, -1, 1)
         ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
-
-        if multi:
-
-            l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
-        
-        else:
-
-            l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
         
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
@@ -995,6 +991,16 @@ class GaussianDiffusion(nn.Module):
 
             flow = self.unnormalize(flow)
             warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
+
+        if multi:
+            
+            # l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+            l_cond = torch.cat((warped, self.upsample(rearrange(lres[:, 2:, 1:, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+        
+        else:
+            
+            # l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+            l_cond = warped
         
         res = sample_fn((b * (f - 2), 1, 8 * h, 8 * w), l_cond, context, return_all_timesteps = return_all_timesteps)
         sres = warped + res
@@ -1071,11 +1077,13 @@ class GaussianDiffusion(nn.Module):
         
         if multi:
             
-            l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+            # l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+            l_cond = torch.cat((warped, self.upsample(rearrange(lres[:, 2:, 1:, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
         
         else:
             
-            l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+            # l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+            l_cond = warped
         
         del f
         
@@ -1217,15 +1225,15 @@ class Trainer(object):
             mixed_precision = 'fp16' if fp16 else 'no',
             log_with = 'wandb',
         )
-        # self.accelerator.init_trackers("vsr-orig-autoreg-hres", 
-        #     init_kwargs={
-        #         "wandb": {
-        #             "notes": "Use VSR to improve precipitation forecasting.",
-        #             # Change "name" to set the name of the run.
-        #             "name":  None,
-        #         }
-        #     },
-        # )
+        self.accelerator.init_trackers("vsr-orig-autoreg-hres", 
+            init_kwargs={
+                "wandb": {
+                    "notes": "Use VSR to improve precipitation forecasting.",
+                    # Change "name" to set the name of the run.
+                    "name":  None,
+                }
+            },
+        )
         self.config = config
         self.accelerator.native_amp = amp
         self.multi = config.data_config["multi"]
@@ -1250,6 +1258,7 @@ class Trainer(object):
         # optimizer
 
         self.opt = Adam(diffusion_model.parameters(), lr = train_lr, betas = adam_betas)
+        self.sched = CosineAnnealingLR(self.opt, train_num_steps, 1e-7)
 
         # for logging results in a folder periodically
 
@@ -1270,7 +1279,7 @@ class Trainer(object):
 
         # prepare model, dataloader, optimizer with accelerator
 
-        self.model, self.opt, train_dl, val_dl = self.accelerator.prepare(self.model, self.opt, train_dl, val_dl)
+        self.model, self.opt, self.sched, train_dl, val_dl = self.accelerator.prepare(self.model, self.opt, self.sched, train_dl, val_dl)
         self.train_dl = cycle(train_dl)
         self.val_dl = val_dl     
 
@@ -1316,19 +1325,44 @@ class Trainer(object):
         cmap = mpl.colormaps['RdBu_r']
         fcmap = mpl.colormaps['gray_r']
 
-        c384_lgmin = np.load('data/only_precip/c384_lgmin.npy')
-        c384_lgmax = np.load('data/only_precip/c384_lgmax.npy')
-        c384_gmin = np.load('data/only_precip/c384_gmin.npy')
+        # c384_lgmin = np.load('data/only_precip/c384_lgmin.npy')
+        # c384_lgmax = np.load('data/only_precip/c384_lgmax.npy')
+        # c384_gmin = np.load('data/only_precip/c384_gmin.npy')
 
-        c48_lgmin = np.load('data/only_precip/c48_lgmin.npy')
-        c48_lgmax = np.load('data/only_precip/c48_lgmax.npy')
-        c48_gmin = np.load('data/only_precip/c48_gmin.npy')
+        # c48_lgmin = np.load('data/only_precip/c48_lgmin.npy')
+        # c48_lgmax = np.load('data/only_precip/c48_lgmax.npy')
+        # c48_gmin = np.load('data/only_precip/c48_gmin.npy')
 
-        c384_min = np.load('data/only_precip/c384_min.npy')
-        c384_max = np.load('data/only_precip/c384_max.npy')
+        # c384_min = np.load('data/only_precip/c384_min.npy')
+        # c384_max = np.load('data/only_precip/c384_max.npy')
 
-        c48_min = np.load('data/only_precip/c48_min.npy')
-        c48_max = np.load('data/only_precip/c48_max.npy')
+        # c48_min = np.load('data/only_precip/c48_min.npy')
+        # c48_max = np.load('data/only_precip/c48_max.npy')
+
+        with open("data/ensemble_c48_trainstats/chl.pkl", 'rb') as f:
+            c48_chl = pickle.load(f)
+        
+        with open("data/ensemble_c48_trainstats/log_chl.pkl", 'rb') as f:
+            c48_log_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/chl.pkl", 'rb') as f:
+            c384_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/log_chl.pkl", 'rb') as f:
+            c384_log_chl = pickle.load(f)
+
+        c384_lgmin = c384_log_chl["PRATEsfc"]['min']
+        c384_lgmax = c384_log_chl["PRATEsfc"]['max']
+        c48_lgmin = c48_log_chl["PRATEsfc_coarse"]['min']
+        c48_lgmax = c48_log_chl["PRATEsfc_coarse"]['max']
+        
+        c384_min = c384_chl["PRATEsfc"]['min']
+        c384_max = c384_chl["PRATEsfc"]['max']
+        c48_min = c48_chl["PRATEsfc_coarse"]['min']
+        c48_max = c48_chl["PRATEsfc_coarse"]['max']
+
+        c384_gmin = c384_min
+        c48_gmin = c48_min
 
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
@@ -1366,6 +1400,7 @@ class Trainer(object):
 
                 self.opt.step()
                 self.opt.zero_grad()
+                self.sched.step()
 
                 accelerator.wait_for_everyone()
 
@@ -1378,6 +1413,15 @@ class Trainer(object):
                         self.ema.ema_model.eval()
 
                         with torch.no_grad():
+
+                            psnrs = []
+                            vlosses = []
+                            vids = []
+                            hr = []
+                            lr = []
+                            bases, ress, flowss = [], [], []
+                            num_frames = 5
+                            img_size = 384
                             
                             for i, batch in enumerate(self.val_dl):
                                 
@@ -1387,134 +1431,160 @@ class Trainer(object):
                                 if i >= self.val_num_of_batch:
                                     break
 
-                                num_samples = 5
-                                num_videos_per_batch = 1
-                                num_frames = 5
-                                img_size = 384
-                                img_channels = 1
+                                # num_samples = 5
+                                # num_videos_per_batch = 1
+                                # num_frames = 5
+                                # img_size = 384
+                                # img_channels = 1
 
-                                truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
-                                pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
-                                truth[0,:,:,:,:,:] = (hres[:,2:,0:1,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
+                                # truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                # pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                # truth[0,:,:,:,:,:] = (hres[:,2:,0:1,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
                                 
-                                for k in range(num_samples):
-                                    videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
-                                    pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
+                                # for k in range(num_samples):
+                                #     videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
+                                #     pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
 
-                                lres = lres[:, :, 0:1, :, :]
-                                hres = hres[:, :, 0:1, :, :]
-                                
-                                crps_index = calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size)
+                                videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
+                                loss = self.model(lres, hres, self.multi, self.flow)
+
+                                vids.append(videos)
+                                vlosses.append(loss)
+                                hr.append(hres)
+                                lr.append(lres)
+                                bases.append(base)
+                                ress.append(res)
+                                flowss.append(flows)
+
+                                # crps_index = calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size)
                                 
                                 psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
+                                psnrs.append(psnr_index)
 
-                                videos_time_mean = videos.mean(dim = 1)
-                                hres_time_mean = hres[:,2:,:,:,:].mean(dim = 1)
-                                bias = videos_time_mean - hres_time_mean
-                                norm = mpl.colors.Normalize(vmin = bias.min(), vmax = bias.max())
-                                sm = smap(norm, cmap)
-                                b_c = []
-                                for l in range(num_videos_per_batch):
-                                    b_c.append(sm.to_rgba(bias[l,0,:,:].cpu().numpy()))
-                                bias_color = np.stack(b_c, axis = 0)
+                            videos = torch.cat(vids, dim = 0)
+                            vloss = torch.stack(vlosses, dim = 0).mean()
+                            psnr_index = torch.cat(psnrs, dim = 0).mean()
+                            hres = torch.cat(hr, dim = 0)
+                            lres = torch.cat(lr, dim = 0)
+                            base = torch.cat(bases, dim = 0)
+                            res = torch.cat(ress, dim = 0)
+                            flows = torch.cat(flowss, dim = 0)
 
-                                if not self.logscale:
-                                    target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
-                                    output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
-                                    coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                            lres = lres[:, :, 0:1, :, :]
+                            hres = hres[:, :, 0:1, :, :]
+
+                            if not self.logscale:
+                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                            
+                            else:
+                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                output = videos.detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_lgmax - c48_lgmin) + c48_lgmin
+                            
+                            if self.logscale:
+                                target = np.exp(target) + c384_gmin - 1e-14
+                                output = np.exp(output) + c384_gmin - 1e-14
+                                coarse = np.exp(coarse) + c48_gmin - 1e-14
+
+                            nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
+                            diff_output = (output - nn_upscale).flatten()
+                            diff_target = (target - nn_upscale).flatten()
+                            vmin = min(diff_output.min(), diff_target.min())
+                            vmax = max(diff_output.max(), diff_target.max())
+                            bins = np.linspace(vmin, vmax, 100 + 1)
+
+                            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+                            ax.hist(
+                                diff_output, bins=bins, alpha=0.5, label="Output", histtype="step", density=True
+                            )
+                            ax.hist(
+                                diff_target, bins=bins, alpha=0.5, label="Target", histtype="step", density=True
+                            )
+                            ax.set_xlim(vmin, vmax)
+                            ax.legend()
+                            ax.set_ylabel("Density")
+                            ax.set_yscale("log")
+
+                            output1 = output.flatten()
+                            target1 = target.flatten()
+                            pscore = np.abs(np.percentile(output1, 99.99) - np.percentile(target1, 99.99))
+                            vmin1 = min(output1.min(), target1.min())
+                            vmax1 = max(output1.max(), target1.max())
+                            bins1 = np.linspace(vmin1, vmax1, 100 + 1)
+                            histo = np.histogram(output1, bins=bins1, density=True)[0].ravel().astype('float32')
+                            histt = np.histogram(target1, bins=bins1, density=True)[0].ravel().astype('float32')
+                            distchisqr = cv2.compareHist(histo, histt, cv2.HISTCMP_CHISQR)
+                            distinter = cv2.compareHist(histo, histt, cv2.HISTCMP_INTERSECT)
+                            distkl = cv2.compareHist(histo, histt, cv2.HISTCMP_KL_DIV)
+                            distemd = wasserstein_distance(output1, target1)                            
+
+                            fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
+                            ax1.hist(
+                                output1, bins=bins1, alpha=0.5, label="Output", histtype="step", density=True
+                            )
+                            ax1.hist(
+                                target1, bins=bins1, alpha=0.5, label="Target", histtype="step", density=True
+                            )
+                            ax1.set_xlim(vmin1, vmax1)
+                            ax1.legend()
+                            ax1.set_ylabel("Density")
+                            ax1.set_yscale("log")
+                            
+                            flow_d = np.zeros((1, num_frames, 3, img_size, img_size))
+
+                            for m in range(num_frames):
+
+                                flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
+
+                            if self.flow == '3d':
                                 
-                                else:
-                                    target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
-                                    output = videos.detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
-                                    coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_lgmax - c48_lgmin) + c48_lgmin
-                                
-                                if self.logscale:
-                                    target = np.exp(target) + c384_gmin - 1e-14
-                                    output = np.exp(output) + c384_gmin - 1e-14
-                                    coarse = np.exp(coarse) + c48_gmin - 1e-14
-
-                                nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
-                                diff_output = (output - nn_upscale).flatten()
-                                diff_target = (target - nn_upscale).flatten()
-                                vmin = min(diff_output.min(), diff_target.min())
-                                vmax = max(diff_output.max(), diff_target.max())
-                                bins = np.linspace(vmin, vmax, 100 + 1)
-
-                                fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-                                ax.hist(
-                                    diff_output, bins=bins, alpha=0.5, label="Output", histtype="step", density=True
-                                )
-                                ax.hist(
-                                    diff_target, bins=bins, alpha=0.5, label="Target", histtype="step", density=True
-                                )
-                                ax.set_xlim(vmin, vmax)
-                                ax.legend()
-                                ax.set_ylabel("Density")
-                                ax.set_yscale("log")
-
-                                output1 = output.flatten()
-                                target1 = target.flatten()
-                                vmin1 = min(output1.min(), target1.min())
-                                vmax1 = max(output1.max(), target1.max())
-                                bins1 = np.linspace(vmin1, vmax1, 100 + 1)
-
-                                fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
-                                ax1.hist(
-                                    output1, bins=bins1, alpha=0.5, label="Output", histtype="step", density=True
-                                )
-                                ax1.hist(
-                                    target1, bins=bins1, alpha=0.5, label="Target", histtype="step", density=True
-                                )
-                                ax1.set_xlim(vmin1, vmax1)
-                                ax1.legend()
-                                ax1.set_ylabel("Density")
-                                ax1.set_yscale("log")
-                                
-                                flow_d = np.zeros((1, num_frames, 3, img_size, img_size))
-
-                                for m in range(num_frames):
-
-                                    flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
-
                                 flow_s = np.zeros((1, num_frames, 3, img_size, img_size))
                                 sm = smap(None, fcmap)
 
                                 for m in range(num_frames):
 
                                     flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
-                                
-                                if self.logscale:
+                            
 
-                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+
+                            if self.logscale:
+
+                                accelerator.log({"true_high": wandb.Video((hres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_low": wandb.Video((lres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[0:1,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[0:1,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[0:1,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                if self.flow == '3d':
                                     accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
-                                
-                                else:
+                            
+                            else:
 
-                                    accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                    target = np.log(target - c384_gmin + 1e-14)
-                                    output = np.log(output - c384_gmin + 1e-14)
-                                    coarse = np.log(coarse - c48_gmin + 1e-14)
-                                    target = (target - c384_lgmin) / (c384_lgmax - c384_lgmin)
-                                    output = (output - c384_lgmin) / (c384_lgmax - c384_lgmin)
-                                    coarse = (coarse - c48_lgmin) / (c48_lgmax - c48_lgmin)
-                                    accelerator.log({"true_loghigh": wandb.Video((np.repeat(target, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"true_loglow": wandb.Video((np.repeat(coarse, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
-                                    accelerator.log({"logsamples": wandb.Video((np.repeat(output, 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_high": wandb.Video((hres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_low": wandb.Video((lres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"samples": wandb.Video((videos[0:1,:,:,:,:].clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"res": wandb.Video((res[0:1,:,:,:,:].clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                target = np.log(target - c384_gmin + 1e-14)
+                                output = np.log(output - c384_gmin + 1e-14)
+                                coarse = np.log(coarse - c48_gmin + 1e-14)
+                                target = (target - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                output = (output - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                coarse = (coarse - c48_lgmin) / (c48_lgmax - c48_lgmin)
+                                accelerator.log({"true_loghigh": wandb.Video((np.repeat(target[0:1,:,:,:,:], 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_loglow": wandb.Video((np.repeat(coarse[0:1,:,:,:,:], 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"logsamples": wandb.Video((np.repeat(output[0:1,:,:,:,:], 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
 
-                                    
-                                accelerator.log({"pattern_bias": wandb.Image((bias_color*255).astype(np.uint8), mode = 'RGBA')}, step=self.step)
-                                accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
-                                accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
-                                accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
-                                accelerator.log({"crps": crps_index}, step=self.step)
+                            accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
+                            accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
+                            accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
+                            accelerator.log({"pscore": pscore}, step=self.step)
+                            accelerator.log({"distchisqr": distchisqr}, step=self.step)
+                            accelerator.log({"distinter": distinter}, step=self.step)
+                            accelerator.log({"distkl": distkl}, step=self.step)
+                            accelerator.log({"distemd": distemd}, step=self.step)
+                            accelerator.log({"vloss": vloss}, step=self.step)
                                 
                             milestone = self.step // self.save_and_sample_every
                             

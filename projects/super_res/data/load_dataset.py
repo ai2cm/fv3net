@@ -1,4 +1,6 @@
-from .vsrdata import VSRDataset
+# from .vsrdata import VSRDataset
+# from .vsrdata_new import VSRDataset
+from .vsrdata_ensemble import VSRDataset
 
 def load_dataset(data_config):
     
