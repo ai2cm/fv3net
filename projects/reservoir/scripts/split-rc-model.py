@@ -14,6 +14,8 @@ def main(model_map_file, output_dir):
         new_model_map = {
             k: v.replace(f"{tmpdir}", f"{output_dir}") for k, v in new_model_map.items()
         }
+        with open(f"{tmpdir}/subdomain_models.yaml", "w") as f:
+            yaml.safe_dump(new_model_map, f)
         print(yaml.dump(new_model_map, indent=2))
 
 
