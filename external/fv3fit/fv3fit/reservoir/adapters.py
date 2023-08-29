@@ -1,4 +1,4 @@
-from copy import copy
+from __future__ import annotations
 import numpy as np
 import os
 import typing
@@ -13,7 +13,6 @@ from .model import (
     ReservoirComputingModel,
     ReservoirModelType,
 )
-from .domain2 import RankXYDivider
 
 
 def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
@@ -124,6 +123,14 @@ class ReservoirDatasetAdapter(Predictor):
     def reset_state(self):
         self.model.reset_state()
 
+    def get_model_from_subdomain(self, subdomain_index: int) -> ReservoirDatasetAdapter:
+        model = self.model.get_model_from_subdomain(subdomain_index)
+        return ReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
+
     def dump(self, path):
         self.model.dump(os.path.join(path, self.MODEL_DIR))
 
@@ -193,6 +200,16 @@ class HybridReservoirDatasetAdapter(Predictor):
     def reset_state(self):
         self.model.reset_state()
 
+    def get_model_from_subdomain(
+        self, subdomain_index: int
+    ) -> HybridReservoirDatasetAdapter:
+        model = self.model.get_model_from_subdomain(subdomain_index)
+        return HybridReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
+
     def dump(self, path):
         self.model.dump(os.path.join(path, self.MODEL_DIR))
 
@@ -218,64 +235,14 @@ def split_multi_subdomain_model(
 ) -> Sequence[ReservoirModelLike]:
     """ Split a multi-subdomain model into a list of single subdomain models.
     """
-    is_adapter = isinstance(model, ReservoirDatasetAdapter) or isinstance(
+    if isinstance(model, ReservoirDatasetAdapter) or isinstance(
         model, HybridReservoirDatasetAdapter
-    )
-    if is_adapter:
-        adapter = model
-        model = adapter.model
-        is_adapter = True
+    ):
+        divider = model.model.rank_divider
     else:
-        adapter = None
-        is_adapter = False
+        divider = model.rank_divider
 
-    rank_divider = model.rank_divider
-    readout = model.readout
-
-    if rank_divider.n_subdomains == 1:
-        raise ValueError("Model must have multiple subdomains to split.")
-
-    new_rank_divider = RankXYDivider(
-        subdomain_layout=(1, 1),
-        overlap=rank_divider.overlap,
-        overlap_rank_extent=rank_divider.subdomain_extent,
-        z_feature_size=rank_divider._z_feature_size,
-    )
-
-    new_kwargs = {
-        "input_variables": model.input_variables,
-        "output_variables": model.output_variables,
-        "reservoir": model.reservoir,
-        "transformers": model.transformers,
-        "square_half_hidden_state": model.square_half_hidden_state,
-    }
-
-    if isinstance(model, HybridReservoirComputingModel):
-        new_kwargs["hybrid_variables"] = model.hybrid_variables
-
-    new_models = []
-    for i in range(rank_divider.n_subdomains):
-        new_readout = readout.get_subdomain_readout(i)
-        new_model = model.__class__(
-            readout=new_readout, rank_divider=copy(new_rank_divider), **new_kwargs
-        )
-
-        if is_adapter and adapter is not None:
-            if adapter.is_hybrid:
-                _adapter_cls = HybridReservoirDatasetAdapter
-            else:
-                _adapter_cls = ReservoirDatasetAdapter
-
-            new_adapter = _adapter_cls(
-                new_model,
-                input_variables=model.input_variables,
-                output_variables=model.output_variables,
-            )
-            new_model = new_adapter
-
-        new_models.append(new_model)
-
-    return new_models
+    return [model.get_model_from_subdomain(i) for i in range(divider.n_subdomains)]
 
 
 def generate_subdomain_models_for_tile(model_path, output_path, tile_index=0):
