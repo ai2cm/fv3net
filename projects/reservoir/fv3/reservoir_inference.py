@@ -15,6 +15,12 @@ from argparse import ArgumentParser
 import os
 import glob
 
+HYBRID_VARIABLES = [
+    "t2m_at_next_timestep",
+    "u10_at_next_timestep",
+    "v10_at_next_timestep",
+]
+
 
 def parse_arguments():
     parser = ArgumentParser()
@@ -24,6 +30,16 @@ def parse_arguments():
         help="path to input data directory, should contain subfolders /tile-x",
     )
     parser.add_argument("--output_path", help="path to save predictions")
+    parser.add_argument(
+        "--tendency_or_full",
+        default="full",
+        help="str whether we trained on the tendency or the full sst",
+    )
+    parser.add_argument(
+        "--hybrid_or_sst_only",
+        default="sst_only",
+        help="str whether we are in the hybrid or sst-only case",
+    )
     parser.add_argument("--n_synchronize", type=int, default=100)
     return parser.parse_args()
 
@@ -48,13 +64,20 @@ def main(args):
         dim="tile",
     )
 
+    # sub dataset to only include hybrid variables
+    if args.hybrid_or_sst_only == "hybrid":
+        hybrid_dataset = dataset[HYBRID_VARIABLES]
+
     n_synchronize = args.n_synchronize
     n_rollout = len(dataset.time) - n_synchronize
     # load models
     rank_models = {r: fv3fit.load(args.model_path + f"-tile-{r}") for r in range(6)}
 
     # initialize stepper
-    stepper = GlobalReservoirStepper(rank_models)
+    if args.hybrid_or_sst_only == "hybrid":
+        stepper = HybridGlobalReservoirStepper(rank_models)
+    else:
+        stepper = GlobalReservoirStepper(rank_models)
 
     # single step prediction
     stepper.reset_states()
@@ -62,7 +85,12 @@ def main(args):
 
     for t in tqdm(range(len(dataset.time))):
         stepper.increment_reservoir_states(dataset.isel(time=t))
-        prediction = stepper.predict_global_state()
+        if args.hybrid_or_sst_only == "hybrid":
+            prediction = stepper.predict_global_state_hybrid(
+                hybrid_dataset.isel(time=t)
+            )
+        else:
+            prediction = stepper.predict_global_state()
         single_steps.append(prediction)
     single_step_prediction = xr.concat(single_steps, dim="time")
 
@@ -73,7 +101,12 @@ def main(args):
     rollout_steps = []
 
     for t in tqdm(range(n_rollout)):
-        prediction = stepper.predict_global_state()
+        if args.hybrid_or_sst_only == "hybrid":
+            prediction = stepper.predict_global_state_hybrid(
+                hybrid_dataset.isel(time=t)
+            )
+        else:
+            prediction = stepper.predict_global_state()
         rollout_steps.append(prediction)
         stepper.increment_reservoir_states(prediction)
     rollout = xr.concat(rollout_steps, dim="time")
@@ -105,13 +138,11 @@ class GlobalReservoirStepper:
 
     def increment_reservoir_states(self, input_global_state: xr.Dataset):
         state_append_halos = append_halos(input_global_state, n_halo=self.n_halo)
-        state_append_halos.sst.data[state_append_halos.sst.data < 200] = 291
         for rank in range(self._TOTAL_RANKS):
             model_adapter = self.model_adapters[rank]
             rank_input = state_append_halos.sel(tile=rank)[
                 model_adapter.input_variables
             ]
-            rank_input.sst.data[rank_input.sst.data < 200] = 291
             model_adapter.increment_state(rank_input)
         return state_append_halos
 
@@ -127,6 +158,21 @@ class GlobalReservoirStepper:
     def reset_states(self):
         for rank in range(self._TOTAL_RANKS):
             self.model_adapters[rank].model.reset_state()
+
+
+# define child class of GlobalReservoirStepper that takes hybrid inputs
+class HybridGlobalReservoirStepper(GlobalReservoirStepper):
+    def __init__(self, model_adapters: Mapping[int, ReservoirDatasetAdapter]):
+        super().__init__(model_adapters)
+
+    def predict_global_state_hybrid(self, hybrid_input: xr.Dataset):
+        rank_predictions = []
+        # hybrid_input gives the additional input variables for the reservoir
+        for rank in range(self._TOTAL_RANKS):
+            rank_predictions.append(
+                self.model_adapters[rank].predict(hybrid_input.sel(tile=rank))
+            )
+        return xr.concat(rank_predictions, dim="tile")
 
 
 if __name__ == "__main__":
