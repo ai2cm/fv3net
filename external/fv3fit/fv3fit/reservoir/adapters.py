@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import os
 import typing
-from typing import Iterable, Hashable, Sequence, Union
+from typing import Iterable, Hashable, Sequence, Union, Mapping
 import xarray as xr
 
 import fv3fit
@@ -245,11 +245,20 @@ def split_multi_subdomain_model(
     return [model.get_model_from_subdomain(i) for i in range(divider.n_subdomains)]
 
 
-def generate_subdomain_models_for_tile(model_path, output_path, tile_index=0):
+def generate_subdomain_models_from_saved_model(model_path, output_path, model_index=0):
+    """
+    Generate a set of subdomain models from a saved model and save them to
+    a directory.
+
+    model_path: path to a save model (remote paths supported)
+    output_path: path to save subdomain models to (remote paths supported)
+    model_index: index of the model to save (default 0)  used as a starting index
+        to number each subdomain model.
+    """
     model = fv3fit.load(model_path)
     split_models = split_multi_subdomain_model(model)
     submodel_map = {}
-    for i, to_save in enumerate(split_models, start=tile_index * len(split_models)):
+    for i, to_save in enumerate(split_models, start=model_index * len(split_models)):
         submodel_output_path = os.path.join(output_path, f"subdomain_{i}")
         submodel_map[i] = submodel_output_path
         fv3fit.dump(to_save, submodel_output_path)
@@ -257,12 +266,20 @@ def generate_subdomain_models_for_tile(model_path, output_path, tile_index=0):
     return submodel_map
 
 
-def generate_subdomain_models_from_all_tiles(tile_model_map, output_path):
+def generate_subdomain_models_from_model_map(
+    model_map: Mapping[int, str], output_path: str
+) -> Mapping[int, str]:
+    """
+    Generate a set of subdomain models from each model in the model map.
+
+    model_map: mapping from a model index to a path of the saved model
+    output_path: path to save subdomain models to (remote paths supported)
+    """
     submodel_map = {}
-    for tile_index, model_path in tile_model_map.items():
+    for tile_index, model_path in model_map.items():
         submodel_map.update(
-            generate_subdomain_models_for_tile(
-                model_path, output_path, tile_index=tile_index
+            generate_subdomain_models_from_saved_model(
+                model_path, output_path, model_index=tile_index
             )
         )
 

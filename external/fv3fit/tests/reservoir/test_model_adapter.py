@@ -9,8 +9,8 @@ from fv3fit.reservoir.adapters import (
     HybridReservoirDatasetAdapter,
     _transpose_xy_dims,
     split_multi_subdomain_model,
-    generate_subdomain_models_for_tile,
-    generate_subdomain_models_from_all_tiles,
+    generate_subdomain_models_from_saved_model,
+    generate_subdomain_models_from_model_map,
 )
 
 from helpers import get_reservoir_computing_model
@@ -191,7 +191,7 @@ def test_generate_subdomain_models_for_saved_single_tile(tmpdir):
     model = get_8x8_overlapped_model(hybrid=True)
     save_path = str(tmpdir.join("model0"))
     model.dump(save_path)
-    tile_submodel_map = generate_subdomain_models_for_tile(
+    tile_submodel_map = generate_subdomain_models_from_saved_model(
         save_path, str(tmpdir.join("new_models"))
     )
     assert len(tile_submodel_map) == 4
@@ -207,7 +207,7 @@ def test_generate_subdomain_models_for_saved_all_tiles(tmpdir):
         model.dump(save_path)
         model_map[i] = save_path
 
-    submodel_map = generate_subdomain_models_from_all_tiles(
+    submodel_map = generate_subdomain_models_from_model_map(
         model_map, str(tmpdir.join("new_models"))
     )
     assert len(submodel_map) == 24
