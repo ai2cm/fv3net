@@ -1,7 +1,7 @@
 import cftime
 import dataclasses
 from datetime import timedelta
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional, List
 import xarray as xr
 import logging
 
@@ -20,16 +20,22 @@ class IntervalConfig:
     base_config: Union[PrescriberConfig, MachineLearningConfig, NudgingConfig]
     apply_interval_seconds: int
     offset_seconds: int = 0
+    record_fields_before_update: Optional[List[str]] = None
 
 
 class IntervalStepper:
     def __init__(
-        self, apply_interval_seconds: float, stepper: Stepper, offset_seconds: float = 0
+        self,
+        apply_interval_seconds: float,
+        stepper: Stepper,
+        offset_seconds: float = 0,
+        record_fields_before_update: Optional[List[str]] = None,
     ):
         self.start_time = None
         self.interval = timedelta(seconds=apply_interval_seconds)
         self.stepper = stepper
         self.offset_seconds = timedelta(seconds=offset_seconds)
+        self._record_fields_before_update = record_fields_before_update or []
 
     @property
     def label(self):
@@ -51,12 +57,25 @@ class IntervalStepper:
             self.start_time = time
             return False
 
+    def get_diagnostics_prior_to_update(self, state):
+        return {
+            f"{key}_before_interval_update": state[key]
+            for key in self._record_fields_before_update
+        }
+
     def __call__(self, time, state):
+
         if self._need_to_update(time) is False:
-            return {}, {}, {}
+            # Diagnostic must be available at all timesteps, not just when
+            # the base stepper is called
+            return {}, self.get_diagnostics_prior_to_update(state), {}
         else:
             logger.info(f"applying interval stepper at time {time}")
-            return self.stepper(time, state)
+            tendencies, diagnostics, state_updates = self.stepper(time, state)
+            diagnostics.update(self.get_diagnostics_prior_to_update(state))
+            return tendencies, diagnostics, state_updates
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
-        return self.stepper.get_diagnostics(state, tendency)
+        diags, moistening = self.stepper.get_diagnostics(state, tendency)
+        diags.update(self.get_diagnostics_prior_to_update(state))
+        return diags, moistening

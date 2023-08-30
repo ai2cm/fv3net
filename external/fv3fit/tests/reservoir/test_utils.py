@@ -6,6 +6,7 @@ from fv3fit.reservoir.utils import (
     SynchronziationTracker,
     assure_txyz_dims,
 )
+
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
 from fv3fit.reservoir.domain2 import RankXYDivider
 

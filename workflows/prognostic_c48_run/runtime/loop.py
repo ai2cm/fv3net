@@ -393,6 +393,7 @@ class TimeLoop(
                 apply_interval_seconds=stepper_config.apply_interval_seconds,
                 stepper=stepper,
                 offset_seconds=stepper_config.offset_seconds,
+                record_fields_before_update=stepper_config.record_fields_before_update,
             )
         else:
             return stepper

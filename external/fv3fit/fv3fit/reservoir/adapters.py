@@ -1,11 +1,18 @@
+from __future__ import annotations
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence
+import typing
+from typing import Iterable, Hashable, Sequence, Union, Mapping
 import xarray as xr
 
+import fv3fit
 from fv3fit import Predictor
 from fv3fit._shared import io
-from .model import HybridReservoirComputingModel, ReservoirComputingModel
+from .model import (
+    HybridReservoirComputingModel,
+    ReservoirComputingModel,
+    ReservoirModelType,
+)
 
 
 def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
@@ -116,6 +123,14 @@ class ReservoirDatasetAdapter(Predictor):
     def reset_state(self):
         self.model.reset_state()
 
+    def get_model_from_subdomain(self, subdomain_index: int) -> ReservoirDatasetAdapter:
+        model = self.model.get_model_from_subdomain(subdomain_index)
+        return ReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
+
     def dump(self, path):
         self.model.dump(os.path.join(path, self.MODEL_DIR))
 
@@ -185,6 +200,16 @@ class HybridReservoirDatasetAdapter(Predictor):
     def reset_state(self):
         self.model.reset_state()
 
+    def get_model_from_subdomain(
+        self, subdomain_index: int
+    ) -> HybridReservoirDatasetAdapter:
+        model = self.model.get_model_from_subdomain(subdomain_index)
+        return HybridReservoirDatasetAdapter(
+            model=model,
+            input_variables=model.input_variables,
+            output_variables=model.output_variables,
+        )
+
     def dump(self, path):
         self.model.dump(os.path.join(path, self.MODEL_DIR))
 
@@ -198,3 +223,64 @@ class HybridReservoirDatasetAdapter(Predictor):
             model=model,
         )
         return adapter
+
+
+ReservoirAdapterType = Union[ReservoirDatasetAdapter, HybridReservoirDatasetAdapter]
+ReservoirModelLike = Union[ReservoirModelType, ReservoirAdapterType]
+
+
+@typing.no_type_check
+def split_multi_subdomain_model(
+    model: ReservoirModelLike,
+) -> Sequence[ReservoirModelLike]:
+    """ Split a multi-subdomain model into a list of single subdomain models.
+    """
+    if isinstance(model, ReservoirDatasetAdapter) or isinstance(
+        model, HybridReservoirDatasetAdapter
+    ):
+        divider = model.model.rank_divider
+    else:
+        divider = model.rank_divider
+
+    return [model.get_model_from_subdomain(i) for i in range(divider.n_subdomains)]
+
+
+def generate_subdomain_models_from_saved_model(model_path, output_path, model_index=0):
+    """
+    Generate a set of subdomain models from a saved model and save them to
+    a directory.
+
+    model_path: path to a save model (remote paths supported)
+    output_path: path to save subdomain models to (remote paths supported)
+    model_index: index of the model to save (default 0)  used as a starting index
+        to number each subdomain model.
+    """
+    model = fv3fit.load(model_path)
+    split_models = split_multi_subdomain_model(model)
+    submodel_map = {}
+    for i, to_save in enumerate(split_models, start=model_index * len(split_models)):
+        submodel_output_path = os.path.join(output_path, f"subdomain_{i}")
+        submodel_map[i] = submodel_output_path
+        fv3fit.dump(to_save, submodel_output_path)
+
+    return submodel_map
+
+
+def generate_subdomain_models_from_model_map(
+    model_map: Mapping[int, str], output_path: str
+) -> Mapping[int, str]:
+    """
+    Generate a set of subdomain models from each model in the model map.
+
+    model_map: mapping from a model index to a path of the saved model
+    output_path: path to save subdomain models to (remote paths supported)
+    """
+    submodel_map = {}
+    for tile_index, model_path in model_map.items():
+        submodel_map.update(
+            generate_subdomain_models_from_saved_model(
+                model_path, output_path, model_index=tile_index
+            )
+        )
+
+    return submodel_map

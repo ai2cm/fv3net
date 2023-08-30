@@ -276,6 +276,8 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
         if self._state_machine.completed_increments >= self.synchronize_steps + 1:
+
+            logger.info(f"Predicting rc model")
             result = self.model.predict(inputs)
 
             output_state = rename_dataset_members(result, self.rename_mapping)
@@ -329,8 +331,6 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self._is_rc_update_step(time):
             if self.input_averager is not None:
                 inputs.update(self.input_averager.get_averages())
-
-            logger.info(f"Predicting rc at time {time}")
             tendencies, diags, state = self.predict(inputs, state)
             hybrid_diags = rename_dataset_members(
                 inputs, {k: f"{k}_hyb_in" for k in inputs}
