@@ -109,11 +109,6 @@ class ReservoirTrainingConfig(Hyperparameters):
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
-        if set(self.output_variables).issubset(self.input_variables) is False:
-            raise ValueError(
-                f"Output variables {self.output_variables} must be a subset of "
-                f"input variables {self.input_variables}."
-            )
         if self.hybrid_variables is not None:
             hybrid_and_input_vars_intersection = set(
                 self.hybrid_variables
