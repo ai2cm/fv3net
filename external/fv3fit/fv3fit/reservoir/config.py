@@ -127,7 +127,9 @@ class ReservoirTrainingConfig(Hyperparameters):
             additional_vars = []
         if self.mask_variable is not None:
             additional_vars.append(self.mask_variable)
-        return set(list(self.input_variables) + additional_vars)
+        return set(
+            list(self.input_variables) + list(self.output_variables) + additional_vars
+        )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
