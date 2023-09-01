@@ -1,4 +1,5 @@
 # takes prediction and calculates evaluation scores
+# todo apply land sea mask
 import numpy as np
 import xarray as xr
 from sklearn.metrics import r2_score
@@ -10,8 +11,10 @@ import csv
 """example call:
 python reservoir_evaluate.py
 --data_path /home/paulah/data/era5/fv3-halo-0-masked/val
---input_path /home/paulah/fv3net-offline-reservoirs/sst-only-full-sub-24-halo-4-masked
+--input_path /home/paulah/fv3net-offline-reservoirs/hybrid-full-sub-24-halo-4-masked
 --n_synchronize 200"""
+
+DELTA_T = 604800  # 7 days in seconds
 
 
 def parse_arguments():
@@ -25,7 +28,6 @@ def parse_arguments():
 
 
 def main(args):
-    delta_t = 604800
     # load data
     dataset = xr.concat(
         [
@@ -46,16 +48,17 @@ def main(args):
     # calculate tendencies need exactly the length of target tendency
     single_step_prediction_tendency = (
         dataset.sst.shift(time=-1) - single_step_prediction.sst
-    ) / delta_t  # change to difference to true data
+    ) / DELTA_T
     # for rollout tendency use rollout prediction to calculate
     rollout_prediction_tendency = (
         rollout_prediction.sst.shift(time=-1) - rollout_prediction.sst
-    ) / delta_t
+    ) / DELTA_T
     # calculate scores function on
     # full prediction - single step
     single_step_scores = calculate_scores(
         dataset.sst.data[:, 1:, ...],
         single_step_prediction.sst.data[:-1, ...],
+        dataset.mask_field[:, 1:, ...],
         "single_step",
         "swap",
     )
@@ -63,19 +66,22 @@ def main(args):
     rollout_scores_full = calculate_scores(
         dataset.sst.data[:, args.n_synchronize + 1 :, ...],
         rollout_prediction.sst.data[:-1, ...],
+        dataset.mask_field[:, args.n_synchronize + 1 :, ...],
         "rollout",
         "swap",
     )
     # tendency of prediction
     single_step_scores_tend = calculate_scores(
-        dataset.sst_tendency[:, :-1, ...].data * delta_t,
-        single_step_prediction_tendency.data[:, :-1, ...] * delta_t,
+        dataset.sst_tendency[:, :-1, ...].data * DELTA_T,
+        single_step_prediction_tendency.data[:, :-1, ...] * DELTA_T,
+        dataset.mask_field[:, :-1, ...],
         "single_step_tend",
     )
     # tendency of rollout
     rollout_scores_tend = calculate_scores(
-        dataset.sst_tendency.data[:, args.n_synchronize : -1, ...] * delta_t,
-        rollout_prediction_tendency.data[:-1, ...] * delta_t,
+        dataset.sst_tendency.data[:, args.n_synchronize : -1, ...] * DELTA_T,
+        rollout_prediction_tendency.data[:-1, ...] * DELTA_T,
+        dataset.mask_field[:, args.n_synchronize : -1, ...],
         "rollout_tend",
         "swap",
     )
@@ -95,16 +101,19 @@ def main(args):
         w.writerow([key, val])
 
 
-def calculate_scores(target, pred, case, swap=None):
+def calculate_scores(target, pred, mask, case, swap=None):
     # make sure to mask out land
-    # allpy land mask
+    # todo: apply land mask
     if swap == "swap":
         target = np.swapaxes(target, 0, 1)
     scores = {}
-    scores[case + "_mse"] = np.nanmean((target - pred) ** 2)
+    squared_difference_masked = np.ma.array((target - pred) ** 2, mask=mask)
+    difference_masked = np.ma.array(target - pred, mask=mask)
+    absolute_difference_masked = np.ma.array(np.abs(target - pred), mask=mask)
+    scores[case + "_mse"] = np.mean(squared_difference_masked)
     scores[case + "_rmse"] = np.sqrt(scores[case + "_mse"])
-    scores[case + "_mae"] = np.nanmean(np.abs((target - pred)))
-    scores[case + "_mean_bias"] = np.nanmean((target - pred))
+    scores[case + "_mae"] = np.mean(absolute_difference_masked)
+    scores[case + "_mean_bias"] = np.mean(difference_masked)
     scores[case + "_r2"] = r2_score(
         target.flatten()[~np.isnan(target.flatten())],
         pred.flatten()[~np.isnan(target.flatten())],
