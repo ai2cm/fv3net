@@ -287,15 +287,16 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
-        if self._state_machine.completed_increments >= self.synchronize_steps + 1:
+        if (
+            self._state_machine.completed_increments <= self.synchronize_steps
+            or self.diagnostic
+        ):
+            output_state = {}
 
-            if SST in output_state:
-                output_state = sst_update_from_reference(
-                    state, output_state, reference_sst_name=SST
-                )
-
-            if self.diagnostic:
-                output_state = {}
+        if SST in output_state:
+            output_state = sst_update_from_reference(
+                state, output_state, reference_sst_name=SST
+            )
 
         return {}, diags, output_state
 
