@@ -254,7 +254,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs}
             )
-            logger.info(f"input diags: {list(diags.keys())}")
+
             # prevent conflict with non-halo diagnostics
             if self.model.input_overlap > 0:
                 diags = rename_dataset_members(diags, {"x": "x_halo", "y": "y_halo"})

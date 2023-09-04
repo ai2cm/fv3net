@@ -82,6 +82,18 @@ def test_IntervalTimes(frequency, time, initial_time, expected):
     assert (time in times) == expected
 
 
+@pytest.mark.parametrize(
+    "frequency, time, initial_time, expected",
+    [
+        (1800, datetime(year=2016, month=8, day=1, hour=0, minute=30), august_1, False),
+        (1800, datetime(year=2016, month=8, day=1, hour=0, minute=45), august_1, True),
+    ],
+)
+def test_IntervalTimes_offset(frequency, time, initial_time, expected):
+    times = IntervalTimes(frequency, initial_time, offset=timedelta(minutes=15))
+    assert (time in times) == expected
+
+
 def test_DiagnosticFile_time_selection():
     # mock the input data
     t1 = datetime(year=2016, month=8, day=1, hour=0, minute=15)
