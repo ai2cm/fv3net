@@ -5,7 +5,7 @@ import torch
 import torch_harmonics
 import xarray as xr
 
-from typing import Callable, Hashable, Literal, TypeVar
+from typing import Callable, Hashable, Literal, TypeVar, Optional
 
 
 EQUIANGULAR_GRID = "equiangular"
@@ -115,13 +115,21 @@ def _validate_quadrature_points(
 
 
 def _roundtrip_numpy(
-    array: np.array, forward_grid: T_Grid, inverse_grid: T_Grid
+    array: np.array,
+    forward_grid: T_Grid,
+    inverse_grid: T_Grid,
+    fraction_modes_kept: Optional[float] = None,
 ) -> np.ndarray:
     *_, n_lat, n_lon = array.shape
     tensor = torch.tensor(array).type(torch.double)
     forward_transform = torch_harmonics.RealSHT(n_lat, n_lon, grid=forward_grid)
     inverse_transform = torch_harmonics.InverseRealSHT(n_lat, n_lon, grid=inverse_grid)
-    roundtripped = inverse_transform(forward_transform(tensor))
+    if fraction_modes_kept is None:
+        roundtripped = inverse_transform(forward_transform(tensor))
+    else:
+        sht = forward_transform(tensor)
+        sht[..., int(n_lat * fraction_modes_kept) :, :] = 0
+        roundtripped = inverse_transform(sht)
     return np.array(roundtripped).astype(array.dtype)
 
 
@@ -131,6 +139,7 @@ def _roundtrip_dataarray(
     inverse_grid: T_Grid,
     lat_dim: Hashable,
     lon_dim: Hashable,
+    fraction_modes_kept: Optional[float] = None,
 ) -> xr.DataArray:
     # Ensure the DataArray is chunked contiguously in the horizontal, which is
     # required for a 2D spatial transform.
@@ -145,7 +154,11 @@ def _roundtrip_dataarray(
         dask="parallelized",
         output_dtypes=[da.dtype],
         keep_attrs=True,
-        kwargs={"forward_grid": forward_grid, "inverse_grid": inverse_grid},
+        kwargs={
+            "forward_grid": forward_grid,
+            "inverse_grid": inverse_grid,
+            "fraction_modes_kept": fraction_modes_kept,
+        },
     )
 
     # Restore dimension order to match input DataArray
@@ -158,6 +171,7 @@ def _roundtrip_dataset(
     inverse_grid: T_Grid,
     lat_dim: Hashable,
     lon_dim: Hashable,
+    fraction_modes_kept: Optional[float] = None,
 ) -> xr.Dataset:
     horizontal_dims = {lon_dim, lat_dim}
     results = []
@@ -166,7 +180,7 @@ def _roundtrip_dataset(
             results.append(da)
         else:
             result = _roundtrip_dataarray(
-                da, forward_grid, inverse_grid, lat_dim, lon_dim
+                da, forward_grid, inverse_grid, lat_dim, lon_dim, fraction_modes_kept
             )
             results.append(result)
     return xr.merge(results).assign_attrs(ds.attrs)
@@ -197,6 +211,7 @@ def roundtrip(
     forward_grid: T_Grid = "legendre-gauss",
     inverse_grid: T_Grid = "legendre-gauss",
     unsafe: bool = False,
+    fraction_modes_kept: Optional[float] = None,
 ) -> T_XarrayObject:
     """
     Filter data by transforming to spherical harmonic space and back.
@@ -221,6 +236,9 @@ def roundtrip(
         unsafe: bool (default False)
             Whether to turn off guardrails that check whether the input
             quadrature points are consistent with the forward_grid.
+        fraction_modes_kept: Fraction of modes (degrees) of the spherical harmonic
+            to retain in the roundtrip. If None, all modes are retained. Must be
+            between 0 and 1.
 
     Returns:
         xr.DataArray or xr.Dataset
@@ -249,7 +267,9 @@ def roundtrip(
     else:
         raise ValueError(f"obj must be a DataArray or Dataset; got {type(obj)}")
 
-    roundtripped = roundtrip_function(obj, forward_grid, inverse_grid, lat_dim, lon_dim)
+    roundtripped = roundtrip_function(
+        obj, forward_grid, inverse_grid, lat_dim, lon_dim, fraction_modes_kept
+    )
 
     if forward_grid != inverse_grid and lat_dim in obj.coords:
         roundtripped = _replace_latitude_coordinate(
