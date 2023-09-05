@@ -27,6 +27,9 @@ spec:
           - {name: wandb-project, value: "argo-default"}
           - {name: wandb-tags, value: ""}
           - {name: wandb-group, value: ""}
+      metadata:
+        labels:
+          app: ml-training
       container: &training-container
         image: us.gcr.io/vcm-ml/fv3fit
         command: &training-container-cmd ["bash", "-c", "-x"]
@@ -116,6 +119,9 @@ spec:
     - name: training-gpu-def
       inputs: *training-inputs
       container: *training-container
+      metadata:
+        labels:
+          app: ml-trainingtolerations
       tolerations:
       - key: "dedicated"
         operator: "Equal"
@@ -144,6 +150,9 @@ spec:
         envFrom: *training-container-envfrom
         volumeMounts: *training-container-volmounts
         args: *training-container-args
+      metadata:
+        labels:
+          app: ml-training
       tolerations:
       - key: "dedicated"
         operator: "Equal"
