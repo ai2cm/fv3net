@@ -27,6 +27,7 @@ spec:
           - {name: wandb-project, value: "argo-default"}
           - {name: wandb-tags, value: ""}
           - {name: wandb-group, value: ""}
+          - {name: reservoir, value: "false"}
       container: &training-container
         image: us.gcr.io/vcm-ml/fv3fit
         command: &training-container-cmd ["bash", "-c", "-x"]
@@ -90,8 +91,16 @@ spec:
             else
               wandb_flag="--no-wandb"
             fi
+
+            if  "{{inputs.parameters.reservoir}}" == "false" ];
+            then
+              training_routine="fv3fit.train"
+            else
+              training_routine="fv3fit.reservoir.train_multiple_dataset_sequence"
+            fi
+
             python3 -m torch.utils.collect_env
-            python3 -m fv3fit.train \
+            python3 -m $training_routine \
               training_config.yaml \
               training_data.yaml \
               {{inputs.parameters.output}} \
