@@ -7,7 +7,7 @@ from fv3fit.reservoir.readout import (
 )
 import numpy as np
 import tensorflow as tf
-from typing import Optional, List, Union, cast, Mapping
+from typing import Optional, List, Union, cast, Mapping, Sequence
 from .. import Predictor
 from .utils import (
     square_even_terms,
@@ -98,11 +98,13 @@ def _get_input_mask_array(
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
-    train_batches: tf.data.Dataset,
+    train_batches: Union[tf.data.Dataset, Sequence[tf.data.Dataset]],
     validation_batches: Optional[tf.data.Dataset],
 ) -> Predictor:
-
-    sample_batch = next(iter(train_batches))
+    train_batches_sequence = (
+        train_batches if isinstance(train_batches, Sequence) else [train_batches]
+    )
+    sample_batch = next(iter(train_batches_sequence[0]))
     sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
     transformers = _get_transformers(sample_batch, hyperparameters)
@@ -138,81 +140,85 @@ def train_reservoir_model(
         BatchLinearRegressor(hyperparameters.readout_hyperparameters)
         for r in range(rank_divider.n_subdomains)
     ]
-    sync_tracker = SynchronziationTracker(
-        n_synchronize=hyperparameters.n_timesteps_synchronize
-    )
-    for b, batch_data in enumerate(train_batches):
-        input_time_series = process_batch_data(
-            variables=hyperparameters.input_variables,
-            batch_data=batch_data,
-            rank_divider=rank_divider,
-            autoencoder=transformers.input,
-            trim_halo=False,
-        )
-        # If the output variables differ from inputs, use the transformer specific
-        # to the output set to transform the output data
-        _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
-            z_feature_size=transformers.output.n_latent_dims
-        )
-        output_time_series = process_batch_data(
-            variables=hyperparameters.output_variables,
-            batch_data=batch_data,
-            rank_divider=_output_rank_divider_with_overlap,
-            autoencoder=transformers.output,
-            trim_halo=True,
-        )
 
-        # reservoir increment occurs in this call, so always call this
-        # function even if X, Y are not used for readout training.
-        reservoir_state_time_series = _get_reservoir_state_time_series(
-            input_time_series, hyperparameters.input_noise, reservoir
+    for train_batches in train_batches_sequence:
+        sync_tracker = SynchronziationTracker(
+            n_synchronize=hyperparameters.n_timesteps_synchronize
         )
-        sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
-
-        hybrid_time_series: Optional[np.ndarray]
-
-        if hyperparameters.hybrid_variables is not None:
-            _hybrid_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
-                z_feature_size=transformers.hybrid.n_latent_dims
-            )
-            hybrid_time_series = process_batch_data(
-                variables=hyperparameters.hybrid_variables,
+        for b, batch_data in enumerate(train_batches):
+            input_time_series = process_batch_data(
+                variables=hyperparameters.input_variables,
                 batch_data=batch_data,
-                rank_divider=_hybrid_rank_divider_with_overlap,
-                autoencoder=transformers.hybrid,
+                rank_divider=rank_divider,
+                autoencoder=transformers.input,
+                trim_halo=False,
+            )
+            # If the output variables differ from inputs, use the transformer specific
+            # to the output set to transform the output data
+            _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
+                z_feature_size=transformers.output.n_latent_dims
+            )
+            output_time_series = process_batch_data(
+                variables=hyperparameters.output_variables,
+                batch_data=batch_data,
+                rank_divider=_output_rank_divider_with_overlap,
+                autoencoder=transformers.output,
                 trim_halo=True,
             )
-        else:
-            hybrid_time_series = None
 
-        readout_input, readout_output = _construct_readout_inputs_outputs(
-            reservoir_state_time_series,
-            output_time_series,
-            hyperparameters.square_half_hidden_state,
-            hybrid_time_series=hybrid_time_series,
-        )
-        if sync_tracker.completed_synchronization:
-            readout_input = sync_tracker.trim_synchronization_samples_if_needed(
-                readout_input
+            # reservoir increment occurs in this call, so always call this
+            # function even if X, Y are not used for readout training.
+            reservoir_state_time_series = _get_reservoir_state_time_series(
+                input_time_series, hyperparameters.input_noise, reservoir
             )
-            readout_output = sync_tracker.trim_synchronization_samples_if_needed(
-                readout_output
+            sync_tracker.count_synchronization_steps(len(reservoir_state_time_series))
+
+            hybrid_time_series: Optional[np.ndarray]
+
+            if hyperparameters.hybrid_variables is not None:
+                _hybrid_rank_divider_with_overlap = (
+                    rank_divider.get_new_zdim_rank_divider(
+                        z_feature_size=transformers.hybrid.n_latent_dims
+                    )
+                )
+                hybrid_time_series = process_batch_data(
+                    variables=hyperparameters.hybrid_variables,
+                    batch_data=batch_data,
+                    rank_divider=_hybrid_rank_divider_with_overlap,
+                    autoencoder=transformers.hybrid,
+                    trim_halo=True,
+                )
+            else:
+                hybrid_time_series = None
+
+            readout_input, readout_output = _construct_readout_inputs_outputs(
+                reservoir_state_time_series,
+                output_time_series,
+                hyperparameters.square_half_hidden_state,
+                hybrid_time_series=hybrid_time_series,
             )
-            logger.info(f"Fitting on batch {b+1}")
-            readout_input = rank_divider.subdomains_to_leading_axis(
-                readout_input, flat_feature=True
-            )
-            output_rank_divider = (
-                _output_rank_divider_with_overlap.get_no_overlap_rank_divider()
-            )
-            readout_output = output_rank_divider.subdomains_to_leading_axis(
-                readout_output, flat_feature=True
-            )
-            jobs = [
-                delayed(regressor.batch_update)(readout_input[i], readout_output[i])
-                for i, regressor in enumerate(subdomain_regressors)
-            ]
-            Parallel(n_jobs=hyperparameters.n_jobs, backend="threading")(jobs)
+            if sync_tracker.completed_synchronization:
+                readout_input = sync_tracker.trim_synchronization_samples_if_needed(
+                    readout_input
+                )
+                readout_output = sync_tracker.trim_synchronization_samples_if_needed(
+                    readout_output
+                )
+                logger.info(f"Fitting on batch {b+1}")
+                readout_input = rank_divider.subdomains_to_leading_axis(
+                    readout_input, flat_feature=True
+                )
+                output_rank_divider = (
+                    _output_rank_divider_with_overlap.get_no_overlap_rank_divider()
+                )
+                readout_output = output_rank_divider.subdomains_to_leading_axis(
+                    readout_output, flat_feature=True
+                )
+                jobs = [
+                    delayed(regressor.batch_update)(readout_input[i], readout_output[i])
+                    for i, regressor in enumerate(subdomain_regressors)
+                ]
+                Parallel(n_jobs=hyperparameters.n_jobs, backend="threading")(jobs)
 
     readout = combine_readouts_from_subdomain_regressors(subdomain_regressors)
 
