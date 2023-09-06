@@ -121,7 +121,7 @@ spec:
       container: *training-container
       metadata:
         labels:
-          app: ml-trainingtolerations
+          app: ml-training
       tolerations:
       - key: "dedicated"
         operator: "Equal"
