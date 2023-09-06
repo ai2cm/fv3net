@@ -75,18 +75,25 @@ def maybe_join_path(base: Optional[str], append: str) -> Optional[str]:
 
 def load_data(
     variables: Sequence[str],
-    training_data_config: TFDatasetLoader,
+    training_data_configs: Sequence[TFDatasetLoader],
     validation_data_config: Optional[TFDatasetLoader],
     cache_config: CacheConfig,
 ) -> Tuple[tf.data.Dataset, Optional[tf.data.Dataset]]:
-    train_tfdataset = training_data_config.open_tfdataset(
-        local_download_path=maybe_join_path(
-            cache_config.local_download_path, "train_data"
-        ),
-        variable_names=variables,
-    )
+
+    train_tfdatasets = [
+        training_data_config.open_tfdataset(
+            local_download_path=maybe_join_path(
+                cache_config.local_download_path, "train_data"
+            ),
+            variable_names=variables,
+        )
+        for training_data_config in training_data_configs
+    ]
+
     if cache_config.in_memory:
-        train_tfdataset = train_tfdataset.cache()
+        train_tfdatasets = [
+            train_tfdataset.cache() for train_tfdataset in train_tfdatasets
+        ]
     if validation_data_config is not None:
         validation_tfdataset = validation_data_config.open_tfdataset(
             local_download_path=maybe_join_path(
@@ -98,7 +105,7 @@ def load_data(
             validation_tfdataset = validation_tfdataset.cache()
     else:
         validation_tfdataset = None
-    return train_tfdataset, validation_tfdataset
+    return train_tfdatasets, validation_tfdataset
 
 
 def main(args, unknown_args=None):
@@ -134,10 +141,15 @@ def main(args, unknown_args=None):
         training_config = fv3fit.TrainingConfig.from_dict(config_dict)
 
     with open(args.training_data_config, "r") as f:
-        config_dict = yaml.safe_load(f)
-        training_data_config = tfdataset_loader_from_dict(config_dict)
+        config_ = yaml.safe_load(f)
+        if isinstance(config_, Sequence):
+            training_data_configs = [
+                tfdataset_loader_from_dict(config_dict) for config_dict in config_
+            ]
+        else:
+            training_data_configs = [tfdataset_loader_from_dict(config_dict)]
         if args.no_wandb is False:
-            wandb.config["training_data_config"] = config_dict
+            wandb.config["training_data_config"] = config_
     if args.validation_data_config is not None:
         with open(args.validation_data_config, "r") as f:
             config_dict = yaml.safe_load(f)
@@ -151,12 +163,12 @@ def main(args, unknown_args=None):
 
     dump_dataclass(training_config, os.path.join(args.output_path, "train.yaml"))
     dump_dataclass(
-        training_data_config, os.path.join(args.output_path, "training_data.yaml")
+        training_data_configs, os.path.join(args.output_path, "training_data.yaml")
     )
 
-    train_tfdataset, validation_tfdataset = load_data(
+    train_tfdatasets, validation_tfdataset = load_data(
         training_config.variables,
-        training_data_config,
+        training_data_configs,
         validation_data_config,
         training_config.cache,
     )
@@ -166,7 +178,7 @@ def main(args, unknown_args=None):
     logger.info("calling train function")
     model = train(
         hyperparameters=training_config.hyperparameters,
-        train_batches=train_tfdataset,
+        train_batches=train_tfdatasets,
         validation_batches=validation_tfdataset,
     )
     if len(training_config.derived_output_variables) > 0:
