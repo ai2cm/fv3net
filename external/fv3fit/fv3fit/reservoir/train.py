@@ -176,15 +176,14 @@ def train_reservoir_model(
             hybrid_time_series: Optional[np.ndarray]
 
             if hyperparameters.hybrid_variables is not None:
-                _hybrid_rank_divider_with_overlap = (
-                    rank_divider.get_new_zdim_rank_divider(
-                        z_feature_size=transformers.hybrid.n_latent_dims
-                    )
+                _hybrid_rank_divider_w_overlap = rank_divider.get_new_zdim_rank_divider(
+                    z_feature_size=transformers.hybrid.n_latent_dims
                 )
+
                 hybrid_time_series = process_batch_data(
                     variables=hyperparameters.hybrid_variables,
                     batch_data=batch_data,
-                    rank_divider=_hybrid_rank_divider_with_overlap,
+                    rank_divider=_hybrid_rank_divider_w_overlap,
                     autoencoder=transformers.hybrid,
                     trim_halo=True,
                 )
