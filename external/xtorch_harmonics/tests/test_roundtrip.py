@@ -16,12 +16,16 @@ from xtorch_harmonics.xtorch_harmonics import (
     compute_quadrature_latitudes,
     compute_quadrature_longitudes,
 )
-from xtorch_harmonics.xtorch_harmonics import roundtrip
+from xtorch_harmonics.xtorch_harmonics import roundtrip_filter
 
 
 HARMONIC_DIM = "harmonic"
-N_LAT, N_LON = 6, 12
+N_LAT, N_LON = 9, 18
 LON_DIM, LAT_DIM = "grid_xt", "grid_yt"
+# TODO: the equiangular and lobatto grids don't pass for higher order/degree
+# spherical harmonics than the defaults here, figure out why?
+ORDERS = (-1, 0, 1)
+DEGREES = (1, 2, 3)
 
 
 def real_spherical_harmonic(lat, lon, m, n):
@@ -53,14 +57,17 @@ def constant_dataarray(grid, lat_dim, lon_dim, decreasing_latitude=False, name="
     return xr.DataArray(data, dims=[lat_dim, lon_dim], coords=[lat, lon], name=name)
 
 
-def real_spherical_harmonic_dataarray(grid, lat_dim, lon_dim, name="foo"):
+def grid_data_arrays(grid, lat_dim, lon_dim):
     lat, lon = horizontal_grid(grid)
     lat = xr.DataArray(lat, dims=[lat_dim], coords=[lat])
     lon = xr.DataArray(lon, dims=[lon_dim], coords=[lon])
     lat, lon = xr.broadcast(lat, lon)
+    return lat, lon
 
-    orders = list(range(lat.sizes[lat_dim]))
-    degrees = list(range(lat.sizes[lat_dim]))
+
+def real_spherical_harmonic_dataarray(
+    lat, lon, orders=ORDERS, degrees=DEGREES, name="foo"
+):
     harmonics = pd.MultiIndex.from_product([orders, degrees], names=["m", "n"])
 
     dataarrays = []
@@ -78,16 +85,18 @@ def real_spherical_harmonic_dataarray(grid, lat_dim, lon_dim, name="foo"):
 
 @pytest.mark.parametrize(("forward_grid", "inverse_grid"), VALID_GRIDS)
 @pytest.mark.parametrize("decreasing_latitude", [False, True])
-def test_roundtrip_constant_dataarray(forward_grid, inverse_grid, decreasing_latitude):
+def test_roundtrip_filter_constant_dataarray(
+    forward_grid, inverse_grid, decreasing_latitude
+):
     da = constant_dataarray(
         forward_grid, LAT_DIM, LON_DIM, decreasing_latitude=decreasing_latitude
     )
 
     if forward_grid != inverse_grid:
         with pytest.warns(UserWarning, match="Modifying latitude coordinate"):
-            result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid,)
+            result = roundtrip_filter(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid,)
     else:
-        result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid)
+        result = roundtrip_filter(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid)
 
     expected_latitude = compute_quadrature_latitudes(
         da.sizes[LAT_DIM], inverse_grid, decreasing_latitude
@@ -98,38 +107,44 @@ def test_roundtrip_constant_dataarray(forward_grid, inverse_grid, decreasing_lat
 
 
 @pytest.mark.parametrize("dtype", [np.float16, np.float32, np.float64])
-def test_roundtrip_dataarray_preserves_dtype(dtype):
+def test_roundtrip_filter_dataarray_preserves_dtype(dtype):
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM).astype(dtype)
-    result = roundtrip(da, LAT_DIM, LON_DIM)
+    result = roundtrip_filter(da, LAT_DIM, LON_DIM)
     assert result.dtype == da.dtype
 
 
 @pytest.mark.parametrize(
     ("grid", "rtol"),
     [
-        # The equiangular and lobatto grids don't pass for higher order spherical
-        # harmonics. Why?
-        # (EQUIANGULAR_GRID, 1e-1),  Not clear why this requires such a large tolerance.
+        (EQUIANGULAR_GRID, 1e-1),  # Not clear why this requires such a large tolerance.
         (LEGENDRE_GAUSS_GRID, 1e-5),
-        # (LOBATTO_GRID, 1e-5),
+        (LOBATTO_GRID, 1e-5),
     ],
 )
-def test_roundtrip_real_spherical_harmonic_dataarray(grid, rtol):
+def test_roundtrip_filter_real_spherical_harmonic_dataarray(grid, rtol):
     # We expect spherical harmonics themselves to pass through approximately
     # unchanged if we use the same grid for the forward and inverse transforms.
-    # This also tests the use of roundtrip on DataArrays with more than two
+    # This also tests the use of roundtrip_filter on DataArrays with more than two
     # dimensions; da has dimensions ["grid_yt", "grid_xt", "m", "n"].
-    da = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
-    result = roundtrip(da, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid)
+    lat, lon = grid_data_arrays(grid, LAT_DIM, LON_DIM)
+    da = real_spherical_harmonic_dataarray(lat, lon)
+    result = roundtrip_filter(
+        da, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid
+    )
+    print(da)
+    print(result.compute())
     xr.testing.assert_allclose(result, da, rtol=rtol)
 
 
 @pytest.mark.parametrize(("fraction_modes_kept"), [None, 0.5, 0.75, 1.0])
-def test_roundtrip_truncation_real_spherical_harmonic_dataarray(
+def test_roundtrip_filter_truncation_real_spherical_harmonic_dataarray(
     fraction_modes_kept, grid=LEGENDRE_GAUSS_GRID
 ):
-    da = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
-    result = roundtrip(
+    lat, lon = grid_data_arrays(grid, LAT_DIM, LON_DIM)
+    orders = list(range(lat.sizes[LAT_DIM]))
+    degrees = list(range(lat.sizes[LAT_DIM]))
+    da = real_spherical_harmonic_dataarray(lat, lon, orders=orders, degrees=degrees)
+    result = roundtrip_filter(
         da,
         LAT_DIM,
         LON_DIM,
@@ -151,10 +166,11 @@ def test_roundtrip_truncation_real_spherical_harmonic_dataarray(
     [{LAT_DIM: N_LAT // 2, LON_DIM: N_LON // 3}, {"m": 1, "n": 2}],
     ids=["horizontal-chunks-eliminated", "non-horizontal-chunks-preserved"],
 )
-def test_roundtrip_dataarray_dask(chunks):
-    da = real_spherical_harmonic_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
+def test_roundtrip_filter_dataarray_dask(chunks):
+    lat, lon = grid_data_arrays(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
+    da = real_spherical_harmonic_dataarray(lat, lon)
     da = da.chunk(chunks)
-    result = roundtrip(da, LAT_DIM, LON_DIM)
+    result = roundtrip_filter(da, LAT_DIM, LON_DIM)
 
     # Assert that all non-horizontal chunks are preserved, and the result is
     # contiguously chunked along horizontal dimensions.
@@ -171,17 +187,17 @@ def test_roundtrip_dataarray_dask(chunks):
     xr.testing.assert_allclose(result, da)
 
 
-def test_roundtrip_dataarray_keep_attrs():
+def test_roundtrip_filter_dataarray_keep_attrs():
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     da = da.assign_attrs(bar="baz")
-    result = roundtrip(da, LAT_DIM, LON_DIM)
+    result = roundtrip_filter(da, LAT_DIM, LON_DIM)
     assert da.attrs == result.attrs
 
 
-def test_roundtrip_dataarray_incompatible_forward_inverse_grids():
+def test_roundtrip_filter_dataarray_incompatible_forward_inverse_grids():
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     with pytest.raises(ValueError, match="Provided forward and inverse grids"):
-        roundtrip(
+        roundtrip_filter(
             da,
             LAT_DIM,
             LON_DIM,
@@ -190,11 +206,11 @@ def test_roundtrip_dataarray_incompatible_forward_inverse_grids():
         )
 
 
-def test_roundtrip_dataarray_incomplete_horizontal_dims():
+def test_roundtrip_filter_dataarray_incomplete_horizontal_dims():
     lat_dim, lon_dim = "lat", "lon"
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, lat_dim, lon_dim)
     with pytest.raises(ValueError, match="Input DataArray must have"):
-        roundtrip(da, LAT_DIM, LON_DIM)
+        roundtrip_filter(da, LAT_DIM, LON_DIM)
 
 
 @pytest.mark.parametrize(
@@ -213,10 +229,14 @@ def test_latitude_quadrature_point_validation(
 
     if unsafe:
         with pytest.warns(UserWarning, match="Modifying latitude"):
-            roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid, unsafe=unsafe)
+            roundtrip_filter(
+                da, LAT_DIM, LON_DIM, forward_grid, inverse_grid, unsafe=unsafe
+            )
     else:
         with pytest.raises(AssertionError, match="Latitude coordinate"):
-            roundtrip(da, LAT_DIM, LON_DIM, forward_grid, inverse_grid, unsafe=unsafe)
+            roundtrip_filter(
+                da, LAT_DIM, LON_DIM, forward_grid, inverse_grid, unsafe=unsafe
+            )
 
 
 @pytest.mark.parametrize("unsafe", [False, True])
@@ -225,10 +245,10 @@ def test_longitude_quadrature_point_validation(unsafe):
     da = da.assign_coords({LON_DIM: np.sin(da[LON_DIM])})
 
     if unsafe:
-        roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
+        roundtrip_filter(da, LAT_DIM, LON_DIM, unsafe=unsafe)
     else:
         with pytest.raises(AssertionError, match="Longitude coordinate"):
-            roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
+            roundtrip_filter(da, LAT_DIM, LON_DIM, unsafe=unsafe)
 
 
 @pytest.mark.parametrize("unsafe", [False, True])
@@ -236,10 +256,10 @@ def test_validation_warnings_without_coordinates(unsafe):
     da = constant_dataarray(LEGENDRE_GAUSS_GRID, LAT_DIM, LON_DIM)
     da = da.drop_vars([LAT_DIM, LON_DIM])
     if unsafe:
-        roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
+        roundtrip_filter(da, LAT_DIM, LON_DIM, unsafe=unsafe)
     else:
         with pytest.warns(None) as record:
-            roundtrip(da, LAT_DIM, LON_DIM, unsafe=unsafe)
+            roundtrip_filter(da, LAT_DIM, LON_DIM, unsafe=unsafe)
 
         latitude_warning, longitude_warning = record
         assert issubclass(latitude_warning.category, UserWarning)
@@ -278,13 +298,14 @@ def test__validate_quadrature_longitudes(lon, raises, match):
         _validate_quadrature_longitudes(lon)
 
 
-def test_roundtrip_dataset():
+def test_roundtrip_filter_dataset():
     grid = LOBATTO_GRID
-    foo = real_spherical_harmonic_dataarray(grid, LAT_DIM, LON_DIM)
+    lat, lon = grid_data_arrays(grid, LAT_DIM, LON_DIM)
+    foo = real_spherical_harmonic_dataarray(lat, lon)
     bar = foo.copy(deep=True).rename("bar").isel({LAT_DIM: 0})
     ds = xr.merge([foo, bar])
     ds = ds.assign_attrs(a="b")
-    roundtripped = roundtrip(
+    roundtripped = roundtrip_filter(
         ds, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid,
     )
 
