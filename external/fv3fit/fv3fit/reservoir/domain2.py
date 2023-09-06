@@ -306,7 +306,7 @@ class RankXYDivider:
             dim_slices = self._add_potential_leading_dim_to_slices(
                 subdomain.shape, dim_slices
             )
-            merged[dim_slices] = subdomain
+            merged[tuple(dim_slices)] = subdomain
 
         return merged
 
