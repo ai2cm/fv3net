@@ -156,6 +156,29 @@ def test_prediction_after_load(tmpdir):
     np.testing.assert_array_almost_equal(prediction0[0], prediction1[0])
 
 
+def test_state_preserved_after_load(tmpdir):
+
+    predictor = get_reservoir_computing_model()
+    predictor.reset_state()
+
+    n_times = 20
+
+    rng = np.random.RandomState(0)
+    ts_sync = [
+        rng.randn(n_times, *predictor.rank_divider.rank_extent, 1)
+        for v in predictor.input_variables
+    ]
+    predictor.synchronize(ts_sync)
+
+    output_path = f"{str(tmpdir)}/predictor"
+    predictor.dump(output_path)
+    loaded_predictor = ReservoirComputingModel.load(output_path)
+
+    np.testing.assert_array_equal(
+        predictor.reservoir.state, loaded_predictor.reservoir.state
+    )
+
+
 @pytest.mark.skip(reason="HybridReservoirComputingModel for different variables broken")
 def test_HybridReservoirComputingModel_dump_load(tmpdir):
     state_size = 1000
