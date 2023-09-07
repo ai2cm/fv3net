@@ -169,6 +169,11 @@ class _ReservoirStepper:
             state_machine = _FiniteStateMachine()
         self._state_machine = state_machine
 
+        if self.warm_start:
+            self.synchronize_steps = 0
+            # allows for immediate predict
+            self._state_machine(self._state_machine.INCREMENT)
+
         if rename_mapping is None:
             rename_mapping = cast(NameDict, {})
         self.rename_mapping = rename_mapping
