@@ -22,8 +22,9 @@ from xtorch_harmonics.xtorch_harmonics import roundtrip_filter
 HARMONIC_DIM = "harmonic"
 N_LAT, N_LON = 9, 18
 LON_DIM, LAT_DIM = "grid_xt", "grid_yt"
-# TODO: the equiangular and lobatto grids don't pass for higher order/degree
-# spherical harmonics than the defaults here, figure out why?
+# TODO: higher order/degree spherical harmonics than the defaults here don't pass the
+# roundtrip_filter preservation test below for the equiangular and lobatto grids;
+# figure out why?
 ORDERS = (-1, 0, 1)
 DEGREES = (1, 2, 3)
 
@@ -42,7 +43,7 @@ def real_spherical_harmonic(lat, lon, m, n):
         input_core_dims=[[], [], dims, dims],
         output_core_dims=[dims],
     )
-    return result.real.transpose()
+    return result.real
 
 
 def horizontal_grid(grid, n_lat=N_LAT, n_lon=N_LON, decreasing_latitude=False):
@@ -131,15 +132,14 @@ def test_roundtrip_filter_real_spherical_harmonic_dataarray(grid, rtol):
     result = roundtrip_filter(
         da, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid
     )
-    print(da)
-    print(result.compute())
     xr.testing.assert_allclose(result, da, rtol=rtol)
 
 
 @pytest.mark.parametrize(("fraction_modes_kept"), [None, 0.5, 0.75, 1.0])
 def test_roundtrip_filter_truncation_real_spherical_harmonic_dataarray(
-    fraction_modes_kept, grid=LEGENDRE_GAUSS_GRID
+    fraction_modes_kept,
 ):
+    grid = LEGENDRE_GAUSS_GRID
     lat, lon = grid_data_arrays(grid, LAT_DIM, LON_DIM)
     orders = list(range(lat.sizes[LAT_DIM]))
     degrees = list(range(lat.sizes[LAT_DIM]))
@@ -154,7 +154,7 @@ def test_roundtrip_filter_truncation_real_spherical_harmonic_dataarray(
     )
     if fraction_modes_kept is not None:
         expected = da.where(
-            da["n"] < int(fraction_modes_kept * da.sizes["n"]), 0.0
+            da["n"] < round(fraction_modes_kept * da.sizes["n"]), 0.0
         ).where(da["m"] <= da["n"], np.nan)
     else:
         expected = da

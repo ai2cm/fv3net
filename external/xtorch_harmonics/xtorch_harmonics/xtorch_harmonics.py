@@ -128,7 +128,7 @@ def _roundtrip_filter_numpy(
         roundtripped = inverse_transform(forward_transform(tensor))
     else:
         sht = forward_transform(tensor)
-        sht[..., int(n_lat * fraction_modes_kept) :, :] = 0
+        sht[..., round(n_lat * fraction_modes_kept) :, :] = 0
         roundtripped = inverse_transform(sht)
     return np.array(roundtripped).astype(array.dtype)
 
@@ -237,8 +237,10 @@ def roundtrip_filter(
             Whether to turn off guardrails that check whether the input
             quadrature points are consistent with the forward_grid.
         fraction_modes_kept: Fraction of modes (degrees) of the spherical harmonic
-            to retain in the roundtrip. If None, all modes are retained. Must be
-            between 0 and 1.
+            to retain in the roundtrip. Truncation starts with the highest degrees.
+            If None, all modes are retained. Must be between 0 and 1. The number of
+            modes kept is the product of fraction_modes_kept and the number of
+            harmonic degrees on the grid, rounded to the nearest integer.
 
     Returns:
         xr.DataArray or xr.Dataset
