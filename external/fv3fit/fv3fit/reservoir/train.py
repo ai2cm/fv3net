@@ -168,6 +168,7 @@ def train_reservoir_model(
 
             # reservoir increment occurs in this call, so always call this
             # function even if X, Y are not used for readout training.
+            reservoir.reset_state(input_shape=input_time_series[0].shape)
             reservoir_state_time_series = _get_reservoir_state_time_series(
                 input_time_series, hyperparameters.input_noise, reservoir
             )
@@ -260,10 +261,6 @@ def _get_reservoir_state_time_series(
     X: np.ndarray, input_noise: float, reservoir: Reservoir,
 ) -> np.ndarray:
     # X is [time, subdomain, feature]
-
-    # Initialize hidden state
-    if reservoir.state is None:
-        reservoir.reset_state(input_shape=X[0].shape)
 
     # Increment and save the reservoir state after each timestep
     reservoir_state_time_series: List[Optional[np.ndarray]] = []
