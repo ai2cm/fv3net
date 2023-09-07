@@ -92,7 +92,7 @@ spec:
               wandb_flag="--no-wandb"
             fi
 
-            if  "{{inputs.parameters.reservoir}}" == "false" ];
+            if [ "{{inputs.parameters.reservoir}}" == "false" ];
             then
               training_routine="fv3fit.train"
             else
