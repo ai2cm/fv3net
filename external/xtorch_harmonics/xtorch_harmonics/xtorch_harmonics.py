@@ -5,7 +5,7 @@ import torch
 import torch_harmonics
 import xarray as xr
 
-from typing import Callable, Hashable, Literal, TypeVar
+from typing import Callable, Hashable, Literal, TypeVar, Optional
 
 
 EQUIANGULAR_GRID = "equiangular"
@@ -114,23 +114,32 @@ def _validate_quadrature_points(
         )
 
 
-def _roundtrip_numpy(
-    array: np.array, forward_grid: T_Grid, inverse_grid: T_Grid
+def _roundtrip_filter_numpy(
+    array: np.array,
+    forward_grid: T_Grid,
+    inverse_grid: T_Grid,
+    fraction_modes_kept: Optional[float] = None,
 ) -> np.ndarray:
     *_, n_lat, n_lon = array.shape
     tensor = torch.tensor(array).type(torch.double)
     forward_transform = torch_harmonics.RealSHT(n_lat, n_lon, grid=forward_grid)
     inverse_transform = torch_harmonics.InverseRealSHT(n_lat, n_lon, grid=inverse_grid)
-    roundtripped = inverse_transform(forward_transform(tensor))
+    if fraction_modes_kept is None:
+        roundtripped = inverse_transform(forward_transform(tensor))
+    else:
+        sht = forward_transform(tensor)
+        sht[..., round(n_lat * fraction_modes_kept) :, :] = 0
+        roundtripped = inverse_transform(sht)
     return np.array(roundtripped).astype(array.dtype)
 
 
-def _roundtrip_dataarray(
+def _roundtrip_filter_dataarray(
     da: xr.DataArray,
     forward_grid: T_Grid,
     inverse_grid: T_Grid,
     lat_dim: Hashable,
     lon_dim: Hashable,
+    fraction_modes_kept: Optional[float] = None,
 ) -> xr.DataArray:
     # Ensure the DataArray is chunked contiguously in the horizontal, which is
     # required for a 2D spatial transform.
@@ -138,26 +147,31 @@ def _roundtrip_dataarray(
     da = da.chunk({dim: -1 for dim in horizontal_dims})
 
     result = xr.apply_ufunc(
-        _roundtrip_numpy,
+        _roundtrip_filter_numpy,
         da,
         input_core_dims=[[lat_dim, lon_dim]],
         output_core_dims=[[lat_dim, lon_dim]],
         dask="parallelized",
         output_dtypes=[da.dtype],
         keep_attrs=True,
-        kwargs={"forward_grid": forward_grid, "inverse_grid": inverse_grid},
+        kwargs={
+            "forward_grid": forward_grid,
+            "inverse_grid": inverse_grid,
+            "fraction_modes_kept": fraction_modes_kept,
+        },
     )
 
     # Restore dimension order to match input DataArray
     return result.transpose(*da.dims)
 
 
-def _roundtrip_dataset(
+def _roundtrip_filter_dataset(
     ds: xr.Dataset,
     forward_grid: T_Grid,
     inverse_grid: T_Grid,
     lat_dim: Hashable,
     lon_dim: Hashable,
+    fraction_modes_kept: Optional[float] = None,
 ) -> xr.Dataset:
     horizontal_dims = {lon_dim, lat_dim}
     results = []
@@ -165,8 +179,8 @@ def _roundtrip_dataset(
         if not horizontal_dims.issubset(da.dims):
             results.append(da)
         else:
-            result = _roundtrip_dataarray(
-                da, forward_grid, inverse_grid, lat_dim, lon_dim
+            result = _roundtrip_filter_dataarray(
+                da, forward_grid, inverse_grid, lat_dim, lon_dim, fraction_modes_kept
             )
             results.append(result)
     return xr.merge(results).assign_attrs(ds.attrs)
@@ -190,13 +204,14 @@ def _replace_latitude_coordinate(
     return roundtripped.assign_coords({lat_dim: latitudes})
 
 
-def roundtrip(
+def roundtrip_filter(
     obj: T_XarrayObject,
     lat_dim: Hashable,
     lon_dim: Hashable,
     forward_grid: T_Grid = "legendre-gauss",
     inverse_grid: T_Grid = "legendre-gauss",
     unsafe: bool = False,
+    fraction_modes_kept: Optional[float] = None,
 ) -> T_XarrayObject:
     """
     Filter data by transforming to spherical harmonic space and back.
@@ -221,11 +236,16 @@ def roundtrip(
         unsafe: bool (default False)
             Whether to turn off guardrails that check whether the input
             quadrature points are consistent with the forward_grid.
+        fraction_modes_kept: Fraction of modes (degrees) of the spherical harmonic
+            to retain in the roundtrip. Truncation starts with the highest degrees.
+            If None, all modes are retained. Must be between 0 and 1. The number of
+            modes kept is the product of fraction_modes_kept and the number of
+            harmonic degrees on the grid, rounded to the nearest integer.
 
     Returns:
         xr.DataArray or xr.Dataset
     """
-    roundtrip_function: Callable
+    roundtrip_filter_function: Callable
     if (forward_grid, inverse_grid) not in VALID_GRIDS:
         raise ValueError(
             f"Provided forward and inverse grids ({forward_grid!r}, {inverse_grid!r}) "
@@ -239,17 +259,28 @@ def roundtrip(
             f"({lat_dim!r}) and lon_dim ({lon_dim!r})"
         )
 
+    if fraction_modes_kept is not None:
+        if fraction_modes_kept < 0 or fraction_modes_kept > 1:
+            raise ValueError(
+                (
+                    "fraction_modes_kept must be between 0 and 1, "
+                    f"got {fraction_modes_kept}."
+                )
+            )
+
     if not unsafe:
         _validate_quadrature_points(obj, forward_grid, lat_dim, lon_dim)
 
     if isinstance(obj, xr.DataArray):
-        roundtrip_function = _roundtrip_dataarray
+        roundtrip_filter_function = _roundtrip_filter_dataarray
     elif isinstance(obj, xr.Dataset):
-        roundtrip_function = _roundtrip_dataset
+        roundtrip_filter_function = _roundtrip_filter_dataset
     else:
         raise ValueError(f"obj must be a DataArray or Dataset; got {type(obj)}")
 
-    roundtripped = roundtrip_function(obj, forward_grid, inverse_grid, lat_dim, lon_dim)
+    roundtripped = roundtrip_filter_function(
+        obj, forward_grid, inverse_grid, lat_dim, lon_dim, fraction_modes_kept
+    )
 
     if forward_grid != inverse_grid and lat_dim in obj.coords:
         roundtripped = _replace_latitude_coordinate(
