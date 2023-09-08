@@ -67,7 +67,6 @@ def main(args):
     )
 
     n_synchronize = args.n_synchronize
-    n_rollout = len(dataset.time) - n_synchronize
     # load models
     rank_models = {r: fv3fit.load(args.model_path + f"-tile-{r}") for r in range(6)}
 
@@ -96,7 +95,7 @@ def main(args):
         stepper.increment_reservoir_states(dataset.isel(time=t))
     rollout_steps = []
 
-    for t in tqdm(range(n_rollout)):
+    for t in tqdm(range(n_synchronize, len(dataset.time))):
         if args.tendency_or_full == "tendency":
             prediction = stepper.predict_global_state_tendency(dataset.isel(time=t))
         else:
@@ -168,8 +167,6 @@ class GlobalReservoirStepper:
 class GlobalHybridReservoirStepper(GlobalReservoirStepper):
     def __init__(self, model_adapters: Mapping[int, HybridReservoirDatasetAdapter]):
         super().__init__(model_adapters)
-        self._validate_models(model_adapters)
-        self.model_adapters = model_adapters
 
     def predict_global_state(self, hybrid_input: xr.Dataset):
         rank_predictions = []
