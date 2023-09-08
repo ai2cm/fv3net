@@ -8,7 +8,7 @@ from runtime.types import State
 from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
 
 
-def scatter_within_tile(
+def scatter_within_tile_for_prescriber(
     time: cftime.DatetimeJulian,
     time_lookup_function: Callable[[cftime.DatetimeJulian], State],
     communicator: pace.util.CubedSphereCommunicator,
@@ -28,6 +28,21 @@ def scatter_within_tile(
         state: State = time_lookup_function(time)
     else:
         state = {}
+
+    return scatter_within_tile(communicator, state)
+
+
+def scatter_within_tile(
+    communicator: pace.util.CubedSphereCommunicator, state: State,
+) -> xr.Dataset:
+    """Scatter data from each tile's master rank to its subranks.
+
+    Args:
+        communicator: model cubed sphere communicator
+
+    Returns:
+        Dataset of scattered data arrays
+    """
 
     tile = communicator.partitioner.tile_index(communicator.rank)
     if communicator.tile.rank == 0:
