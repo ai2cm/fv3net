@@ -22,17 +22,18 @@ def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
     # are assumed to be feature dims.
     # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
     leading_non_xy_dims = []
+    rank_dims_in_data = [dim for dim in rank_dims if dim in ds.dims]
     for dim in ds.dims:
-        if dim not in rank_dims:
+        if dim not in rank_dims_in_data:
             leading_non_xy_dims.append(dim)
-        if dim in rank_dims:
+        if dim in rank_dims_in_data:
             break
-    ordered_dims = (*leading_non_xy_dims, *rank_dims)
+    ordered_dims = (*leading_non_xy_dims, *rank_dims_in_data)
     return ds.transpose(*ordered_dims, ...)
 
 
 class DatasetAdapter:
-    DIM_ORDER_2D = ["x", "y"]
+    DIM_ORDER = ["x", "y", "z"]
 
     def __init__(
         self, input_variables: Iterable[Hashable], output_variables: Iterable[Hashable],
@@ -41,12 +42,9 @@ class DatasetAdapter:
         self.output_variables = output_variables
 
     def _ndarray_to_dataarray(self, arr: np.ndarray) -> xr.DataArray:
-        dims = [*self.DIM_ORDER_2D]
-        if len(arr.shape) == 3:
-            if arr.shape[-1] > 1:
-                dims.append("z")
-            elif arr.shape[-1] == 1:
-                arr = arr[:, :, 0]
+        dims = [*self.DIM_ORDER]
+        if len(arr.shape) == 3 and arr.shape[-1] == 1:
+            arr = arr[:, :, 0]
         return xr.DataArray(data=arr, dims=dims)
 
     def output_array_to_ds(
@@ -64,7 +62,7 @@ class DatasetAdapter:
     ) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
         # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(ds=inputs, rank_dims=self.DIM_ORDER_2D)
+        transposed_inputs = _transpose_xy_dims(ds=inputs, rank_dims=self.DIM_ORDER)
         input_arrs = []
         for variable in variables:
             da = transposed_inputs[variable]
