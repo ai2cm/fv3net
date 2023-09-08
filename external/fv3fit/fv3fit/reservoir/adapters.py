@@ -15,21 +15,21 @@ from .model import (
 )
 
 
-def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
-    # Useful for transposing the x, y dims in a dataset to match those in
+def _transpose_ordered_dims(ds_dims: Sequence[str], rank_dims: Sequence[str]):
+    # Useful for transposing the x, y, z dims in a dataset to match those in
     # RankDivider.rank_dims, and leaves other dims in the same order
     # relative to x,y. Dims after the first occurence of one of the rank_dims
     # are assumed to be feature dims.
     # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
     leading_non_xy_dims = []
-    rank_dims_in_data = [dim for dim in rank_dims if dim in ds.dims]
-    for dim in ds.dims:
+    rank_dims_in_data = [dim for dim in rank_dims if dim in ds_dims]
+    for dim in ds_dims:
         if dim not in rank_dims_in_data:
             leading_non_xy_dims.append(dim)
         if dim in rank_dims_in_data:
             break
     ordered_dims = (*leading_non_xy_dims, *rank_dims_in_data)
-    return ds.transpose(*ordered_dims, ...)
+    return ordered_dims
 
 
 class DatasetAdapter:
@@ -41,8 +41,9 @@ class DatasetAdapter:
         self.input_variables = input_variables
         self.output_variables = output_variables
 
-    def _ndarray_to_dataarray(self, arr: np.ndarray) -> xr.DataArray:
-        dims = [*self.DIM_ORDER]
+    def _ndarray_to_dataarray(
+        self, arr: np.ndarray, dims: Sequence[str]
+    ) -> xr.DataArray:
         if len(arr.shape) == 3 and arr.shape[-1] == 1:
             arr = arr[:, :, 0]
         return xr.DataArray(data=arr, dims=dims)
@@ -50,9 +51,12 @@ class DatasetAdapter:
     def output_array_to_ds(
         self, outputs: Sequence[np.ndarray], output_dims: Sequence[str]
     ) -> xr.Dataset:
+        prediction_array_dims = _transpose_ordered_dims(
+            ds_dims=output_dims, rank_dims=self.DIM_ORDER
+        )
         return xr.Dataset(
             {
-                var: self._ndarray_to_dataarray(output)
+                var: self._ndarray_to_dataarray(output, dims=prediction_array_dims)
                 for var, output in zip(self.output_variables, outputs)
             }
         ).transpose(*output_dims)
@@ -62,7 +66,10 @@ class DatasetAdapter:
     ) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
         # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(ds=inputs, rank_dims=self.DIM_ORDER)
+        transposed_input_dims = _transpose_ordered_dims(
+            ds_dims=list(inputs.dims), rank_dims=self.DIM_ORDER
+        )
+        transposed_inputs = inputs.transpose(*transposed_input_dims)
         input_arrs = []
         for variable in variables:
             da = transposed_inputs[variable]
