@@ -257,7 +257,8 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
             # prevent conflict with non-halo diagnostics
             if self.model.input_overlap > 0:
-                diags = rename_dataset_members(diags, {"x": "x_halo", "y": "y_halo"})
+                overlap = self.model.input_overlap
+                diags.isel(x=slice(overlap, -overlap), y=slice(overlap, -overlap))
 
         return {}, diags, {}
 
