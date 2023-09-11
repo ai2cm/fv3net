@@ -227,7 +227,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         if self.communicator:
             state_inputs = gather_from_subtiles(self.communicator, state_inputs)
 
-        reservoir_inputs = self._rename_inputs_for_reservoir(state_inputs)
+        reservoir_inputs = xr.Dataset(self._rename_inputs_for_reservoir(state_inputs))
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
             try:
@@ -273,10 +273,13 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             if self.model.input_overlap > 0:
                 diags = rename_dataset_members(diags, {"x": "x_halo", "y": "y_halo"})
 
+        tendencies = {}
+        state = {}
+
         if self.communicator:
-            tendencies = scatter_within_tile(self.communicator, {})
+            tendencies = scatter_within_tile(self.communicator, tendencies)
             diags = scatter_within_tile(self.communicator, diags)
-            state = scatter_within_tile(self.communicator, {})
+            state = scatter_within_tile(self.communicator, state)
 
         return tendencies, diags, state
 
