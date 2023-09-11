@@ -462,7 +462,10 @@ class TimeLoop(
         if config.reservoir_corrector is not None:
             res_config = config.reservoir_corrector
             incrementer, predictor = get_reservoir_steppers(
-                res_config, MPI.COMM_WORLD.Get_rank(), init_time=init_time
+                res_config,
+                MPI.COMM_WORLD.Get_rank(),
+                init_time=init_time,
+                communicator=self._get_communicator(),
             )
         else:
             incrementer, predictor = None, None

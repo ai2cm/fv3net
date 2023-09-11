@@ -52,3 +52,23 @@ def scatter_within_tile(
         scattered_state = communicator.tile.scatter_state()
 
     return quantity_state_to_dataset(scattered_state)
+
+
+def gather_from_subtiles(
+    communicator: pace.util.CubedSphereCommunicator, state: State,
+) -> xr.Dataset:
+    """Gather data from each sub rank onto the root tile.
+
+    Args:
+        communicator: model cubed sphere communicator
+
+    Returns:
+        Dataset of gathered data arrays
+    """
+
+    tile = communicator.partitioner.tile_index(communicator.rank)
+    gathered_state = communicator.tile.gather_state(state)
+    if communicator.tile.rank == 0:
+        return quantity_state_to_dataset(gathered_state).isel(tile=tile)
+    else:
+        return None
