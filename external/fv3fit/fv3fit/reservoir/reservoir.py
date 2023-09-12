@@ -35,6 +35,7 @@ class Reservoir:
     _RESERVOIR_WEIGHTS_NAME = "reservoir_W_res.npz"
     _METADATA_NAME = "metadata.bin"
     _INPUT_MASK_NAME = "input_mask.npy"
+    _STATE_NAME = "state.npy"
 
     def __init__(
         self,
@@ -43,6 +44,7 @@ class Reservoir:
         W_in: Optional[scipy.sparse.csc_matrix] = None,
         W_res: Optional[scipy.sparse.csc_matrix] = None,
         input_mask_array: Optional[np.ndarray] = None,
+        state: Optional[np.ndarray] = None,
     ):
         """
 
@@ -60,7 +62,7 @@ class Reservoir:
         np.random.seed(self.hyperparameters.seed)
         self.W_in = W_in if W_in is not None else self._generate_W_in()
         self.W_res = W_res if W_res is not None else self._generate_W_res()
-        self.state: Optional[np.ndarray] = None
+        self.state = state
         self.input_mask_array = input_mask_array
 
     def increment_state(self, input):
@@ -127,6 +129,14 @@ class Reservoir:
 
         return scaling * W_res
 
+    def dump_state(self, path: str) -> None:
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+
+        if self.state is not None:
+            with fs.open(os.path.join(path, self._STATE_NAME), "wb") as f:
+                np.save(f, self.state)
+
     def dump(self, path: str) -> None:
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
@@ -166,10 +176,17 @@ class Reservoir:
         except (FileNotFoundError):
             input_mask_array = None
 
+        try:
+            with fsspec.open(os.path.join(path, cls._STATE_NAME), "rb") as f:
+                state = np.load(f)
+        except (FileNotFoundError):
+            state = None
+
         return cls(
             reservoir_hyperparameters,
             W_in=reservoir_W_in,
             W_res=reservoir_W_res,
             input_size=metadata["input_size"],
             input_mask_array=input_mask_array,
+            state=state,
         )

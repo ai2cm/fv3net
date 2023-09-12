@@ -5,9 +5,10 @@ import fv3fit
 from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
 from fv3fit.reservoir.domain2 import RankXYDivider
 from fv3fit.reservoir.adapters import (
+    DatasetAdapter,
     ReservoirDatasetAdapter,
     HybridReservoirDatasetAdapter,
-    _transpose_xy_dims,
+    _transpose_ordered_dims,
     split_multi_subdomain_model,
     generate_subdomain_models_from_saved_model,
     generate_subdomain_models_from_model_map,
@@ -21,11 +22,28 @@ from helpers import get_reservoir_computing_model
     [
         (["time", "x", "y", "z"], ["time", "x", "y", "z"]),
         (["time", "y", "x", "z"], ["time", "x", "y", "z"]),
+        (["time", "y", "x"], ["time", "x", "y"]),
     ],
 )
-def test__transpose_xy_dims(original_dims, reordered_dims):
-    da = xr.DataArray(np.random.rand(5, 7, 7, 8), dims=original_dims)
-    assert list(_transpose_xy_dims(da, ("x", "y")).dims) == reordered_dims
+def test__transpose_ordered_dims(original_dims, reordered_dims):
+
+    da = xr.DataArray(np.random.rand(*(3 for i in original_dims)), dims=original_dims)
+    assert (
+        list(_transpose_ordered_dims(list(da.dims), ("x", "y", "z"))) == reordered_dims
+    )
+
+
+@pytest.mark.parametrize(
+    "prediction_array_shape, final_dims",
+    [((2, 2, 2), ["x", "y", "z"]), ((2, 2, 1), ["x", "y"]), ((2, 2,), ["x", "y"])],
+)
+def test_DatasetAdapter_output_array_to_ds(prediction_array_shape, final_dims):
+    arr = np.random.rand(*prediction_array_shape)
+    dataset_adapter = DatasetAdapter(
+        input_variables=["a", "b"], output_variables=["a", "b"]
+    )
+    ds = dataset_adapter.output_array_to_ds([arr, arr], output_dims=final_dims)
+    assert list(ds.dims) == final_dims
 
 
 def get_8x8_overlapped_model(hybrid: bool):
@@ -129,8 +147,6 @@ def test_adapter_dump_and_load(tmpdir):
     model.dump(str(tmpdir))
     loaded_model = fv3fit.load(str(tmpdir))
     loaded_model.reset_state()
-    print(model)
-    print(loaded_model)
     result1 = loaded_model.predict(data_without_overlap)
     for r0, r1 in zip(result0, result1):
         np.testing.assert_array_equal(r0, r1)

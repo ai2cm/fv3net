@@ -126,7 +126,7 @@ def get_mock_ReservoirSteppers():
     # Create a _ReservoirStepper object with mock objects
     incrementer = ReservoirIncrementOnlyStepper(
         model,
-        datetime(1, 1, 1, 0, 0, 0),
+        datetime(2020, 1, 1, 0, 0, 0),
         timedelta(minutes=10),
         2,
         state_machine=state_machine,
@@ -134,7 +134,7 @@ def get_mock_ReservoirSteppers():
 
     predictor = ReservoirPredictStepper(
         model,
-        datetime(1, 1, 1, 0, 0, 0),
+        datetime(2020, 1, 1, 0, 0, 0),
         timedelta(minutes=10),
         2,
         state_machine=state_machine,
@@ -193,17 +193,18 @@ def test__ReservoirStepper_model_predict(patched_reservoir_module):
 
     incrementer, predictor = get_mock_ReservoirSteppers()
     mock_state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
+    time = datetime(2020, 1, 1, 0, 0, 0)
 
     # no call to predict when at or below required number of sync steps
     for i in range(incrementer.synchronize_steps):
-        incrementer.increment_reservoir(mock_state)
-        predictor.predict(mock_state, mock_state)
-        predictor.model.predict.assert_not_called()
+        incrementer(time, mock_state)
+        _, _, output_state = predictor(time, mock_state)
+        assert not output_state
 
     # call to predict when past synchronization period
-    incrementer.increment_reservoir(mock_state)
-    predictor.predict(mock_state, mock_state)
-    predictor.model.predict.assert_called_once()
+    incrementer(time, mock_state)
+    _, _, output_state = predictor(time, mock_state)
+    assert "a" in output_state
 
 
 def test_get_reservoir_steppers(patched_reservoir_module):

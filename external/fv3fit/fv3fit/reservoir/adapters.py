@@ -15,24 +15,25 @@ from .model import (
 )
 
 
-def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
-    # Useful for transposing the x, y dims in a dataset to match those in
+def _transpose_ordered_dims(ds_dims: Sequence[str], rank_dims: Sequence[str]):
+    # Useful for transposing the x, y, z dims in a dataset to match those in
     # RankDivider.rank_dims, and leaves other dims in the same order
     # relative to x,y. Dims after the first occurence of one of the rank_dims
     # are assumed to be feature dims.
     # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
-    leading_non_xy_dims = []
-    for dim in ds.dims:
-        if dim not in rank_dims:
-            leading_non_xy_dims.append(dim)
-        if dim in rank_dims:
+    leading_non_xyz_dims = []
+    rank_dims_in_data = [dim for dim in rank_dims if dim in ds_dims]
+    for dim in ds_dims:
+        if dim not in rank_dims_in_data:
+            leading_non_xyz_dims.append(dim)
+        if dim in rank_dims_in_data:
             break
-    ordered_dims = (*leading_non_xy_dims, *rank_dims)
-    return ds.transpose(*ordered_dims, ...)
+    ordered_dims = (*leading_non_xyz_dims, *rank_dims_in_data)
+    return ordered_dims
 
 
 class DatasetAdapter:
-    DIM_ORDER_2D = ["x", "y"]
+    DIM_ORDER = ["x", "y", "z"]
 
     def __init__(
         self, input_variables: Iterable[Hashable], output_variables: Iterable[Hashable],
@@ -41,17 +42,22 @@ class DatasetAdapter:
         self.output_variables = output_variables
 
     def _ndarray_to_dataarray(self, arr: np.ndarray) -> xr.DataArray:
-        dims = [*self.DIM_ORDER_2D]
         if len(arr.shape) == 3:
-            if arr.shape[-1] > 1:
-                dims.append("z")
-            elif arr.shape[-1] == 1:
+            if arr.shape[-1] == 1:
                 arr = arr[:, :, 0]
+                dims = self.DIM_ORDER[:2]
+            else:
+                dims = self.DIM_ORDER
+        elif len(arr.shape) == 2:
+            dims = self.DIM_ORDER[:2]
+        else:
+            raise (ValueError(f"Array must have 2 or 3 dims, got {arr.shape}"))
         return xr.DataArray(data=arr, dims=dims)
 
     def output_array_to_ds(
         self, outputs: Sequence[np.ndarray], output_dims: Sequence[str]
     ) -> xr.Dataset:
+
         return xr.Dataset(
             {
                 var: self._ndarray_to_dataarray(output)
@@ -64,7 +70,11 @@ class DatasetAdapter:
     ) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
         # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(ds=inputs, rank_dims=self.DIM_ORDER_2D)
+
+        transposed_input_dims = _transpose_ordered_dims(
+            ds_dims=list(inputs.dims), rank_dims=self.DIM_ORDER
+        )
+        transposed_inputs = inputs.transpose(*transposed_input_dims)
         input_arrs = []
         for variable in variables:
             da = transposed_inputs[variable]
@@ -137,7 +147,6 @@ class ReservoirDatasetAdapter(Predictor):
     @classmethod
     def load(cls, path: str) -> "ReservoirDatasetAdapter":
         model = ReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
-        model.reset_state()
         adapter = cls(
             input_variables=model.input_variables,
             output_variables=model.output_variables,
@@ -216,7 +225,6 @@ class HybridReservoirDatasetAdapter(Predictor):
     @classmethod
     def load(cls, path: str) -> "HybridReservoirDatasetAdapter":
         model = HybridReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
-        model.reset_state()
         adapter = cls(
             input_variables=model.input_variables,
             output_variables=model.output_variables,

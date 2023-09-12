@@ -136,6 +136,9 @@ spec:
       operator: "Equal"
       value: "{{inputs.parameters.node-pool}}"
       effect: "NoSchedule"
+    metadata:
+      labels:
+        app: fv3run
     podSpecPatch: |
       containers:
         - name: main
