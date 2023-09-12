@@ -147,7 +147,6 @@ class ReservoirDatasetAdapter(Predictor):
     @classmethod
     def load(cls, path: str) -> "ReservoirDatasetAdapter":
         model = ReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
-        model.reset_state()
         adapter = cls(
             input_variables=model.input_variables,
             output_variables=model.output_variables,
@@ -226,7 +225,6 @@ class HybridReservoirDatasetAdapter(Predictor):
     @classmethod
     def load(cls, path: str) -> "HybridReservoirDatasetAdapter":
         model = HybridReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
-        model.reset_state()
         adapter = cls(
             input_variables=model.input_variables,
             output_variables=model.output_variables,

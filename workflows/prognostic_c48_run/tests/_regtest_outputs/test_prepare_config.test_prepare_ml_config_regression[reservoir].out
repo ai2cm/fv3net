@@ -446,6 +446,7 @@ reservoir_corrector:
   reservoir_timestep: 900s
   synchronize_steps: 12
   time_average_inputs: false
+  warm_start: false
 scikit_learn: null
 tendency_prescriber: null
 zhao_carr_emulation:

@@ -40,6 +40,7 @@ class ReservoirConfig:
             to match the reservoir timestep.
         diagnostic_only: Whether to run the reservoir in diagnostic mode (no
             state updates)
+        warm_start: Whether to use the saved state from a pre-synced reservoir
         rename_mapping: mapping from field names used in the underlying
             reservoir model to names used in fv3gfs wrapper
     """
@@ -49,6 +50,7 @@ class ReservoirConfig:
     reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
     time_average_inputs: bool = False
     diagnostic_only: bool = False
+    warm_start: bool = False
     rename_mapping: NameDict = dataclasses.field(default_factory=dict)
 
 
@@ -153,6 +155,7 @@ class _ReservoirStepper:
         diagnostic_only: bool = False,
         input_averager: Optional[TimeAverageInputs] = None,
         rename_mapping: Optional[NameDict] = None,
+        warm_start: bool = False,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -160,10 +163,22 @@ class _ReservoirStepper:
         self.timestep = reservoir_timestep
         self.diagnostic = diagnostic_only
         self.input_averager = input_averager
+        self.warm_start = warm_start
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
         self._state_machine = state_machine
+
+        if self.warm_start:
+            if self.synchronize_steps != 0:
+                raise ValueError(
+                    "Warm start specified with non-zero sync steps.  Ensure that"
+                    " the reservoir model is pre-synchronized and set sync steps to 0"
+                    " in the configuration."
+                )
+
+            # allows for immediate predict
+            self._state_machine(self._state_machine.INCREMENT)
 
         if rename_mapping is None:
             rename_mapping = cast(NameDict, {})
@@ -229,7 +244,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
     def increment_reservoir(self, inputs):
         """Should be called at beginning of time loop"""
 
-        if self.completed_sync_steps == 0:
+        if self.completed_sync_steps == 0 and not self.warm_start:
             self.model.reset_state()
         self._state_machine(self._state_machine.INCREMENT)
         self.model.increment_state(inputs)
@@ -393,6 +408,7 @@ def get_reservoir_steppers(
         state_machine=state_machine,
         input_averager=increment_averager,
         rename_mapping=config.rename_mapping,
+        warm_start=config.warm_start,
     )
     predictor = ReservoirPredictStepper(
         model,
@@ -403,5 +419,6 @@ def get_reservoir_steppers(
         diagnostic_only=config.diagnostic_only,
         input_averager=predict_averager,
         rename_mapping=config.rename_mapping,
+        warm_start=config.warm_start,
     )
     return incrementer, predictor
