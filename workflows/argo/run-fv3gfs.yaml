@@ -29,6 +29,8 @@ spec:
             parameters:
             - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
             - {name: cpu-cutoff, value: "24"}
+            - {name: memory-request, value: "{{inputs.parameters.memory}}"}
+            - {name: memory-cutoff, value: "30"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
       - - name: run-first-segment
@@ -113,6 +115,9 @@ spec:
       parameters:
         - name: cpu-request
         - name: cpu-cutoff
+        - name: memory-request
+        - name: memory-cutoff
+
     script:
       image: python:alpine3.6
       command: [python]
@@ -122,7 +127,17 @@ spec:
             cpus = float(cpu_request[:-1])/1000.0
         else:
             cpus = float(cpu_request)
-        node_pool = 'climate-sim-pool' if cpus <= {{inputs.parameters.cpu-cutoff}} else 'ultra-sim-pool'
+
+        memory_request = "{{inputs.parameters.memory-request}}".lower()
+        if memory_request.endswith('gi') or memory_request.endswith('gb'):
+            memory = float(memory_request[:-2])
+        else:
+            raise ValueError("memory request must be in Gi or Gb")
+
+        if cpus <= {{inputs.parameters.cpu-cutoff}} and memory <= {{inputs.parameters.memory-cutoff}}:
+            node_pool = 'climate-sim-pool'
+        else:
+            node_pool = 'ultra-sim-pool'
         print(node_pool)
   - name: append-segment
     inputs:
