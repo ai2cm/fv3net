@@ -29,7 +29,10 @@ def scatter_within_tile_for_prescriber(
     else:
         state = {}
 
-    return scatter_within_tile(communicator, state)
+    tile = communicator.partitioner.tile_index(communicator.rank)
+    ds = xr.Dataset(state).isel(tile=tile)
+
+    return scatter_within_tile(communicator, ds)
 
 
 def scatter_within_tile(
@@ -43,11 +46,11 @@ def scatter_within_tile(
     Returns:
         Dataset of scattered data arrays
     """
-
-    tile = communicator.partitioner.tile_index(communicator.rank)
+    state = xr.Dataset(state)
     if communicator.tile.rank == 0:
-        ds = xr.Dataset(state).isel(tile=tile)
-        scattered_state = communicator.tile.scatter_state(dataset_to_quantity_state(ds))
+        scattered_state = communicator.tile.scatter_state(
+            dataset_to_quantity_state(state)
+        )
     else:
         scattered_state = communicator.tile.scatter_state()
 
@@ -65,10 +68,9 @@ def gather_from_subtiles(
     Returns:
         Dataset of gathered data arrays
     """
-
-    tile = communicator.partitioner.tile_index(communicator.rank)
-    gathered_state = communicator.tile.gather_state(state)
+    state = xr.Dataset(state)
+    gathered_state = communicator.tile.gather_state(dataset_to_quantity_state(state))
     if communicator.tile.rank == 0:
-        return quantity_state_to_dataset(gathered_state).isel(tile=tile)
+        return quantity_state_to_dataset(gathered_state)
     else:
         return None
