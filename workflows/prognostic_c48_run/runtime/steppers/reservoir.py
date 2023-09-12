@@ -251,10 +251,19 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
 
-            diags = rename_dataset_members(inputs, {k: f"{k}_rc_in" for k in inputs})
+            diags = rename_dataset_members(
+                inputs, {k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs}
+            )
+
             # prevent conflict with non-halo diagnostics
             if self.model.input_overlap > 0:
-                diags = rename_dataset_members(diags, {"x": "x_halo", "y": "y_halo"})
+                overlap = self.model.input_overlap
+                isel_kwargs = {
+                    dim: slice(overlap, -overlap)
+                    for dim in diags.dims
+                    if dim in ["x", "y"]
+                }
+                diags.isel(**isel_kwargs)
 
         return {}, diags, {}
 
@@ -272,37 +281,29 @@ class ReservoirPredictStepper(_ReservoirStepper):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
 
         self._state_machine(self._state_machine.PREDICT)
+        result = self.model.predict(inputs)
+        output_state = rename_dataset_members(result, self.rename_mapping)
+
+        diags = rename_dataset_members(
+            output_state, {k: f"{k}_rc_out" for k in output_state}
+        )
+
+        for k, v in output_state.items():
+            v.attrs["units"] = state[k].attrs.get("units", "unknown")
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
-        if self._state_machine.completed_increments >= self.synchronize_steps + 1:
-
-            logger.info(f"Predicting rc model")
-            result = self.model.predict(inputs)
-
-            output_state = rename_dataset_members(result, self.rename_mapping)
-
-            for k, v in output_state.items():
-                v.attrs["units"] = state[k].attrs.get("units", "unknown")
-
-            diags = rename_dataset_members(
-                output_state, {k: f"{k}_rc_out" for k in output_state}
-            )
-
-            if SST in output_state:
-                output_state = sst_update_from_reference(
-                    state, output_state, reference_sst_name=SST
-                )
-
-            if self.diagnostic:
-                output_state = {}
-        else:
-            # Necessary for diags to work when syncing reservoir
-            fv3_output_variables = [
-                self.rename_mapping.get(k, k) for k in self.model.output_variables
-            ]
-            diags = xr.Dataset({f"{k}_rc_out": state[k] for k in fv3_output_variables})
+        if (
+            self._state_machine.completed_increments <= self.synchronize_steps
+            or self.diagnostic
+        ):
             output_state = {}
+
+        if SST in output_state:
+            sst_updates = sst_update_from_reference(
+                state, output_state, reference_sst_name=SST
+            )
+            output_state.update(sst_updates)
 
         return {}, diags, output_state
 
@@ -329,11 +330,12 @@ class ReservoirPredictStepper(_ReservoirStepper):
             self.input_averager.increment_running_average(inputs)
 
         if self._is_rc_update_step(time):
+            logger.info(f"Reservoir model predict at time {time}")
             if self.input_averager is not None:
                 inputs.update(self.input_averager.get_averages())
             tendencies, diags, state = self.predict(inputs, state)
             hybrid_diags = rename_dataset_members(
-                inputs, {k: f"{k}_hyb_in" for k in inputs}
+                inputs, {k: f"{self.rename_mapping.get(k, k)}_hyb_in" for k in inputs}
             )
             diags.update(hybrid_diags)
         else:
