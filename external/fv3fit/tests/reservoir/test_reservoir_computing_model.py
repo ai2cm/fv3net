@@ -172,6 +172,7 @@ def test_state_preserved_after_load(tmpdir):
 
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
+    predictor.reservoir.dump_state(f"{output_path}/reservoir")
     loaded_predictor = ReservoirComputingModel.load(output_path)
 
     np.testing.assert_array_equal(

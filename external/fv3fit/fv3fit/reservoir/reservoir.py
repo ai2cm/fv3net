@@ -129,6 +129,14 @@ class Reservoir:
 
         return scaling * W_res
 
+    def dump_state(self, path: str) -> None:
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        fs.makedirs(path, exist_ok=True)
+
+        if self.state is not None:
+            with fs.open(os.path.join(path, self._STATE_NAME), "wb") as f:
+                np.save(f, self.state)
+
     def dump(self, path: str) -> None:
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)
@@ -141,10 +149,6 @@ class Reservoir:
             scipy.sparse.save_npz(f, self.W_in)
         with fs.open(os.path.join(path, self._RESERVOIR_WEIGHTS_NAME), "wb") as f:
             scipy.sparse.save_npz(f, self.W_res)
-
-        if self.state is not None:
-            with fs.open(os.path.join(path, self._STATE_NAME), "wb") as f:
-                np.save(f, self.state)
 
         if self.input_mask_array is not None:
             with fsspec.open(os.path.join(path, self._INPUT_MASK_NAME), "wb") as f:
