@@ -170,7 +170,13 @@ class _ReservoirStepper:
         self._state_machine = state_machine
 
         if self.warm_start:
-            self.synchronize_steps = 0
+            if self.synchronize_steps != 0:
+                raise ValueError(
+                    "Warm start specified with non-zero sync steps.  Ensure that"
+                    " the reservoir model is pre-synchronized and set sync steps to 0"
+                    " in the configuration."
+                )
+
             # allows for immediate predict
             self._state_machine(self._state_machine.INCREMENT)
 
