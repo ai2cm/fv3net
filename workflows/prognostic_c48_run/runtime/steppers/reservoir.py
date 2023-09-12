@@ -258,7 +258,12 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             # prevent conflict with non-halo diagnostics
             if self.model.input_overlap > 0:
                 overlap = self.model.input_overlap
-                diags.isel(x=slice(overlap, -overlap), y=slice(overlap, -overlap))
+                isel_kwargs = {
+                    dim: slice(overlap, -overlap)
+                    for dim in diags.dims
+                    if dim in ["x", "y"]
+                }
+                diags.isel(**isel_kwargs)
 
         return {}, diags, {}
 
