@@ -300,9 +300,10 @@ class ReservoirPredictStepper(_ReservoirStepper):
             output_state = {}
 
         if SST in output_state:
-            output_state = sst_update_from_reference(
+            sst_updates = sst_update_from_reference(
                 state, output_state, reference_sst_name=SST
             )
+            output_state.update(sst_updates)
 
         return {}, diags, output_state
 
