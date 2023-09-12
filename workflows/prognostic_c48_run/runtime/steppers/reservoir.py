@@ -596,7 +596,7 @@ def get_reservoir_steppers(
                 "Ensure that the rank key and model is present in the configuration."
             )
     else:
-        model = None
+        model = None  # type: ignore
 
     if require_scatter_gather:
         incrementer, predictor = _initialize_steppers_for_gather_scatter(
