@@ -134,8 +134,11 @@ spec:
         else:
             raise ValueError("memory request must be in Gi or Gb")
 
-        if cpus <= {{inputs.parameters.cpu-cutoff}} and memory <= {{inputs.parameters.memory-cutoff}}:
+        if cpus <= {{inputs.parameters.cpu-cutoff}}:
+          if memory <= {{inputs.parameters.memory-cutoff}}:
             node_pool = 'climate-sim-pool'
+          else:
+            node_pool = 'highmem-sim-pool'
         else:
             node_pool = 'ultra-sim-pool'
         print(node_pool)
