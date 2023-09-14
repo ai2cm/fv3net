@@ -385,12 +385,13 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         # Need to gather TSFC and SST for update_from_reference, which complicates
         # the gather requirements.  Otherwise those fields are subdomains.
-        if self._required_variables is None and self.model.is_hybrid:
-            use_variables = self.model.model.hybrid_variables
-        elif self._required_variables:
+        if self._required_variables is not None:
             use_variables = self._required_variables
         else:
-            use_variables = []
+            use_variables = list(self.model.output_variables)
+
+            if self.model.is_hybrid:
+                use_variables += list(self.model.model.hybrid_variables)
 
         retrieved_state = self._retrieve_fv3_state(state, use_variables)
         if self.communicator and use_variables:
@@ -625,6 +626,7 @@ def get_reservoir_steppers(
     Handles the situation where there are more ranks than models by creating
     gather/scatter steppers on ranks where there is no model to load.
     """
+    logger.info(f"Getting steppers w/ init time: {init_time}")
     num_models = len(config.models)
     if _more_ranks_than_models(num_models, communicator.partitioner.total_ranks):
         tile_root = communicator.partitioner.tile_root_rank(rank)
