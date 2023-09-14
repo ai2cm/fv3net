@@ -171,8 +171,9 @@ class _ReservoirStepper:
         diagnostic_only: bool = False,
         input_averager: Optional[TimeAverageInputs] = None,
         rename_mapping: Optional[NameDict] = None,
-        communicator: Optional[pace.util.CubedSphereCommunicator] = None,
         warm_start: bool = False,
+        communicator: Optional[pace.util.CubedSphereCommunicator] = None,
+        required_variables: Optional[Sequence[str]] = None,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -182,6 +183,7 @@ class _ReservoirStepper:
         self.input_averager = input_averager
         self.communicator = communicator
         self.warm_start = warm_start
+        self._required_variables = required_variables
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -251,8 +253,12 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
         Add the slmask if SST is an input variable for masking
         """
+        if self._required_variables is None:
+            variables = self.model.input_variables
+        else:
+            variables = self._required_variables
 
-        state_inputs = self._retrieve_fv3_state(state, self.model.input_variables)
+        state_inputs = self._retrieve_fv3_state(state, variables)
 
         if self.communicator:
             logger.info(f"gathering increment state, {list(state_inputs.keys())}")
@@ -379,22 +385,20 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         # Need to gather TSFC and SST for update_from_reference, which complicates
         # the gather requirements.  Otherwise those fields are subdomains.
-        vars_to_retrieve = []
-        if SST in [self.rename_mapping.get(k, k) for k in self.model.output_variables]:
-            vars_to_retrieve = [SST, TSFC, MASK]
-        if self.model.is_hybrid:
-            vars_to_retrieve += list(self.model.model.hybrid_variables)
+        if self._required_variables is None and self.model.is_hybrid:
+            use_variables = self.model.model.hybrid_variables
+        elif self._required_variables:
+            use_variables = self._required_variables
+        else:
+            use_variables = []
 
-        if vars_to_retrieve:
-            retrieved_state = self._retrieve_fv3_state(state, vars_to_retrieve)
-            if self.communicator:
-                logger.info(
-                    f"gathering predictor state (rank: {GLOBAL_COMM.Get_rank()}):"
-                    f" {list(retrieved_state.keys())}"
-                )
-                retrieved_state = gather_from_subtiles(
-                    self.communicator, retrieved_state
-                )
+        retrieved_state = self._retrieve_fv3_state(state, use_variables)
+        if self.communicator and use_variables:
+            logger.info(
+                f"gathering predictor state (rank: {GLOBAL_COMM.Get_rank()}):"
+                f" {list(retrieved_state.keys())}"
+            )
+            retrieved_state = gather_from_subtiles(self.communicator, retrieved_state)
 
         if self.model.is_hybrid:
             hybrid_inputs = self._rename_inputs_for_reservoir(retrieved_state)
@@ -503,7 +507,14 @@ def _get_time_averagers(model, do_time_average):
     return increment_averager, predict_averager
 
 
-def _get_reservoir_steppers(model, config, init_time, communicator=None):
+def _get_reservoir_steppers(
+    model,
+    config,
+    init_time,
+    communicator=None,
+    increment_variables=None,
+    predictor_variables=None,
+):
 
     state_machine = _FiniteStateMachine()
     rc_tdelta = pd.to_timedelta(config.reservoir_timestep)
@@ -519,8 +530,9 @@ def _get_reservoir_steppers(model, config, init_time, communicator=None):
         state_machine=state_machine,
         input_averager=increment_averager,
         rename_mapping=config.rename_mapping,
-        communicator=communicator,
         warm_start=config.warm_start,
+        communicator=communicator,
+        required_variables=increment_variables,
     )
     predictor = ReservoirPredictStepper(
         model,
@@ -531,8 +543,9 @@ def _get_reservoir_steppers(model, config, init_time, communicator=None):
         diagnostic_only=config.diagnostic_only,
         input_averager=predict_averager,
         rename_mapping=config.rename_mapping,
-        communicator=communicator,
         warm_start=config.warm_start,
+        communicator=communicator,
+        required_variables=predictor_variables,
     )
     return incrementer, predictor
 
@@ -587,7 +600,12 @@ def _initialize_steppers_for_gather_scatter(
     else:
         logging.info(f"Getting main steppers for rank {GLOBAL_COMM.Get_rank()}")
         incrementer, predictor = _get_reservoir_steppers(
-            model, config, init_time, communicator=communicator
+            model,
+            config,
+            init_time,
+            communicator=communicator,
+            increment_variables=variables,
+            predictor_variables=predictor_variables,
         )
 
     return incrementer, predictor
