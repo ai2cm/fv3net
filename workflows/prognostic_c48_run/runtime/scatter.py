@@ -1,11 +1,15 @@
 from typing import Callable
 
 import cftime
+import logging
 import xarray as xr
 
 import pace.util
 from runtime.types import State
 from runtime.conversions import quantity_state_to_dataset, dataset_to_quantity_state
+
+
+logger = logging.getLogger(__name__)
 
 
 def scatter_within_tile_for_prescriber(
@@ -70,6 +74,7 @@ def gather_from_subtiles(
     """
     state = xr.Dataset(state)
     gathered_state = communicator.tile.gather_state(dataset_to_quantity_state(state))
+
     if communicator.tile.rank == 0:
         return quantity_state_to_dataset(gathered_state)
     else:

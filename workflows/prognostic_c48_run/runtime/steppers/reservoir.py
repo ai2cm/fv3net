@@ -19,12 +19,12 @@ import pace.util
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST, TSFC
+from runtime.names import SST, TSFC, MASK
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, NameDict
 from ..scatter import scatter_within_tile, gather_from_subtiles
 
-global_comm = MPI.COMM_WORLD
+GLOBAL_COMM = MPI.COMM_WORLD
 logger = logging.getLogger(__name__)
 
 
@@ -255,6 +255,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         state_inputs = self._retrieve_fv3_state(state, self.model.input_variables)
 
         if self.communicator:
+            logger.info(f"gathering increment, {state_inputs.keys()}")
             state_inputs = gather_from_subtiles(self.communicator, state_inputs)
 
         reservoir_inputs = self._rename_inputs_for_reservoir(state_inputs)
@@ -284,6 +285,8 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
     def __call__(self, time, state):
 
         diags = {}
+        tendencies = {}
+        output_state = {}
 
         # add to averages
         inputs = self._get_inputs_from_state(state)
@@ -310,16 +313,18 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                     for dim in diags.dims
                     if dim in ["x", "y"]
                 }
-                diags.isel(**isel_kwargs)
+                diags = diags.isel(**isel_kwargs)
 
-        tendencies = {}
-        state = {}
-        if self.communicator:
-            tendencies, diags, state = _scatter_stepper_return(
-                self.communicator, tendencies, diags, state
-            )
+            logger.info(f"Pre scatter increment rank {GLOBAL_COMM.Get_rank()}")
+            if self.communicator:
+                logger.info(f"Communicator exists, rank {GLOBAL_COMM.Get_rank()}")
+                logger.info(f"Pre scatter state keys {list(output_state.keys())}")
+                logger.info(f"Pre scatter increment diag keys {list(diags.keys())}")
+                tendencies, diags, state = _scatter_stepper_return(
+                    self.communicator, tendencies, diags, output_state
+                )
 
-        return tendencies, diags, state
+        return tendencies, diags, output_state
 
 
 class ReservoirPredictStepper(_ReservoirStepper):
@@ -331,7 +336,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
     label = "reservoir_predictor"
 
-    def predict(self, inputs, state):
+    def predict(self, inputs, pre_predict_state):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
 
         self._state_machine(self._state_machine.PREDICT)
@@ -343,7 +348,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         )
 
         for k, v in output_state.items():
-            v.attrs["units"] = state[k].attrs.get("units", "unknown")
+            v.attrs["units"] = pre_predict_state[k].attrs.get("units", "unknown")
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
@@ -354,8 +359,9 @@ class ReservoirPredictStepper(_ReservoirStepper):
             output_state = {}
 
         if SST in output_state:
+            # note that refrence to update from is the predicted state here
             sst_updates = sst_update_from_reference(
-                state, output_state, reference_sst_name=SST
+                pre_predict_state, output_state, reference_sst_name=SST
             )
             output_state.update(sst_updates)
 
@@ -374,17 +380,21 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # the gather requirements.  Otherwise those fields are subdomains.
         vars_to_retrieve = []
         if SST in [self.rename_mapping.get(k, k) for k in self.model.output_variables]:
-            vars_to_retrieve = [SST, TSFC]
+            vars_to_retrieve = [SST, TSFC, MASK]
         if self.model.is_hybrid:
             vars_to_retrieve += list(self.model.model.hybrid_variables)
 
         if vars_to_retrieve:
-            state = self._retrieve_fv3_state(state, vars_to_retrieve)
+            retrieved_state = self._retrieve_fv3_state(state, vars_to_retrieve)
+            logger.info(f"Variables to retrieve, {list(retrieved_state.keys())}")
             if self.communicator:
-                state = gather_from_subtiles(self.communicator, state)
+                logger.info(f"Predictor gathering (rank: {GLOBAL_COMM.Get_rank()}))")
+                retrieved_state = gather_from_subtiles(
+                    self.communicator, retrieved_state
+                )
 
         if self.model.is_hybrid:
-            hybrid_inputs = self._rename_inputs_for_reservoir(state)
+            hybrid_inputs = self._rename_inputs_for_reservoir(retrieved_state)
             hybrid_inputs = hybrid_inputs[
                 [k for k in self.model.model.hybrid_variables]
             ]
@@ -394,29 +404,31 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self.input_averager is not None:
             self.input_averager.increment_running_average(hybrid_inputs)
 
+        logger.info("Before predict time check")
         if self._is_rc_update_step(time):
             logger.info(f"Reservoir model predict at time {time}")
             if self.input_averager is not None:
                 hybrid_inputs.update(self.input_averager.get_averages())
-            tendencies, diags, state = self.predict(hybrid_inputs, state)
+            tendencies, diags, output_state = self.predict(
+                hybrid_inputs, retrieved_state
+            )
             hybrid_diags = rename_dataset_members(
                 hybrid_inputs,
                 {k: f"{self.rename_mapping.get(k, k)}_hyb_in" for k in hybrid_inputs},
             )
-            for k, v in diags.items():
-                logger.info(f"diag pred {k}: {v.shape}")
-            for k, v in hybrid_diags.items():
-                logger.info(f"diag hyb {k}: {v.shape}")
             diags.update(hybrid_diags)
+
+            logger.info(f"Pre scatter step predict {GLOBAL_COMM.Get_rank()}")
+            if self.communicator:
+                logger.info(f"Communicator exists, rank {GLOBAL_COMM.Get_rank()}")
+                logger.info(f"Pre scatter state keys {list(output_state.keys())}")
+                tendencies, diags, state = _scatter_stepper_return(
+                    self.communicator, tendencies, diags, output_state
+                )
         else:
-            tendencies, diags, state = {}, {}, {}
+            tendencies, diags, output_state = {}, {}, {}
 
-        if self.communicator:
-            tendencies, diags, state = _scatter_stepper_return(
-                self.communicator, tendencies, diags, state
-            )
-
-        return tendencies, diags, state
+        return tendencies, diags, output_state
 
 
 class _GatherScatterStateStepper:
@@ -444,12 +456,22 @@ class _GatherScatterStateStepper:
         tendencies = {}
         diags = {}
 
-        if self._is_rc_update_step(time):
-            state = xr.Dataset({k: state[k] for k in self.variables})
-            gather_from_subtiles(self.communicator, state)
+        logger.info(f"Gather/scatter at time {time}")
+        retrieved_state = xr.Dataset({k: state[k] for k in self.variables})
+        logger.info(
+            f"Gathering from gs obj, rank({GLOBAL_COMM.Get_rank()}),"
+            f" {list(retrieved_state.keys())}"
+        )
+        gather_from_subtiles(self.communicator, retrieved_state)
 
+        if self._is_rc_update_step(time):
+
+            logger.info(
+                f"Pre scatter state keys, rank({GLOBAL_COMM.Get_rank()}),"
+                f" {list(output_state.keys())}"
+            )
             tendencies, diags, output_state = _scatter_stepper_return(
-                self.communicator, tendencies, diags, state
+                self.communicator, tendencies, diags, output_state
             )
 
         return tendencies, diags, output_state
@@ -539,15 +561,20 @@ def _initialize_steppers_for_gather_scatter(
         # Need to gather additional fields to update post-prediction
         # TODO: how to make less of a hack?
         if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
-            predictor_variables = [SST, TSFC] + variables
+            predictor_variables = [SST, TSFC, MASK] + variables
         else:
             predictor_variables = variables
     else:
         variables = None
         predictor_variables = None
-    variables = global_comm.bcast(variables, root=0)
+
+    variables = GLOBAL_COMM.bcast(variables, root=0)
+    predictor_variables = GLOBAL_COMM.bcast(predictor_variables, root=0)
 
     if rank != tile_root:
+        logging.info(
+            f"Getting gather/scatter steppers for rank {GLOBAL_COMM.Get_rank()}"
+        )
         timestep = pd.to_timedelta(config.reservoir_timestep)
         incrementer = _GatherScatterStateStepper(
             communicator, variables, init_time, timestep
@@ -556,6 +583,7 @@ def _initialize_steppers_for_gather_scatter(
             communicator, predictor_variables, init_time, timestep
         )
     else:
+        logging.info(f"Getting main steppers for rank {GLOBAL_COMM.Get_rank()}")
         incrementer, predictor = _get_reservoir_steppers(
             model, config, init_time, communicator=communicator
         )
@@ -588,6 +616,7 @@ def get_reservoir_steppers(
         require_scatter_gather = False
 
     if rank == tile_root:
+        logger.info(f"Loading reservoir model on rank {rank}")
         try:
             model = open_rc_model(config.models[model_index])
         except KeyError:
