@@ -150,9 +150,9 @@ def _scatter_stepper_return(communicator, tendencies, diags, state):
     diags = scatter_within_tile(communicator, diags)
     state = scatter_within_tile(communicator, state)
 
-    state = state if state else {}
     tendencies = tendencies if tendencies else {}
     diags = diags if diags else {}
+    state = state if state else {}
 
     return tendencies, diags, state
 
@@ -255,10 +255,11 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         state_inputs = self._retrieve_fv3_state(state, self.model.input_variables)
 
         if self.communicator:
-            logger.info(f"gathering increment, {state_inputs.keys()}")
+            logger.info(f"gathering increment state, {list(state_inputs.keys())}")
             state_inputs = gather_from_subtiles(self.communicator, state_inputs)
 
         reservoir_inputs = self._rename_inputs_for_reservoir(state_inputs)
+
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
             try:
@@ -315,11 +316,11 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                 }
                 diags = diags.isel(**isel_kwargs)
 
-            logger.info(f"Pre scatter increment rank {GLOBAL_COMM.Get_rank()}")
             if self.communicator:
-                logger.info(f"Communicator exists, rank {GLOBAL_COMM.Get_rank()}")
-                logger.info(f"Pre scatter state keys {list(output_state.keys())}")
-                logger.info(f"Pre scatter increment diag keys {list(diags.keys())}")
+                logger.info(
+                    f"Scattering increment diags (rank {GLOBAL_COMM.Get_rank()}):"
+                    f" {list(diags.keys())}"
+                )
                 tendencies, diags, state = _scatter_stepper_return(
                     self.communicator, tendencies, diags, output_state
                 )
@@ -386,9 +387,11 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         if vars_to_retrieve:
             retrieved_state = self._retrieve_fv3_state(state, vars_to_retrieve)
-            logger.info(f"Variables to retrieve, {list(retrieved_state.keys())}")
             if self.communicator:
-                logger.info(f"Predictor gathering (rank: {GLOBAL_COMM.Get_rank()}))")
+                logger.info(
+                    f"gathering predictor state (rank: {GLOBAL_COMM.Get_rank()}):"
+                    f" {list(retrieved_state.keys())}"
+                )
                 retrieved_state = gather_from_subtiles(
                     self.communicator, retrieved_state
                 )
@@ -404,7 +407,6 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self.input_averager is not None:
             self.input_averager.increment_running_average(hybrid_inputs)
 
-        logger.info("Before predict time check")
         if self._is_rc_update_step(time):
             logger.info(f"Reservoir model predict at time {time}")
             if self.input_averager is not None:
@@ -418,10 +420,11 @@ class ReservoirPredictStepper(_ReservoirStepper):
             )
             diags.update(hybrid_diags)
 
-            logger.info(f"Pre scatter step predict {GLOBAL_COMM.Get_rank()}")
             if self.communicator:
-                logger.info(f"Communicator exists, rank {GLOBAL_COMM.Get_rank()}")
-                logger.info(f"Pre scatter state keys {list(output_state.keys())}")
+                logger.info(
+                    f"Scattering predict return values (rank {GLOBAL_COMM.Get_rank()}):"
+                    f" {list(output_state.keys()) + list(diags.keys())}"
+                )
                 tendencies, diags, state = _scatter_stepper_return(
                     self.communicator, tendencies, diags, output_state
                 )
@@ -456,7 +459,6 @@ class _GatherScatterStateStepper:
         tendencies = {}
         diags = {}
 
-        logger.info(f"Gather/scatter at time {time}")
         retrieved_state = xr.Dataset({k: state[k] for k in self.variables})
         logger.info(
             f"Gathering from gs obj, rank({GLOBAL_COMM.Get_rank()}),"
@@ -467,8 +469,8 @@ class _GatherScatterStateStepper:
         if self._is_rc_update_step(time):
 
             logger.info(
-                f"Pre scatter state keys, rank({GLOBAL_COMM.Get_rank()}),"
-                f" {list(output_state.keys())}"
+                f"GS obj scatter (rank {GLOBAL_COMM.Get_rank()}):"
+                f" {list(output_state.keys()) + list(diags.keys())}"
             )
             tendencies, diags, output_state = _scatter_stepper_return(
                 self.communicator, tendencies, diags, output_state
