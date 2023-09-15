@@ -1,7 +1,8 @@
 import os
 
-from model.autoreg_diffusion_mod import Unet, Flow, GaussianDiffusion, Trainer
-from config_infer import config
+from model.autoreg_diffusion_mod_focal import Unet, Flow, GaussianDiffusion, Trainer
+from data.load_data import load_data
+from config_focal import config
 
 def main():
 
@@ -44,7 +45,7 @@ def main():
         out_dim = out_ch_flow,
         dim_mults = config.dim_mults
     ).cuda()
-
+    
     diffusion = GaussianDiffusion(
         model,
         flow,
@@ -56,10 +57,17 @@ def main():
         objective = config.objective
     ).cuda()
 
+    train_dl, val_dl = load_data(
+            config.data_config,
+            config.batch_size,
+            pin_memory = True,
+            num_workers = 4,
+        )
+
     trainer = Trainer(
         diffusion,
-        None,
-        None,
+        train_dl,
+        val_dl,
         train_batch_size = config.batch_size,
         train_lr = config.lr,
         train_num_steps = config.steps,
@@ -69,14 +77,13 @@ def main():
         ema_decay = config.ema_decay,
         amp = config.amp,
         split_batches = config.split_batches,
-        eval_folder = os.path.join(config.eval_folder, f"{config.data_name}/"),
+        eval_folder = os.path.join(config.eval_folder, f"{config.model_name}/"),
         results_folder = os.path.join(config.results_folder, f"{config.model_name}/"),
         config = config
     )
 
-    trainer.load(config.milestone)
+    trainer.train()
 
-    trainer.sample()
 
 if __name__ == "__main__":
     print(config)

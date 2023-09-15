@@ -1,3 +1,4 @@
+import torch
 import pickle
 import numpy as np
 import xarray as xr
@@ -20,12 +21,14 @@ class VSRDataset(Dataset):
         # load data
         self.X, self.X_, self.y, self.topo = {}, {}, {}, {}
 
+        PATH = "/extra/ucibdl0/shared/data/fv3gfs"
+
         for member in range(1, ENSEMBLE + 1):
 
-            self.X[member] = xr.open_zarr(f"/data/prakhars/ensemble/c48_precip_plus_more_ave/{member:04d}/sfc_8xdaily_ave_coarse.zarr")
-            self.X_[member] = xr.open_zarr(f"/data/prakhars/ensemble/c48_atmos_ave/{member:04d}/atmos_8xdaily_ave_coarse.zarr")
-            self.y[member] = xr.open_zarr(f"/data/prakhars/ensemble/c384_precip_ave/{member:04d}/sfc_8xdaily_ave.zarr")
-            self.topo[member] = xr.open_zarr(f"/data/prakhars/ensemble/c384_topo/{member:04d}/atmos_static.zarr")
+            self.X[member] = xr.open_zarr(f"{PATH}/c48_precip_plus_more_ave/{member:04d}/sfc_8xdaily_ave_coarse.zarr")
+            self.X_[member] = xr.open_zarr(f"{PATH}/c48_atmos_ave/{member:04d}/atmos_8xdaily_ave_coarse.zarr")
+            self.y[member] = xr.open_zarr(f"{PATH}/c384_precip_ave/{member:04d}/sfc_8xdaily_ave.zarr")
+            self.topo[member] = xr.open_zarr(f"{PATH}/c384_topo/{member:04d}/atmos_static.zarr")
         
         # expected sequence length
         self.length = length
@@ -85,8 +88,9 @@ class VSRDataset(Dataset):
 
         if self.mode == 'train':
             
-            tile = idx % self.tiles
-            member = idx % 10 + 1
+            np.random.seed()
+            tile = np.random.randint(self.tiles)
+            member = np.random.randint(10) + 1
         
         else:
             

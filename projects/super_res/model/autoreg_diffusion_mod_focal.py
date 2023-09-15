@@ -48,6 +48,12 @@ ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
 # helpers functions
 
+def focal_mse_loss(input, target, reduction = None):
+    weight = torch.abs(input - target)
+    norm = (weight - weight.min()) / (weight.max() - weight.min())
+    focal = torch.pow((norm + 1e-10), 5)
+    return weight * (input - target) ** 2
+
 def get_random_idx_with_difference(min_tx, max_tx, number_tx, diff):
     times = []
     while len(times) < number_tx:
@@ -1052,6 +1058,8 @@ class GaussianDiffusion(nn.Module):
             return F.l1_loss
         elif self.loss_type == 'l2':
             return F.mse_loss
+        elif self.loss_type == 'focal':
+            return focal_mse_loss
         else:
             raise ValueError(f'invalid loss type {self.loss_type}')
 
@@ -1126,7 +1134,7 @@ class GaussianDiffusion(nn.Module):
         loss1 = self.loss_fn(ures, hres, reduction = 'none')
         loss1 = reduce(loss1, 'b ... -> b (...)', 'mean')
 
-        loss2 = self.loss_fn(x_start, warped, reduction = 'none')
+        loss2 = self.loss_fn(warped, rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'), reduction = 'none')
         loss2 = reduce(loss2, 'b ... -> b (...)', 'mean')
 
         return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*0.3
@@ -1728,8 +1736,7 @@ class Trainer(object):
                 if self.rollout == 'partial':
 
                     seq_len = self.rollout_batch
-                    #indices = get_random_idx_with_difference(0, 3176 - (seq_len + 2), 75 // seq_len, seq_len + 2) # 75 samples per tile
-                    indices = list(range(0, 3176 - (seq_len + 2), 250)) # deterministic, 325 samples per tile for seq_len of 25
+                    indices = get_random_idx_with_difference(0, 3176 - (seq_len + 2), 75 // seq_len, seq_len + 2) # 250 samples per tile
 
                     for count, st in enumerate(indices):
 

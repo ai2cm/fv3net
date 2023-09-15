@@ -19,7 +19,7 @@ config.save_and_sample_every = 20000
 config.ema_decay = 0.995
 config.amp = False
 config.split_batches = True
-config.additional_note = "2d-nomulti-ls-ensemble"
+config.additional_note = "2d-nomulti-nols-ensemble"
 config.eval_folder = "./evaluate"
 config.results_folder = "./results"
 config.tensorboard_dir = "./tensorboard"
@@ -34,7 +34,7 @@ config.data_config = config_dict.ConfigDict({
     "channels": ["PRATEsfc_coarse"],
     "img_channel": 1,
     "img_size": 384,
-    "logscale": True,
+    "logscale": False,
     "multi": False,
     "flow": "2d",
     "minipatch": False
