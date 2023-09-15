@@ -45,11 +45,6 @@ def main(args):
     # set mask TRue if mask_field is 0 and False if mask_field is 1
     dataset["mask_field"] = dataset.mask_field == 0
 
-    plt.imshow(dataset.mask_field[2, 0, ...])
-    plt.colorbar()
-    plt.savefig("mask1.png")
-    plt.close()
-
     # load single step and rollout predictions
     single_step_prediction = xr.open_dataset(
         args.input_path + "/single_step_prediction.nc"
@@ -64,16 +59,6 @@ def main(args):
     rollout_prediction_tendency = (
         rollout_prediction.sst.shift(time=-1) - rollout_prediction.sst
     ) / DELTA_T
-
-    """
-    # swap axes from (time, tile, y, x) to (tile, time, y, x)
-    sst_swaped = swap_axes(dataset.sst.data)
-    sst_tendency_swaped = swap_axes(dataset.sst_tendency.data)
-    single_step_prediction_tendency_swaped = swap_axes(
-        single_step_prediction_tendency.data
-    )
-    #swap axes of mask_field
-    mask_field_swaped = swap_axes(dataset.mask_field.data)"""
 
     # cases
     cases = ["single_step", "rollout", "single_step_tend", "rollout_tend"]
@@ -142,6 +127,17 @@ def main(args):
             create_spatial_mean_plots(
                 true, pred, dataset.mask_field[: len(true), ...], case, plot_path
             )
+            create_spatial_r2_plot(
+                true, pred, dataset.mask_field[: len(true), ...], case, plot_path
+            )
+            create_spatial_error_mean_plots(
+                true, pred, dataset.mask_field[: len(true), ...], case, plot_path
+            )
+            create_spatial_abs_error_mean_plots(
+                true, pred, dataset.mask_field[: len(true), ...], case, plot_path
+            )
+            if "tend" not in case:
+                create_oni_plot(true, pred, case, plot_path)
 
 
 def swap_axes(data):
@@ -157,7 +153,7 @@ def calculate_scores(target, pred, mask, case):
     pred = pred.data
     scores = {}
     squared_difference_masked = np.ma.array((target - pred) ** 2, mask=mask)
-    difference_masked = np.ma.array(target - pred, mask=mask)
+    difference_masked = np.ma.array(pred - target, mask=mask)
     absolute_difference_masked = np.ma.array(np.abs(target - pred), mask=mask)
     scores[case + "_mse"] = np.mean(squared_difference_masked)
     scores[case + "_rmse"] = np.sqrt(scores[case + "_mse"])
@@ -175,15 +171,6 @@ def calculate_scores(target, pred, mask, case):
                     area_r2_scores[i, j] = max(
                         r2_score(target[:, tile, i, j], pred[:, tile, i, j],), -1
                     )
-        """#plot r2 scores
-        plt.figure()
-        plt.imshow(area_r2_scores)
-        plt.colorbar()
-        #save including tile number
-        plt.savefig("r2_scores_tile_" + str(tile) + case + ".png")
-        #close figure
-
-        plt.close()"""
         r2_scores.append(np.mean(np.ma.array(area_r2_scores, mask=mask[0, tile, ...])))
     # mean over tiles
     scores[case + "_r2"] = np.mean(r2_scores)
@@ -195,6 +182,22 @@ def calculate_scores(target, pred, mask, case):
     scores[case + "_mean_bias_tile"] = np.mean(difference_masked, axis=(0, 2, 3))
     scores[case + "_r2_tile"] = np.array(r2_scores)
     return scores
+
+
+def calculate_spatial_r2(target, pred, mask):
+    spatial_r2 = np.zeros((6, target.shape[-1], target.shape[-1]))
+    for tile in range(6):
+        # initialze array to store r2 scores for each tile
+
+        for i in range(target.shape[-1]):
+            for j in range(target.shape[-1]):
+                if not mask[0, tile, i, j]:
+                    # to make it more interpretable we set r2 scores below -1 to -1
+                    spatial_r2[tile, i, j] = max(
+                        r2_score(target[:, tile, i, j], pred[:, tile, i, j],), -1
+                    )
+
+    return spatial_r2
 
 
 def create_timeseries_plots(true, pred, mask, case, path):
@@ -257,7 +260,7 @@ def create_error_timeseries_mean_plots(error, mask, case, path):
 
 def create_timeseries_random_plots(true, pred, mask, case, path):
     # make plot with 7 subplots, one global plot and 6 tiles
-    fig, axs = plt.subplots(6, 2, figsize=(10, 15))
+    fig, axs = plt.subplots(6, 2, figsize=(13, 20))
 
     # plot tiles
     for tile in range(6):
@@ -299,15 +302,124 @@ def create_spatial_mean_plots(true_dataset, pred_dataset, mask, case, path):
     fig, axs = plt.subplots(2, 1, figsize=(10, 15))
     # plot true
     plt.subplot(2, 1, 1)
-    vcm.cubedsphere.to_cross(true_dataset.mean("time"), x="x", y="y").plot()
+    vcm.cubedsphere.to_cross(true_dataset.mean("time"), x="x", y="y").plot(
+        cmap="coolwarm"
+    )
     plt.title("true")
     # plot pred
     plt.subplot(2, 1, 2)
-    vcm.cubedsphere.to_cross(pred_dataset.mean("time"), x="x", y="y").plot()
+    vcm.cubedsphere.to_cross(pred_dataset.mean("time"), x="x", y="y").plot(
+        cmap="coolwarm"
+    )
     plt.title("pred")
     # save plot
     plt_path = path + "/spatial_mean_" + case + ".png"
     plt.savefig(plt_path)
+    plt.close()
+
+
+def create_spatial_r2_plot(true_dataset, pred_dataset, mask, case, path):
+    # what colormap should i use for r2 score?
+    # cmap = plt.cm.get_cmap('RdBu')
+    # make one plot
+    r2_scores = pred_dataset.copy()
+    r2_scores.data = calculate_spatial_r2(true_dataset.data, pred_dataset.data, mask)[
+        np.newaxis, ...
+    ].repeat(true_dataset.shape[0], axis=0)
+    plt.figure(figsize=(16, 10))
+    vcm.cubedsphere.to_cross(r2_scores.mean("time"), x="x", y="y").plot(
+        cmap="RdBu", vmin=-1, vmax=1
+    )
+
+    plt_path = path + "/spatial_r2_" + case + ".png"
+    plt.savefig(plt_path)
+    plt.close()
+
+
+def create_spatial_error_mean_plots(true_dataset, pred_dataset, mask, case, path):
+    plt.figure(figsize=(16, 10))
+    vcm.cubedsphere.to_cross(
+        true_dataset.mean(dim="time") - pred_dataset.mean(dim="time"), x="x", y="y"
+    ).plot()
+
+    plt.show()
+    plt.savefig(path + "/spatial_error_mean_" + case + ".png")
+    plt.close()
+
+
+def create_spatial_abs_error_mean_plots(true_dataset, pred_dataset, mask, case, path):
+    abs_mean = pred_dataset.copy()
+    abs_mean.data = np.abs(true_dataset.data - pred_dataset.data)
+    plt.figure(figsize=(16, 10))
+    vcm.cubedsphere.to_cross(abs_mean.mean(dim="time"), x="x", y="y").plot(cmap="Reds")
+
+    plt.show()
+    plt.savefig(path + "/spatial_abs_error_mean_" + case + ".png")
+    plt.close()
+
+
+def create_spatial_error_random_plots(true_dataset, pred_dataset, mask, case, path):
+    pass
+
+
+def create_oni_plot(true, pred, case, path):
+    # calculate 3 month roling average
+    weeks_window = 13  # 13 weeks in 3 months
+    # set 30 year sst average over nino 3.4 region
+    # (from the last 30 years of training data)
+    thirty_year_average = 299.92
+    true = true.data
+    pred = pred.data
+
+    three_month_rolling_avergage_prediction = [
+        (
+            np.nanmean(pred[i : i + weeks_window, 3, 33:, 20:28])
+            + np.nanmean(pred[i : i + weeks_window, 4, :14, 20:28])
+        )
+        * 0.5
+        for i in range(true.shape[0] - weeks_window)
+    ]
+    three_month_rolling_avergage_true = [
+        (
+            np.nanmean(true[i : i + weeks_window, 3, 33:, 20:28])
+            + np.nanmean(true[i : i + weeks_window, 4, :14, 20:28])
+        )
+        * 0.5
+        for i in range(true.shape[0] - weeks_window)
+    ]
+    fig, axs = plt.subplots(1, 1, figsize=(15, 10))
+    plt.plot(
+        -(
+            np.ones((true.shape[0] - weeks_window,)) * thirty_year_average
+            - np.array(three_month_rolling_avergage_true)
+        ),
+        label="ERA5",
+        linewidth=2,
+    )
+    plt.plot(
+        -(
+            np.ones((true.shape[0] - weeks_window,)) * thirty_year_average
+            - np.array(three_month_rolling_avergage_prediction)
+        ),
+        label="Reservoir rollout",
+        linewidth=2,
+    )
+
+    plt.plot(np.zeros((true.shape[0] - weeks_window,)), color="black", linestyle="--")
+    plt.plot(
+        0.5 * np.ones((true.shape[0] - weeks_window,)), color="gray", linestyle="--"
+    )
+    plt.plot(
+        -0.5 * np.ones((true.shape[0] - weeks_window,)), color="gray", linestyle="--"
+    )
+    plt.ylim(-2.5, 2.5)
+    plt.ylabel("Oceanic Nino Index", fontsize=20)
+    plt.xlabel("Weeks into validation period (2010-2014)", fontsize=20)
+    plt.legend(fontsize=20)
+    # save plot
+    plt_path = path + "/oni_plot_" + case + ".png"
+    plt.savefig(plt_path)
+    plt.close()
 
 
 if __name__ == "__main__":

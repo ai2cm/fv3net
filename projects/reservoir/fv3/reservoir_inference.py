@@ -91,18 +91,26 @@ def main(args):
 
     # rollout
     stepper.reset_states()
-    for t in tqdm(range(n_synchronize)):
+    for t in tqdm(range(n_synchronize)):  #
         stepper.increment_reservoir_states(dataset.isel(time=t))
-    rollout_steps = []
-
+    if args.tendency_or_full == "tendency":
+        prediction = stepper.predict_global_state_tendency(dataset.isel(time=t))
+    else:
+        prediction = stepper.predict_global_state(dataset.isel(time=t))
+    rollout_steps = [prediction]
+    i = 0
     for t in tqdm(range(n_synchronize, len(dataset.time))):
         if args.tendency_or_full == "tendency":
-            prediction = stepper.predict_global_state_tendency(dataset.isel(time=t))
+            # important for tendency prediction to not use the true sst to step forward
+            prediction = stepper.predict_global_state_tendency_rollout(
+                dataset.isel(time=t), rollout_steps[i].sst
+            )
         else:
             prediction = stepper.predict_global_state(dataset.isel(time=t))
         rollout_steps.append(prediction)
         stepper.increment_reservoir_states(prediction)
-    rollout = xr.concat(rollout_steps, dim="time")
+        i += 1
+    rollout = xr.concat(rollout_steps[1:], dim="time")
 
     # save predictions
     os.system("mkdir -p " + args.output_path)
@@ -153,9 +161,26 @@ class GlobalReservoirStepper:
         dummy_inputs = xr.Dataset({})
 
         for rank in range(self._TOTAL_RANKS):
+            # do use the true sst to step forward
             true_sst = hybrid_input.sst.sel(tile=rank)
             full_prediction = self.model_adapters[rank].predict(dummy_inputs)
             full_prediction.sst.data = true_sst + DELTA_T * full_prediction.sst.data
+            rank_predictions.append(full_prediction)
+        return xr.concat(rank_predictions, dim="tile")
+
+    def predict_global_state_tendency_rollout(
+        self, hybrid_input: xr.Dataset, base_sst: xr.DataArray
+    ):
+        rank_predictions = []
+        dummy_inputs = xr.Dataset({})
+
+        for rank in range(self._TOTAL_RANKS):
+            # do not use the true sst to step forward
+            # true_sst = hybrid_input.sst.sel(tile=rank)
+            full_prediction = self.model_adapters[rank].predict(dummy_inputs)
+            full_prediction.sst.data = (
+                base_sst.sel(tile=rank).data + DELTA_T * full_prediction.sst.data
+            )
             rank_predictions.append(full_prediction)
         return xr.concat(rank_predictions, dim="tile")
 
@@ -186,6 +211,22 @@ class GlobalHybridReservoirStepper(GlobalReservoirStepper):
                 hybrid_input.sel(tile=rank)
             )
             full_prediction.sst.data = true_sst + DELTA_T * full_prediction.sst.data
+            rank_predictions.append(full_prediction)
+        return xr.concat(rank_predictions, dim="tile")
+
+    def predict_global_state_tendency_rollout(
+        self, hybrid_input: xr.Dataset, base_sst: xr.DataArray
+    ):
+        rank_predictions = []
+
+        for rank in range(self._TOTAL_RANKS):
+            # do not use the true sst to step forward
+            full_prediction = self.model_adapters[rank].predict(
+                hybrid_input.sel(tile=rank)
+            )
+            full_prediction.sst.data = (
+                base_sst.sel(tile=rank).data + DELTA_T * full_prediction.sst.data
+            )
             rank_predictions.append(full_prediction)
         return xr.concat(rank_predictions, dim="tile")
 
