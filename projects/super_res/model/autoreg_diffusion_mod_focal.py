@@ -1,10 +1,10 @@
 import os
 import math
 from pathlib import Path
-from random import random
+from random import random, randint
 from functools import partial
 from collections import namedtuple
-from joblib import Parallel, delayed
+import xarray as xr
 
 import numpy as np
 
@@ -13,10 +13,16 @@ from torch import nn, einsum
 import torch.nn.functional as F
 import wandb
 
+from torchvision.transforms.functional import crop
+
 import piq
+import pickle
+import cv2
+from scipy.stats import wasserstein_distance
 
 from kornia import filters
 from torch.optim import Adam
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 
 from einops import rearrange, reduce
 from einops.layers.torch import Rearrange
@@ -24,6 +30,7 @@ from einops.layers.torch import Rearrange
 from PIL import Image
 
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable as smap
 
 from tqdm.auto import tqdm
@@ -33,11 +40,41 @@ import flow_vis
 
 from accelerate import Accelerator
 
+from .network_swinir import SwinIR as context_net
+
 # constants
 
 ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
 # helpers functions
+
+def focal_mse_loss(input, target, reduction = None):
+    weight = torch.abs(input - target)
+    norm = (weight - weight.min()) / (weight.max() - weight.min())
+    focal = torch.pow((norm + 1e-10), 5)
+    return weight * (input - target) ** 2
+
+def get_random_idx_with_difference(min_tx, max_tx, number_tx, diff):
+    times = []
+    while len(times) < number_tx:
+        new_time = randint(min_tx, max_tx)
+        if all(abs(new_time - time) >= diff for time in times):
+            times.append(new_time)
+    return times
+
+def calculate_crps(truth, pred, num_samples, num_videos_per_batch, num_frames, img_channels, img_size):
+    truth_cdf = np.zeros((256, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+    for i in range(256):
+        truth_cdf[i, :, :, :, :, :, :] = (truth <= i).astype('uint8')
+    pred_cdf = np.zeros((256, num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+    for j in range(256):
+        pred_cdf[j, :, :, :, :, :, :, :] = (pred <= j).astype('uint8')
+    red_pred_cdf = pred_cdf.mean(1)
+    temp = np.square(red_pred_cdf - truth_cdf)
+    temp_dz = temp.sum(0)
+    temp_dz_dd = temp_dz.mean(axis = (3, 4, 5))
+    temp_dz_dd_dt = temp_dz_dd.mean(2)
+    return temp_dz_dd_dt.mean()
 
 def save_image(tensor, path):
     im = Image.fromarray((tensor[:,:,:3] * 255).astype(np.uint8))
@@ -84,13 +121,14 @@ def normalize_to_neg_one_to_one(img):
 def unnormalize_to_zero_to_one(t):
     return (t + 1) * 0.5
 
-# ssf modules
+# flow modules
 
 def gaussian_pyramids(input, base_sigma = 1, m = 5):
     
     output = [input]
     N, C, H, W = input.shape
-    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))
+    
+    kernel = filters.get_gaussian_kernel2d((5, 5), (base_sigma, base_sigma))#.unsqueeze(0)
     
     for i in range(m):
         
@@ -146,6 +184,41 @@ def scale_space_warp(input, flow):
     warped = F.grid_sample(multi_scale, flow_grid, padding_mode = "border", align_corners = True).squeeze(2)
     
     return warped
+
+def flow_warp(x, flow, interp_mode='bilinear', padding_mode='border', align_corners=True):
+    """Warp an image or feature map with optical flow.
+
+    Args:
+        x (Tensor): Tensor with size (n, c, h, w).
+        flow (Tensor): Tensor with size (n, h, w, 2), normal value.
+        interp_mode (str): 'nearest' or 'bilinear' or 'nearest4'. Default: 'bilinear'.
+        padding_mode (str): 'zeros' or 'border' or 'reflection'.
+            Default: 'zeros'.
+        align_corners (bool): Before pytorch 1.3, the default value is
+            align_corners=True. After pytorch 1.3, the default value is
+            align_corners=False. Here, we use the True as default.
+
+
+    Returns:
+        Tensor: Warped image or feature map.
+    """
+    n, _, h, w = x.size()
+    # create mesh grid
+    grid_y, grid_x = torch.meshgrid(torch.arange(0, h, dtype=x.dtype, device=x.device),
+                                    torch.arange(0, w, dtype=x.dtype, device=x.device))
+    grid = torch.stack((grid_x, grid_y), 2).float()  # W(x), H(y), 2
+    grid.requires_grad = False
+    
+    vgrid = grid + flow
+
+    # scale grid to [-1,1]
+    vgrid_x = 2.0 * vgrid[:, :, :, 0] / max(w - 1, 1) - 1.0
+    vgrid_y = 2.0 * vgrid[:, :, :, 1] / max(h - 1, 1) - 1.0
+    vgrid_scaled = torch.stack((vgrid_x, vgrid_y), dim=3)
+
+    output = F.grid_sample(x, vgrid_scaled, mode=interp_mode, padding_mode=padding_mode, align_corners=align_corners)
+
+    return output
 
 # small helper modules
 
@@ -623,6 +696,7 @@ class GaussianDiffusion(nn.Module):
         flow,
         *,
         image_size,
+        in_ch,
         timesteps = 1200,
         sampling_timesteps = None,
         loss_type = 'l1',
@@ -635,11 +709,13 @@ class GaussianDiffusion(nn.Module):
         auto_normalize = True
     ):
         super().__init__()
-        #assert not (type(self) == GaussianDiffusion and model.channels != model.out_dim)
-        #assert not model.random_or_learned_sinusoidal_cond
 
         self.model = model
         
+        self.umodel = context_net(upscale = 8, in_chans = in_ch, out_chans = 1, img_size = 48, window_size = 8,
+        img_range = 1., depths = [6, 6, 6, 6, 6, 6, 6], embed_dim = 200,
+        num_heads = [8, 8, 8, 8, 8, 8, 8],
+        mlp_ratio = 2, upsampler = 'pixelshuffle', resi_connection = '3conv')
         self.flow = flow
         self.upsample = nn.UpsamplingBilinear2d(scale_factor=8)
         
@@ -743,6 +819,7 @@ class GaussianDiffusion(nn.Module):
         )
 
     def q_posterior(self, x_start, x_t, t):
+
         posterior_mean = (
             extract(self.posterior_mean_coef1, t, x_t.shape) * x_start +
             extract(self.posterior_mean_coef2, t, x_t.shape) * x_t
@@ -751,11 +828,8 @@ class GaussianDiffusion(nn.Module):
         posterior_log_variance_clipped = extract(self.posterior_log_variance_clipped, t, x_t.shape)
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
-    #def model_predictions(self, x, t, x_self_cond = None, clip_x_start = False):
     def model_predictions(self, x, t, l_cond, context, x_self_cond = None, clip_x_start = False):
         
-        #model_output = self.model(x, t, x_self_cond)
-        #print(x.shape, l_cond.shape)
         model_output = self.model(torch.cat((x, l_cond), 1), t, context, x_self_cond)
         
         maybe_clip = partial(torch.clamp, min = -1., max = 1.) if clip_x_start else identity
@@ -778,10 +852,8 @@ class GaussianDiffusion(nn.Module):
 
         return ModelPrediction(pred_noise, x_start)
 
-    #def p_mean_variance(self, x, t, x_self_cond = None, clip_denoised = True):
     def p_mean_variance(self, x, t, context, x_self_cond = None, clip_denoised = True):
         
-        #preds = self.model_predictions(x, t, x_self_cond)
         preds = self.model_predictions(x, t, context, x_self_cond)
         x_start = preds.pred_x_start
 
@@ -792,22 +864,18 @@ class GaussianDiffusion(nn.Module):
         return model_mean, posterior_variance, posterior_log_variance, x_start
 
     @torch.no_grad()
-    #def p_sample(self, x, t: int, x_self_cond = None):
     def p_sample(self, x, t: int, context, x_self_cond = None):
         
-        b, *_, device = *x.shape, x.device
         batched_times = torch.full((x.shape[0],), t, device = x.device, dtype = torch.long)
-        #model_mean, _, model_log_variance, x_start = self.p_mean_variance(x = x, t = batched_times, x_self_cond = x_self_cond, clip_denoised = True)
         model_mean, _, model_log_variance, x_start = self.p_mean_variance(x = x, t = batched_times, context = context, x_self_cond = x_self_cond, clip_denoised = True)
         noise = torch.randn_like(x) if t > 0 else 0. # no noise if t == 0
         pred_img = model_mean + (0.5 * model_log_variance).exp() * noise
         return pred_img, x_start
 
     @torch.no_grad()
-    #def p_sample_loop(self, shape, return_all_timesteps = False):
     def p_sample_loop(self, shape, context, return_all_timesteps = False):
         
-        batch, device = shape[0], self.betas.device
+        device = self.betas.device
 
         img = torch.randn(shape, device = device)
         imgs = [img]
@@ -816,17 +884,14 @@ class GaussianDiffusion(nn.Module):
         
         for t in tqdm(reversed(range(0, self.num_timesteps)), desc = 'sampling loop time step', total = self.num_timesteps):
             self_cond = x_start if self.self_condition else None
-            #img, x_start = self.p_sample(img, t, self_cond)
             img, x_start = self.p_sample(img, t, context, self_cond)
             imgs.append(img)
 
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
 
-        #ret = self.unnormalize(ret)
         return ret
 
     @torch.no_grad()
-    #def ddim_sample(self, shape, return_all_timesteps = False):
     def ddim_sample(self, shape, l_cond, context, return_all_timesteps = False):
         
         batch, device, total_timesteps, sampling_timesteps, eta, objective = shape[0], self.betas.device, self.num_timesteps, self.sampling_timesteps, self.ddim_sampling_eta, self.objective
@@ -843,7 +908,6 @@ class GaussianDiffusion(nn.Module):
         for time, time_next in tqdm(time_pairs, desc = 'sampling loop time step'):
             time_cond = torch.full((batch,), time, device = device, dtype = torch.long)
             self_cond = x_start if self.self_condition else None
-            #pred_noise, x_start, *_ = self.model_predictions(img, time_cond, self_cond, clip_x_start = True)
             pred_noise, x_start, *_ = self.model_predictions(img, time_cond, l_cond, context, self_cond, clip_x_start = True)
 
             imgs.append(img)
@@ -867,67 +931,103 @@ class GaussianDiffusion(nn.Module):
         imgs.append(img)
         ret = img if not return_all_timesteps else torch.stack(imgs, dim = 1)
 
-        #ret = self.unnormalize(ret)
         return ret
 
     @torch.no_grad()
-    #def sample(self, batch_size = 16, return_all_timesteps = False):
-    def sample(self, lres, hres, return_all_timesteps = False):
+    def sample(self, lres, hres, multi, flow_mode, return_all_timesteps = False):
         
-        b, f, c, h, w, image_size, channels = *hres.shape, self.image_size, self.channels
-        print(b,f,c,h,w)
+        b, f, c, h, w = lres.shape
+        
+        if multi:
+            
+            topo = hres[:, :, 1:2, :, :]
+            low_chans = lres[:, :, 1:, :, :]
+            topo_low = rearrange(F.interpolate(rearrange(topo, 'b t c h w -> (b t) c h w'), size=(h, w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+            high_chans = rearrange(F.interpolate(rearrange(low_chans, 'b t c h w -> (b t) c h w'), size=(8*h, 8*w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+        
+        if multi:
+            
+            ures = self.umodel(rearrange(torch.cat((lres, topo_low), dim = 2), 'b t c h w -> (b t) c h w'))
+        
+        else:
+            
+            ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        
+        ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
+        
         lres = self.normalize(lres)
-        hres = self.normalize(hres)
+        ures = self.normalize(ures)
+
+        if multi:
+
+            topo = self.normalize(topo)
+
         sample_fn = self.p_sample_loop if not self.is_ddim_sampling else self.ddim_sample
         
-        l = hres.clone()[:, :1, :, :, :]
-        r = hres.clone()[:, 1:2, :, :, :]
-        hres_flow = rearrange(hres[:, 1:2, :, :, :], 'b t c h w -> (b t) c h w')
-        l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+        l = ures.clone()
+        
+        if multi:
+
+            l = torch.cat((l, high_chans, topo), dim = 2)
+        
+        r = torch.roll(l, -1, 1)
+        ures_flow = rearrange(ures[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
         
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
         m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
+        
+        if multi:
+            
+            m1 = torch.cat((m1, topo), dim = 2)
+        
         m1 = torch.roll(m1, -2, 1)
-        m1 = m1[:, :(f-2), :, :, :]
         
-        ans = []
-        base = []
-        nsteps = []
-        flows = []
+        stack = torch.cat((l, r, m1), 2)
+        stack = stack[:, :(f-2), :, :, :]
+        stack = rearrange(stack, 'b t c h w -> (b t) c h w')
         
-        for i in range(f-2):
-            
-            stack = torch.cat((l, r, m1[:, i:i+1, :, :, :]), 2)
+        flow, context = self.flow(stack)
         
-            stack = rearrange(stack, 'b t c h w -> (b t) c h w')
+        if flow_mode == '3d':
+    
+            warped = scale_space_warp(ures_flow, flow)
 
-            flow, context = self.flow(stack)
+        elif flow_mode == '2d':
+
+            flow = self.unnormalize(flow)
+            warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
+
+        if multi:
             
-            warped = scale_space_warp(hres_flow, flow)
-            batch_size = b
-            #res = sample_fn((batch_size, c, image_size, image_size), l_cond[i::(f-2), :, :, :], context, return_all_timesteps = return_all_timesteps)
+            # l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+            l_cond = torch.cat((warped, self.upsample(rearrange(lres[:, 2:, 1:, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+        
+        else:
             
-            res = sample_fn((batch_size, c, h, w), l_cond[i::(f-2), :, :, :], context, return_all_timesteps = return_all_timesteps)
-            hres_flow = warped + res
+            # l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+            l_cond = warped
+        
+        res = sample_fn((b * (f - 2), 1, 8 * h, 8 * w), l_cond, context, return_all_timesteps = return_all_timesteps)
+        sres = warped + res
+        sres = rearrange(sres, '(b t) c h w -> b t c h w', b = b)
+
+        warped = rearrange(warped, '(b t) c h w -> b t c h w', b = b)
+        res = rearrange(res, '(b t) c h w -> b t c h w', b = b)
+        flow = rearrange(flow, '(b t) c h w -> b t c h w', b = b)
+        
+        if flow_mode == '2d':
             
-            #hres_flow = warped + res[:, -1, :, :, :]
-            
-            l = r
-            r = rearrange(hres_flow, '(b t) c h w -> b t c h w', t = 1)
-            
-            ans.append(hres_flow)
-            base.append(warped)
-            #nsteps.append(torch.cat(torch.unbind(res, 1), 3))
-            nsteps.append(res)
-            flows.append(flow)
-            
-        return self.unnormalize(torch.stack(ans, 1)), self.unnormalize(torch.stack(base, 1)), self.unnormalize(torch.stack(nsteps, 1)), self.unnormalize(torch.stack(flows, 1))
-        #return sample_fn((batch_size, channels, image_size, image_size), return_all_timesteps = return_all_timesteps)
+            return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), flow
+        
+        elif flow_mode == '3d':
+
+            return self.unnormalize(sres), self.unnormalize(warped), self.unnormalize(res), self.unnormalize(flow)
 
     @torch.no_grad()
     def interpolate(self, x1, x2, t = None, lam = 0.5):
+
         b, *_, device = *x1.shape, x1.device
         t = default(t, self.num_timesteps - 1)
 
@@ -943,6 +1043,7 @@ class GaussianDiffusion(nn.Module):
         return img
 
     def q_sample(self, x_start, t, noise=None):
+        
         noise = default(noise, lambda: torch.randn_like(x_start))
 
         return (
@@ -952,31 +1053,46 @@ class GaussianDiffusion(nn.Module):
 
     @property
     def loss_fn(self):
+        
         if self.loss_type == 'l1':
             return F.l1_loss
         elif self.loss_type == 'l2':
             return F.mse_loss
+        elif self.loss_type == 'focal':
+            return focal_mse_loss
         else:
             raise ValueError(f'invalid loss type {self.loss_type}')
 
-    #def p_losses(self, x_start, t, noise = None):
-    def p_losses(self, stack, hres, lres, t, noise = None):
+    def p_losses(self, stack, hres, lres, ures, t, multi, flow_mode, topo = None, noise = None):
         
-        b, f, c, h, w = hres.shape
+        f = hres.shape[1]
         
         stack = rearrange(stack, 'b t c h w -> (b t) c h w')
-        hres_flow = rearrange(hres[:, 1:(f-1), :, :, :], 'b t c h w -> (b t) c h w')
+        ures_flow = rearrange(ures[:, 1:(f - 1), :, :, :], 'b t c h w -> (b t) c h w')
         
         flow, context = self.flow(stack)
-        #print(flow.shape, hres_flow.shape)
-        warped = scale_space_warp(hres_flow, flow)
+        
+        if flow_mode == '3d':
+            
+            warped = scale_space_warp(ures_flow, flow)
+
+        elif flow_mode == '2d':
+
+            flow = self.unnormalize(flow)
+            warped = flow_warp(ures_flow, flow.permute(0, 2, 3, 1))
         
         x_start = rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')
         x_start = x_start - warped
         
-        l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+        if multi:
+            
+            # l_cond = torch.cat((self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
+            l_cond = torch.cat((warped, self.upsample(rearrange(lres[:, 2:, 1:, :, :], 'b t c h w -> (b t) c h w')), rearrange(topo[:, 2:, :, :, :], 'b t c h w -> (b t) c h w')), dim = 1)
         
-        b, c, h, w = x_start.shape
+        else:
+            
+            # l_cond = self.upsample(rearrange(lres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'))
+            l_cond = warped
         
         del f
         
@@ -1014,37 +1130,77 @@ class GaussianDiffusion(nn.Module):
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
 
         loss = loss * extract(self.p2_loss_weight, t, loss.shape)
-        return loss.mean()
 
-    #def forward(self, data, *args, **kwargs):
-    def forward(self, lres, hres, *args, **kwargs):
+        loss1 = self.loss_fn(ures, hres, reduction = 'none')
+        loss1 = reduce(loss1, 'b ... -> b (...)', 'mean')
+
+        loss2 = self.loss_fn(warped, rearrange(hres[:, 2:, :, :, :], 'b t c h w -> (b t) c h w'), reduction = 'none')
+        loss2 = reduce(loss2, 'b ... -> b (...)', 'mean')
+
+        return loss.mean()*1.7 + loss1.mean()*1.0 + loss2.mean()*0.3
+
+    def forward(self, lres, hres, multi, flow_mode, *args, **kwargs):
         
-        #b, c, h, w, device, img_size, = *img.shape, img.device, self.image_size
-        b, f, c, h, w, device, img_size = *hres.shape, hres.device, self.image_size
+        b, f, c, h, w, device = *hres.shape, hres.device
         
-        assert h == img_size and w == img_size, f'height and width of image must be {img_size}'
-        
-        #t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
         t = torch.randint(0, self.num_timesteps, (b*(f-2),), device=device).long()
 
-        #img = self.normalize(img)
+        if multi:
+            
+            topo = hres[:, :, 1:2, :, :]
+            hres = hres[:, :, 0:1, :, :]
+            low_chans = lres[:, :, 1:, :, :]
+            topo_low = rearrange(F.interpolate(rearrange(topo, 'b t c h w -> (b t) c h w'), size=(h//8, w//8), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+            high_chans = rearrange(F.interpolate(rearrange(low_chans, 'b t c h w -> (b t) c h w'), size=(h, w), mode='bilinear'), '(b t) c h w -> b t c h w', b = b)
+
+        if multi:
+            
+            ures = self.umodel(rearrange(torch.cat((lres, topo_low), dim = 2), 'b t c h w -> (b t) c h w'))
+        
+        else:
+            
+            ures = self.umodel(rearrange(lres, 'b t c h w -> (b t) c h w'))
+        
+        ures = rearrange(ures, '(b t) c h w -> b t c h w', b = b)
+        
         lres = self.normalize(lres)
         hres = self.normalize(hres)
+        ures = self.normalize(ures)
+
+        if multi:
+
+            topo = self.normalize(topo)
         
-        l = hres.clone()
+        l = ures.clone()
+        
+        if multi:
+            
+            l = torch.cat((l, high_chans, topo), dim = 2)
+        
         r = torch.roll(l, -1, 1)
 
         m = lres.clone()
         m1 = rearrange(m, 'b t c h w -> (b t) c h w')
         m1 = self.upsample(m1)
-        m1 = rearrange(m1, '(b t) c h w -> b t c h w', t = f)
+        m1 = rearrange(m1, '(b t) c h w -> b t c h w', b = b)
+        
+        if multi:
+            
+            m1 = torch.cat((m1, topo), dim = 2)
+        
         m1 = torch.roll(m1, -2, 1)
 
         stack = torch.cat((l, r, m1), 2)
         stack = stack[:, :(f-2), :, :, :]
         
-        #return self.p_losses(img, t, *args, **kwargs)
-        return self.p_losses(stack, hres, lres, t, *args, **kwargs)
+        if multi:
+
+            
+            return self.p_losses(stack, hres, lres, ures, t, multi, flow_mode, topo, *args, **kwargs)
+        
+        else:
+
+            return self.p_losses(stack, hres, lres, ures, t, multi, flow_mode, None, *args, **kwargs)
 
 # trainer class
 
@@ -1058,24 +1214,18 @@ class Trainer(object):
         *,
         train_batch_size = 16,
         gradient_accumulate_every = 1,
-        #augment_horizontal_flip = True,
         train_lr = 1e-4,
         train_num_steps = 100000,
         ema_update_every = 1,
         ema_decay = 0.995,
         adam_betas = (0.9, 0.99),
-        save_and_sample_every = 10,
-        #num_samples = 25,
+        save_and_sample_every = 1,
         eval_folder = './evaluate',
         results_folder = './results',
-        #tensorboard_dir = './tensorboard',
         val_num_of_batch = 2,
         amp = False,
         fp16 = False,
-        #fp16 = True,
-        split_batches = True,
-        #split_batches = False,
-        convert_image_to = None
+        split_batches = True
     ):
         super().__init__()
 
@@ -1084,17 +1234,21 @@ class Trainer(object):
             mixed_precision = 'fp16' if fp16 else 'no',
             log_with = 'wandb',
         )
-        self.accelerator.init_trackers("vsr-orig-autoreg-hres", 
+        self.accelerator.init_trackers("climate", 
             init_kwargs={
                 "wandb": {
-                    "notes": "Use VSR to improve precipitation forecasting.",
-                    # Change "name" to set the name of the run.
                     "name":  None,
                 }
             },
         )
         self.config = config
         self.accelerator.native_amp = amp
+        self.multi = config.data_config["multi"]
+        self.rollout = config.rollout
+        self.rollout_batch = config.rollout_batch
+        self.flow = config.data_config["flow"]
+        self.minipatch = config.data_config["minipatch"]
+        self.logscale = config.data_config["logscale"]
 
         self.model = diffusion_model
 
@@ -1111,6 +1265,8 @@ class Trainer(object):
         # optimizer
 
         self.opt = Adam(diffusion_model.parameters(), lr = train_lr, betas = adam_betas)
+        self.sched = CosineAnnealingLR(self.opt, train_num_steps, 5e-7)
+        #self.sched = ReduceLROnPlateau(self.opt, 'min', factor = 0.5, patience = 5, min_lr = 1e-6, verbose = False)
 
         # for logging results in a folder periodically
 
@@ -1121,7 +1277,9 @@ class Trainer(object):
 
         self.results_folder.mkdir(exist_ok=True, parents=True)
         
-        self.eval_folder = eval_folder
+        self.eval_folder = Path(eval_folder)
+
+        self.eval_folder.mkdir(exist_ok=True, parents=True)
 
         # step counter state
 
@@ -1129,9 +1287,9 @@ class Trainer(object):
 
         # prepare model, dataloader, optimizer with accelerator
 
-        self.model, self.opt, train_dl, val_dl = self.accelerator.prepare(self.model, self.opt, train_dl, val_dl)
+        self.model, self.opt, self.sched, train_dl, val_dl = self.accelerator.prepare(self.model, self.opt, self.sched, train_dl, val_dl)
         self.train_dl = cycle(train_dl)
-        self.val_dl = cycle(val_dl)        
+        self.val_dl = val_dl     
 
     def save(self, milestone):
         if not self.accelerator.is_local_main_process:
@@ -1172,6 +1330,48 @@ class Trainer(object):
         accelerator = self.accelerator
         device = accelerator.device
 
+        cmap = mpl.colormaps['RdBu_r']
+        fcmap = mpl.colormaps['gray_r']
+
+        # c384_lgmin = np.load('data/only_precip/c384_lgmin.npy')
+        # c384_lgmax = np.load('data/only_precip/c384_lgmax.npy')
+        # c384_gmin = np.load('data/only_precip/c384_gmin.npy')
+
+        # c48_lgmin = np.load('data/only_precip/c48_lgmin.npy')
+        # c48_lgmax = np.load('data/only_precip/c48_lgmax.npy')
+        # c48_gmin = np.load('data/only_precip/c48_gmin.npy')
+
+        # c384_min = np.load('data/only_precip/c384_min.npy')
+        # c384_max = np.load('data/only_precip/c384_max.npy')
+
+        # c48_min = np.load('data/only_precip/c48_min.npy')
+        # c48_max = np.load('data/only_precip/c48_max.npy')
+
+        with open("data/ensemble_c48_trainstats/chl.pkl", 'rb') as f:
+            c48_chl = pickle.load(f)
+        
+        with open("data/ensemble_c48_trainstats/log_chl.pkl", 'rb') as f:
+            c48_log_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/chl.pkl", 'rb') as f:
+            c384_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/log_chl.pkl", 'rb') as f:
+            c384_log_chl = pickle.load(f)
+
+        c384_lgmin = c384_log_chl["PRATEsfc"]['min']
+        c384_lgmax = c384_log_chl["PRATEsfc"]['max']
+        c48_lgmin = c48_log_chl["PRATEsfc_coarse"]['min']
+        c48_lgmax = c48_log_chl["PRATEsfc_coarse"]['max']
+        
+        c384_min = c384_chl["PRATEsfc"]['min']
+        c384_max = c384_chl["PRATEsfc"]['max']
+        c48_min = c48_chl["PRATEsfc_coarse"]['min']
+        c48_max = c48_chl["PRATEsfc_coarse"]['max']
+
+        c384_gmin = c384_min
+        c48_gmin = c48_min
+
         with tqdm(initial = self.step, total = self.train_num_steps, disable = not accelerator.is_main_process) as pbar:
 
             while self.step < self.train_num_steps:
@@ -1180,15 +1380,20 @@ class Trainer(object):
 
                 for _ in range(self.gradient_accumulate_every):
                     
-                    #data = next(self.dl).to(device)
                     data = next(self.train_dl)
                     lres = data['LR'].to(device)
                     hres = data['HR'].to(device)
 
+                    if self.minipatch:
+                        
+                        x_st = randint(0, 36)
+                        y_st = randint(0, 36)
+                        lres = crop(lres, x_st, y_st, 12, 12)
+                        hres = crop(hres, 8 * x_st, 8 * y_st, 96, 96)
+
                     with self.accelerator.autocast():
                         
-                        #loss = self.model(data)
-                        loss = self.model(lres, hres)
+                        loss = self.model(lres, hres, self.multi, self.flow)
                         loss = loss / self.gradient_accumulate_every
                         total_loss += loss.item()
 
@@ -1197,13 +1402,13 @@ class Trainer(object):
                 accelerator.clip_grad_norm_(self.model.parameters(), 1.0)
                 pbar.set_description(f'loss: {total_loss:.4f}')
 
-                #self.writer.add_scalar("loss", total_loss, self.step)
                 accelerator.log({"loss": total_loss}, step = self.step)
 
                 accelerator.wait_for_everyone()
 
                 self.opt.step()
                 self.opt.zero_grad()
+                self.sched.step()
 
                 accelerator.wait_for_everyone()
 
@@ -1216,6 +1421,14 @@ class Trainer(object):
                         self.ema.ema_model.eval()
 
                         with torch.no_grad():
+
+                            vlosses = []
+                            vids = []
+                            hr = []
+                            lr = []
+                            bases, ress, flowss = [], [], []
+                            num_frames = 5
+                            img_size = 384
                             
                             for i, batch in enumerate(self.val_dl):
                                 
@@ -1224,17 +1437,170 @@ class Trainer(object):
                                 
                                 if i >= self.val_num_of_batch:
                                     break
-                                    
-                                videos, base, res, flows = self.ema.ema_model.sample(lres, hres)
-                                psnr_index = piq.psnr(hres[:,2:,0:1,:,:], videos.clamp(0.0, 1.0)[:,:,0:1,:,:], data_range=1., reduction='none')
+
+                                # num_samples = 5
+                                # num_videos_per_batch = 1
+                                # num_frames = 5
+                                # img_size = 384
+                                # img_channels = 1
+
+                                # truth = np.zeros((1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                # pred = np.zeros((num_samples, 1, num_videos_per_batch, num_frames, img_channels, img_size, img_size), dtype = 'uint8')
+                                # truth[0,:,:,:,:,:] = (hres[:,2:,0:1,:,:].repeat(1,1,1,1,1).cpu().numpy()*255).astype(np.uint8)
                                 
-                                accelerator.log({"true_high": wandb.Video((hres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"true_low": wandb.Video((lres[:,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"flows": wandb.Video((flows.clamp(0.0, 1.0).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
-                                accelerator.log({"psnr": psnr_index.mean()}, step=self.step)
+                                # for k in range(num_samples):
+                                #     videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
+                                #     pred[k,0,:,:,:,:] = (videos.clamp(0.0, 1.0)[:,:,0:1,:,:].repeat(1,1,1,1,1).detach().cpu().numpy()*255).astype(np.uint8)
+
+                                videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
+                                loss = self.model(lres, hres, self.multi, self.flow)
+
+                                vids.append(videos)
+                                vlosses.append(loss)
+                                hr.append(hres)
+                                lr.append(lres)
+                                bases.append(base)
+                                ress.append(res)
+                                flowss.append(flows)
+                            
+                            videos = torch.cat(vids, dim = 0)
+                            vloss = torch.stack(vlosses, dim = 0).mean()
+                            #self.sched.step(vloss)
+                            hres = torch.cat(hr, dim = 0)
+                            lres = torch.cat(lr, dim = 0)
+                            base = torch.cat(bases, dim = 0)
+                            res = torch.cat(ress, dim = 0)
+                            flows = torch.cat(flowss, dim = 0)
+                            del vids, vlosses, hr, lr, bases, ress, flowss
+
+                            lres = lres[:, :, 0:1, :, :]
+                            hres = hres[:, :, 0:1, :, :]
+
+                            if not self.logscale:
+                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                output = videos.detach().cpu().numpy() * (c384_max - c384_min) + c384_min
+                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_max - c48_min) + c48_min
+                            
+                            else:
+                                target = hres[:,2:,:,:,:].detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                output = videos.detach().cpu().numpy() * (c384_lgmax - c384_lgmin) + c384_lgmin
+                                coarse = lres[:,2:,:,:,:].detach().cpu().numpy() * (c48_lgmax - c48_lgmin) + c48_lgmin
+                            
+                            if self.logscale:
+                                target = np.exp(target) + c384_gmin - 1e-14
+                                output = np.exp(output) + c384_gmin - 1e-14
+                                coarse = np.exp(coarse) + c48_gmin - 1e-14
+
+                            ssim_index = piq.ssim(torch.from_numpy(target).view(-1, 1, 384, 384), torch.from_numpy(output).view(-1, 1, 384, 384).clamp(0., 1.), data_range=1., reduction='none')
+                            gmsd_index = piq.gmsd(torch.from_numpy(target).view(-1, 1, 384, 384), torch.from_numpy(output).view(-1, 1, 384, 384).clamp(0., 1.), data_range=1., reduction='none')
+
+                            nn_upscale = np.repeat(np.repeat(coarse, 8, axis = 3), 8, axis = 4)
+                            diff_output = (output - nn_upscale).flatten()
+                            diff_target = (target - nn_upscale).flatten()
+                            vmin = min(diff_output.min(), diff_target.min())
+                            vmax = max(diff_output.max(), diff_target.max())
+                            bins = np.linspace(vmin, vmax, 100 + 1)
+
+                            fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+                            ax.hist(
+                                diff_output, bins=bins, alpha=0.5, label="Output", histtype="step", density=True
+                            )
+                            ax.hist(
+                                diff_target, bins=bins, alpha=0.5, label="Target", histtype="step", density=True
+                            )
+                            ax.set_xlim(vmin, vmax)
+                            ax.legend()
+                            ax.set_ylabel("Density")
+                            ax.set_yscale("log")
+
+                            output1 = output.flatten()
+                            target1 = target.flatten()
+                            rmse = np.sqrt(np.mean((output1 - target1)**2))
+                            pscore = np.abs(np.percentile(output1, 99.999) - np.percentile(target1, 99.999))
+                            vmin1 = min(output1.min(), target1.min())
+                            vmax1 = max(output1.max(), target1.max())
+                            bins1 = np.linspace(vmin1, vmax1, 100 + 1)
+                            #histo = np.histogram(output1, bins=bins1, density=True)[0].ravel().astype('float32')
+                            #histt = np.histogram(target1, bins=bins1, density=True)[0].ravel().astype('float32')
+                            count_o, bin_o = np.histogram(output1, bins=bins1, density=True)
+                            count_t, bin_t = np.histogram(target1, bins=bins1, density=True)
+                            histo = count_o.ravel().astype('float32')
+                            histt = count_t.ravel().astype('float32')
+                            distchisqr = cv2.compareHist(histo, histt, cv2.HISTCMP_CHISQR)
+                            distinter = cv2.compareHist(histo, histt, cv2.HISTCMP_INTERSECT)
+                            distkl = cv2.compareHist(histo, histt, cv2.HISTCMP_KL_DIV)
+                            distemd = wasserstein_distance(output1, target1)                            
+
+                            fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
+                            ax1.hist(
+                                #output1, bins=bins1, alpha=0.5, label="Output", histtype="step", density=True
+                                bin_o[:-1], bins=bin_o, weights = count_o, alpha=0.5, label="Output", histtype="step"#, density=True
+                            )
+                            ax1.hist(
+                                #target1, bins=bins1, alpha=0.5, label="Target", histtype="step", density=True
+                                bin_t[:-1], bins=bin_t, weights = count_t, alpha=0.5, label="Target", histtype="step"#, density=True
+                            )
+                            ax1.set_xlim(vmin1, vmax1)
+                            ax1.legend()
+                            ax1.set_ylabel("Density")
+                            ax1.set_yscale("log")
+                            
+                            flow_d = np.zeros((1, num_frames, 3, img_size, img_size))
+
+                            for m in range(num_frames):
+
+                                flow_d[0,m,:,:,:] = np.transpose(flow_vis.flow_to_color(flows.clamp(0, 1)[0,m,:2,:,:].permute(1,2,0).cpu().numpy(), convert_to_bgr = True), (2,0,1))
+
+                            if self.flow == '3d':
+                                
+                                flow_s = np.zeros((1, num_frames, 3, img_size, img_size))
+                                sm = smap(None, fcmap)
+
+                                for m in range(num_frames):
+
+                                    flow_s[0,m,:,:,:] = np.transpose(sm.to_rgba(flows.clamp(0, 1)[0,m,2,:,:].cpu().numpy())[:,:,:3], (2,0,1))
+                            
+
+
+                            if self.logscale:
+                                
+                                accelerator.log({"true_high": wandb.Video((hres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_low": wandb.Video((lres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"pred": wandb.Video((base.clamp(0.0, 1.0)[0:1,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"samples": wandb.Video((videos.clamp(0.0, 1.0)[0:1,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"res": wandb.Video((res.clamp(0.0, 1.0)[0:1,:,0:1,:,:].repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"flow_d": wandb.Video((flow_d*255).astype(np.uint8))}, step=self.step)
+                                if self.flow == '3d':
+                                    accelerator.log({"flow_s": wandb.Video((flow_s*255).astype(np.uint8))}, step=self.step)
+                            
+                            else:
+
+                                accelerator.log({"true_high": wandb.Video((hres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_low": wandb.Video((lres[0:1,2:,0:1,:,:].repeat(1,1,3,1,1).cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"samples": wandb.Video((videos[0:1,:,:,:,:].clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"res": wandb.Video((res[0:1,:,:,:,:].clamp(0.0, 1.0).repeat(1,1,3,1,1).detach().cpu().numpy()*255).astype(np.uint8))}, step=self.step)
+                                target = np.log(target - c384_gmin + 1e-14)
+                                output = np.log(output - c384_gmin + 1e-14)
+                                coarse = np.log(coarse - c48_gmin + 1e-14)
+                                target = (target - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                output = (output - c384_lgmin) / (c384_lgmax - c384_lgmin)
+                                coarse = (coarse - c48_lgmin) / (c48_lgmax - c48_lgmin)
+                                accelerator.log({"true_loghigh": wandb.Video((np.repeat(target[0:1,:,:,:,:], 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"true_loglow": wandb.Video((np.repeat(coarse[0:1,:,:,:,:], 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+                                accelerator.log({"logsamples": wandb.Video((np.repeat(output[0:1,:,:,:,:], 3, axis=-3)*255).astype(np.uint8))}, step=self.step)
+
+                            accelerator.log({"difference_histogram": wandb.Image(fig, mode = 'RGB')}, step=self.step)
+                            accelerator.log({"histogram": wandb.Image(fig1, mode = 'RGB')}, step=self.step)
+                            accelerator.log({"ssim": ssim_index.mean()}, step=self.step)
+                            accelerator.log({"gmsd": gmsd_index.mean()}, step=self.step)
+                            accelerator.log({"rmse": rmse}, step=self.step)
+                            accelerator.log({"pscore": pscore}, step=self.step)
+                            accelerator.log({"distchisqr": distchisqr}, step=self.step)
+                            accelerator.log({"distinter": distinter}, step=self.step)
+                            accelerator.log({"distkl": distkl}, step=self.step)
+                            accelerator.log({"distemd": distemd}, step=self.step)
+                            accelerator.log({"vloss": vloss}, step=self.step)
+                            accelerator.log({"lr": self.opt.param_groups[0]['lr']}, step=self.step)
                                 
                             milestone = self.step // self.save_and_sample_every
                             
@@ -1251,159 +1617,183 @@ class Trainer(object):
         
         self.ema.ema_model.eval()
 
-        cmap = mpl.colormaps['viridis']
-        sm = smap(None, cmap)
+        PATH = "/extra/ucibdl0/shared/data/fv3gfs"
+        XX = xr.open_zarr(f"{PATH}/c48_precip_plus_more_ave/0011/sfc_8xdaily_ave_coarse.zarr")
+        XX_ = xr.open_zarr(f"{PATH}/c48_atmos_ave/0011/atmos_8xdaily_ave_coarse.zarr")
+        yy = xr.open_zarr(f"{PATH}/c384_precip_ave/0011/sfc_8xdaily_ave.zarr")
+        topot = xr.open_zarr(f"{PATH}/c384_topo/0011/atmos_static.zarr")
+
+        with open("data/ensemble_c48_trainstats/chl.pkl", 'rb') as f:
+
+            c48_chl = pickle.load(f)
+        
+        with open("data/ensemble_c48_trainstats/atm_chl.pkl", 'rb') as f:
+            
+            c48_atm_chl = pickle.load(f)
+
+        with open("data/ensemble_c48_trainstats/log_chl.pkl", 'rb') as f:
+            
+            c48_log_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/chl.pkl", 'rb') as f:
+
+            c384_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/log_chl.pkl", 'rb') as f:
+
+            c384_log_chl = pickle.load(f)
+
+        with open("data/ensemble_c384_trainstats/topo.pkl", 'rb') as f:
+
+            c384_topo = pickle.load(f)
+
+        if self.multi:
+
+            c48_channels = ["PRATEsfc_coarse", "UGRD10m_coarse", "VGRD10m_coarse", "TMPsfc_coarse", "CPRATsfc_coarse", "DSWRFtoa_coarse"]
+            c48_channels_atmos = ["ps_coarse", "u700_coarse", "v700_coarse", "vertically_integrated_liq_wat_coarse", "vertically_integrated_sphum_coarse"]
+            c384_channels = ["PRATEsfc"]
+
+        else:
+
+            c48_channels = ["PRATEsfc_coarse"]
+            c384_channels = ["PRATEsfc"]
 
         with torch.no_grad():
 
-            for k, batch in enumerate(self.val_dl):
+            for tile in range(6):
 
-                lres = batch['LR'].to(device)
-                hres = batch['HR'].to(device)
-                
-                if k >= self.val_num_of_batch:
-                    break
-                
-                limit = lres.shape[1]
-                if limit < 8:
-                    
-                    #videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres, True)
-                    videos, base, nsteps, flows = self.ema.ema_model.sample(lres, hres)
+                if self.rollout == 'full':
 
-                    torch.save(videos, os.path.join(self.eval_folder) + "/gen.pt")
-                    torch.save(hres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_hr.pt")
-                    torch.save(lres[:,2:,:,:,:], os.path.join(self.eval_folder) + "/truth_lr.pt")
+                    seq_len = self.rollout_batch
+                    st = 0
+                    en = seq_len + 2
+                    count = 0
 
-                    for i, b in enumerate(videos.clamp(0, 1)):
-                        if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-                            os.makedirs(os.path.join(self.eval_folder, "generated"))
-                        Parallel(n_jobs=4)(
-                            delayed(save_image)(sm.to_rgba(f[0,:,:]), os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-                            for j, f in enumerate(b.cpu())
-                        )
+                    while en < 3176:
 
-                    #videos = torch.log(videos.clamp(0.0, 1.0) + 1)
-                    #hres = torch.log(hres + 1)
-                
-                    #for i, b in enumerate(videos.clamp(0, 1)):
-                    # for i, b in enumerate(videos):
-                    #     if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-                    #         os.makedirs(os.path.join(self.eval_folder, "generated"))
-                    #     Parallel(n_jobs=4)(
-                    #         delayed(save_image)(f, os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-                    #         for j, f in enumerate(b.cpu())
-                    #     )
-                          
-#                     for i, b in enumerate(nsteps.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "residual")):
-#                             os.makedirs(os.path.join(self.eval_folder, "residual"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "residual") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                          
-#                     for i, b in enumerate(base.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "warped")):
-#                             os.makedirs(os.path.join(self.eval_folder, "warped"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "warped") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
+                        print(tile, st)
+
+                        X = XX.isel(time = slice(st, en), tile = tile)
+                        X_ = XX_.isel(time = slice(st, en), tile = tile)
+                        y = yy.isel(time = slice(st, en), tile = tile)
+
+
+                        if self.multi:
+
+                            X = np.stack([X[channel].values for channel in c48_channels], axis = 1)
+                            X_ = np.stack([X_[channel].values for channel in c48_channels_atmos], axis = 1)
+                            y = np.stack([y[channel].values for channel in c384_channels], axis = 1)
+                            topo = topot.isel(tile = tile)
+                            topo = topo['zsurf'].values
+                            topo = np.repeat(topo.reshape((1,1,384,384)), seq_len + 2, axis = 0)
+
+                        else:
+
+                            X = np.stack([X[channel].values for channel in c48_channels], axis = 1)
+                            y = np.stack([y[channel].values for channel in c384_channels], axis = 1)
+
                         
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "flows") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                
-                    for i, b in enumerate(hres[:,2:,:,:,:].clamp(0, 1)):
-                        if not os.path.isdir(os.path.join(self.eval_folder, "truth")):
-                            os.makedirs(os.path.join(self.eval_folder, "truth"))
-                        Parallel(n_jobs=4)(
-                            delayed(save_image)(sm.to_rgba(f[0,:,:]), os.path.join(self.eval_folder, "truth") + f"/{k}-{i}-{j}.png")
-                            for j, f in enumerate(b.cpu())
-                        )
-                
-#                 else:
-                    
-#                     videos, base, nsteps, flows = self.ema.ema_model.sample(lres[:,:7,:,:], hres[:,:7,:,:], True)
-                    
-#                     st = 5
-#                     ed = st + 7
-                    
-#                     while ed < limit:
+                        if self.logscale:
+
+                            X[:,0:1,:,:] = np.log(X[:,0:1,:,:] - c48_chl["PRATEsfc_coarse"]['min'] + 1e-14)
+                            y = np.log(y - c384_chl["PRATEsfc"]['min'] + 1e-14)
+                            X[:,0:1,:,:] = (X[:,0:1,:,:] - c48_log_chl["PRATEsfc_coarse"]['min']) / (c48_log_chl["PRATEsfc_coarse"]['max'] - c48_log_chl["PRATEsfc_coarse"]['min'])
+                            y = (y - c384_log_chl["PRATEsfc"]['min']) / (c384_log_chl["PRATEsfc"]['max'] - c384_log_chl["PRATEsfc"]['min'])
+
+                        else:
+
+                            X[:,0:1,:,:] = (X[:,0:1,:,:] - c48_chl["PRATEsfc_coarse"]['min']) / (c48_chl["PRATEsfc_coarse"]['max'] - c48_chl["PRATEsfc_coarse"]['min'])
+                            y = (y - c384_chl["PRATEsfc"]['min']) / (c384_chl["PRATEsfc"]['max'] - c384_chl["PRATEsfc"]['min'])
+
+                        if self.multi:
+
+                            for i in range(1, X.shape[1]):
+
+                                X[:,i,:,:] = (X[:,i,:,:] - c48_chl[c48_channels[i]]['min']) / (c48_chl[c48_channels[i]]['max'] - c48_chl[c48_channels[i]]['min'])
+
+                            for i in range(X_.shape[1]):
+
+                                X_[:,i,:,:] = (X_[:,i,:,:] - c48_atm_chl[c48_channels_atmos[i]]['min']) / (c48_atm_chl[c48_channels_atmos[i]]['max'] - c48_atm_chl[c48_channels_atmos[i]]['min'])
+
+                            topo = (topo - c384_topo["zsurf"]['min']) / (c384_topo["zsurf"]['max'] - c384_topo["zsurf"]['min'])
+
+                            X = np.concatenate((X, X_), axis = 1)
+                            y = np.concatenate((y, topo), axis = 1)
+
+                        lres = torch.from_numpy(X).unsqueeze(0).to(device)
+                        hres = torch.from_numpy(y).unsqueeze(0).to(device)
+
+                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
+
+                        torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
+                        torch.save(hres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
+                        torch.save(lres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))
+                        count += 1
+
+                        st += seq_len
+                        en += seq_len
+
+                if self.rollout == 'partial':
+
+                    seq_len = self.rollout_batch
+                    indices = get_random_idx_with_difference(0, 3176 - (seq_len + 2), 75 // seq_len, seq_len + 2) # 250 samples per tile
+
+                    for count, st in enumerate(indices):
+
+                        print(tile, count)
+
+                        X = XX.isel(time = slice(st, st+(seq_len+2)), tile = tile)
+                        X_ = XX_.isel(time = slice(st, st+(seq_len+2)), tile = tile)
+                        y = yy.isel(time = slice(st, st+(seq_len+2)), tile = tile)
+
+
+                        if self.multi:
+
+                            X = np.stack([X[channel].values for channel in c48_channels], axis = 1)
+                            X_ = np.stack([X_[channel].values for channel in c48_channels_atmos], axis = 1)
+                            y = np.stack([y[channel].values for channel in c384_channels], axis = 1)
+                            topo = topot.isel(tile = tile)
+                            topo = topo['zsurf'].values
+                            topo = np.repeat(topo.reshape((1,1,384,384)), seq_len + 2, axis = 0)
+
+                        else:
+
+                            X = np.stack([X[channel].values for channel in c48_channels], axis = 1)
+                            y = np.stack([y[channel].values for channel in c384_channels], axis = 1)
+
                         
-#                         vi, ba, ns, fl = self.ema.ema_model.sample(lres[:,st:ed,:,:], hres[:,st:ed,:,:], True)
-#                         st += 5
-#                         ed += 5
-#                         videos = torch.cat((videos, vi), 1)
-#                         #base = torch.cat((base, ba), 1)
-#                         #nsteps = torch.cat((nsteps, ns), 1)
-#                         #flows = torch.cat((flows, fl), 1)
-                    
-#                     for i, b in enumerate(videos.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "generated")):
-#                             os.makedirs(os.path.join(self.eval_folder, "generated"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "generated") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                
-#                     for i, b in enumerate(hres[:,2:,:,:,:].clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "truth")):
-#                             os.makedirs(os.path.join(self.eval_folder, "truth"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(save_image)(f, os.path.join(self.eval_folder, "truth") + f"/{k}-{i}-{j}.png")
-#                             for j, f in enumerate(b.cpu())
-#                         )
-                        
-# #                     for i, b in enumerate(nsteps.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "residual")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "residual"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "residual") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                          
-# #                     for i, b in enumerate(base.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "warped")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "warped"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "warped") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                        
-# #                     for i, b in enumerate(flows.clamp(0, 1)):
-# #                     #for i, b in enumerate(sampled):   
-# #                         if not os.path.isdir(os.path.join(self.eval_folder, "flows")):
-# #                             os.makedirs(os.path.join(self.eval_folder, "flows"))
-# #                         Parallel(n_jobs=4)(
-# #                             delayed(save_image)(f, os.path.join(self.eval_folder, "flows") + f"/{k}-{i}-{j}.png")
-# #                             for j, f in enumerate(b.cpu())
-# #                         )
-                        
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows_d")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows_d"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(plt.imsave)(os.path.join(self.eval_folder, "flows_d") + f"/{k}-{i}-{j}.png", flow_vis.flow_to_color(f.permute(1,2,0).cpu().numpy()[:,:,:2], convert_to_bgr = False))
-#                             for j, f in enumerate(b.cpu())
-#                         )
-#                     for i, b in enumerate(flows.clamp(0, 1)):
-#                     #for i, b in enumerate(sampled):   
-#                         if not os.path.isdir(os.path.join(self.eval_folder, "flows_s")):
-#                             os.makedirs(os.path.join(self.eval_folder, "flows_s"))
-#                         Parallel(n_jobs=4)(
-#                             delayed(plt.imsave)(os.path.join(self.eval_folder, "flows_s") + f"/{k}-{i}-{j}.png", f.permute(1,2,0).cpu().numpy()[:,:,2], cmap = 'gray_r')
-#                             for j, f in enumerate(b.cpu())
-#                         )
+                        if self.logscale:
+
+                            X[:,0:1,:,:] = np.log(X[:,0:1,:,:] - c48_chl["PRATEsfc_coarse"]['min'] + 1e-14)
+                            y = np.log(y - c384_chl["PRATEsfc"]['min'] + 1e-14)
+                            X[:,0:1,:,:] = (X[:,0:1,:,:] - c48_log_chl["PRATEsfc_coarse"]['min']) / (c48_log_chl["PRATEsfc_coarse"]['max'] - c48_log_chl["PRATEsfc_coarse"]['min'])
+                            y = (y - c384_log_chl["PRATEsfc"]['min']) / (c384_log_chl["PRATEsfc"]['max'] - c384_log_chl["PRATEsfc"]['min'])
+
+                        else:
+
+                            X[:,0:1,:,:] = (X[:,0:1,:,:] - c48_chl["PRATEsfc_coarse"]['min']) / (c48_chl["PRATEsfc_coarse"]['max'] - c48_chl["PRATEsfc_coarse"]['min'])
+                            y = (y - c384_chl["PRATEsfc"]['min']) / (c384_chl["PRATEsfc"]['max'] - c384_chl["PRATEsfc"]['min'])
+
+                        if self.multi:
+
+                            for i in range(1, X.shape[1]):
+
+                                X[:,i,:,:] = (X[:,i,:,:] - c48_chl[c48_channels[i]]['min']) / (c48_chl[c48_channels[i]]['max'] - c48_chl[c48_channels[i]]['min'])
+
+                            for i in range(X_.shape[1]):
+
+                                X_[:,i,:,:] = (X_[:,i,:,:] - c48_atm_chl[c48_channels_atmos[i]]['min']) / (c48_atm_chl[c48_channels_atmos[i]]['max'] - c48_atm_chl[c48_channels_atmos[i]]['min'])
+
+                            topo = (topo - c384_topo["zsurf"]['min']) / (c384_topo["zsurf"]['max'] - c384_topo["zsurf"]['min'])
+
+                            X = np.concatenate((X, X_), axis = 1)
+                            y = np.concatenate((y, topo), axis = 1)
+
+                        lres = torch.from_numpy(X).unsqueeze(0).to(device)
+                        hres = torch.from_numpy(y).unsqueeze(0).to(device)
+
+                        videos, base, res, flows = self.ema.ema_model.sample(lres, hres, self.multi, self.flow)
+
+                        torch.save(videos, os.path.join(self.eval_folder) + "/gen_{}_{}.pt".format(tile, count))
+                        torch.save(hres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_hr_{}_{}.pt".format(tile, count))
+                        torch.save(lres[:,2:,0:1,:,:], os.path.join(self.eval_folder) + "/truth_lr_{}_{}.pt".format(tile, count))

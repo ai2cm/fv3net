@@ -9,7 +9,7 @@ config.random_fourier_features = True,
 config.learned_sinusoidal_dim = 32
 config.diffusion_steps = 1500
 config.sampling_steps = 20
-config.loss = "l2"
+config.loss = "focal"
 config.objective = "pred_v"
 config.lr = 1e-4
 config.steps = 700000
@@ -19,23 +19,23 @@ config.save_and_sample_every = 20000
 config.ema_decay = 0.995
 config.amp = False
 config.split_batches = True
-config.additional_note = "2d-nomulti-nols-ensemble"
+config.additional_note = "2d-multi-ls-focal-ensemble"
 config.eval_folder = "./evaluate"
 config.results_folder = "./results"
 config.tensorboard_dir = "./tensorboard"
-config.milestone = 2
-config.rollout = "partial"
-config.rollout_batch = 25
+config.milestone = 1
+config.rollout = None
+config.rollout_batch = None
 
-config.batch_size = 2
+config.batch_size = 1
 config.data_config = config_dict.ConfigDict({
     "dataset_name": "c384",
     "length": 7,
     "channels": ["PRATEsfc_coarse"],
     "img_channel": 1,
     "img_size": 384,
-    "logscale": False,
-    "multi": False,
+    "logscale": True,
+    "multi": True,
     "flow": "2d",
     "minipatch": False
 })

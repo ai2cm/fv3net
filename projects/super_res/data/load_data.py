@@ -13,15 +13,15 @@ def load_data(data_config, batch_size, num_workers = 4, pin_memory = True):
                         train,
                         batch_size = batch_size,
                         shuffle = True,
-                        num_workers = num_workers,
+                        num_workers = 2,
                         pin_memory = pin_memory,
                       )
 
     val = DataLoader(
                         val,
-                        batch_size = batch_size,
+                        batch_size = 5,
                         shuffle = False,
-                        num_workers = num_workers,
+                        num_workers = 2,
                         pin_memory = pin_memory,
                     )
         

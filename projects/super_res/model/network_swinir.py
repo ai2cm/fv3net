@@ -643,7 +643,7 @@ class SwinIR(nn.Module):
         resi_connection: The convolutional block before residual connection. '1conv'/'3conv'
     """
 
-    def __init__(self, img_size=64, patch_size=1, in_chans=3,
+    def __init__(self, img_size=64, patch_size=1, in_chans=3, out_chans=3,
                  embed_dim=96, depths=[6, 6, 6, 6], num_heads=[6, 6, 6, 6],
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
@@ -652,7 +652,7 @@ class SwinIR(nn.Module):
                  **kwargs):
         super(SwinIR, self).__init__()
         num_in_ch = in_chans
-        num_out_ch = in_chans
+        num_out_ch = out_chans
         num_feat = 64
         self.img_range = img_range
         if in_chans == 3:
@@ -666,6 +666,7 @@ class SwinIR(nn.Module):
 
         #####################################################################################################
         ################################### 1, shallow feature extraction ###################################
+        
         self.conv_first = nn.Conv2d(num_in_ch, embed_dim, 3, 1, 1)
 
         #####################################################################################################
