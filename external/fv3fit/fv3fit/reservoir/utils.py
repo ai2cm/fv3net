@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import tensorflow as tf
 from typing import Iterable, Mapping, Optional
@@ -10,6 +11,9 @@ from fv3fit.reservoir.transformers import (
 )
 from fv3fit.reservoir.domain2 import RankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def assure_txyz_dims(var_data: tf.Tensor) -> tf.Tensor:
@@ -49,6 +53,10 @@ class SynchronziationTracker:
 
     def count_synchronization_steps(self, n_samples: int):
         self.n_steps_synchronized += n_samples
+        logger.info(
+            "Number of steps synchronized: "
+            f"{self.n_steps_synchronized}/{self.n_synchronize}"
+        )
 
     def trim_synchronization_samples_if_needed(self, arr: np.ndarray) -> np.ndarray:
         """ Removes samples from the input array if they fall within the

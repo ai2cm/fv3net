@@ -75,6 +75,11 @@ sequential segments.
 | `online-diags-flags` | (optional) `flags` for `prognostic-run-diags` workflow                        |
 | `online-diags`       | (optional) Run online diagostics if "true"; default "true"                     |
 
+If the number of requested CPUs is greater than 24, the job will be run on the `ultra-sim-pool` node pool (more expensive).
+If the requested memory is greater than 30 Gi, the job will run on the `highmem-sim-pool` unless the number of CPUs
+is greater than 24, in which case the `ultra-sim-pool` will be used.
+Runs with requested CPUs < 24 and memory < 30Gi will use the `climate-sim-pool` nodes.
+
 #### Command line interfaces used by workflow
 This workflow first resolves the output location for the run according to:
 ```
