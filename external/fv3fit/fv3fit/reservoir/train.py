@@ -148,6 +148,7 @@ def train_reservoir_model(
         sync_tracker = SynchronziationTracker(
             n_synchronize=hyperparameters.n_timesteps_synchronize
         )
+
         for b, batch_data in enumerate(train_batches):
             input_time_series = process_batch_data(
                 variables=hyperparameters.input_variables,
@@ -156,6 +157,8 @@ def train_reservoir_model(
                 autoencoder=transformers.input,
                 trim_halo=False,
             )
+            if b == 0:
+                reservoir.reset_state(input_shape=input_time_series[0].shape)
             # If the output variables differ from inputs, use the transformer specific
             # to the output set to transform the output data
             _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
@@ -171,7 +174,7 @@ def train_reservoir_model(
 
             # reservoir increment occurs in this call, so always call this
             # function even if X, Y are not used for readout training.
-            reservoir.reset_state(input_shape=input_time_series[0].shape)
+
             reservoir_state_time_series = _get_reservoir_state_time_series(
                 input_time_series, hyperparameters.input_noise, reservoir
             )
