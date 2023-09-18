@@ -260,13 +260,16 @@ def train_reservoir_model(
         )
 
     if validation_batches is not None and wandb.run is not None:
-        ds_val = validation_prediction(
-            model,
-            val_batches=validation_batches,
-            n_synchronize=hyperparameters.n_timesteps_synchronize,
-        )
-        log_rmse_z_plots(ds_val, model.output_variables)
-        log_rmse_scalar_metrics(ds_val, model.output_variables)
+        try:
+            ds_val = validation_prediction(
+                model,
+                val_batches=validation_batches,
+                n_synchronize=hyperparameters.n_timesteps_synchronize,
+            )
+            log_rmse_z_plots(ds_val, model.output_variables)
+            log_rmse_scalar_metrics(ds_val, model.output_variables)
+        except:
+            pass
     return adapter
 
 
