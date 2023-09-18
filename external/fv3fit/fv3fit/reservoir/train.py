@@ -268,7 +268,7 @@ def train_reservoir_model(
             )
             log_rmse_z_plots(ds_val, model.output_variables)
             log_rmse_scalar_metrics(ds_val, model.output_variables)
-        except:
+        except (Exception):
             pass
     return adapter
 
