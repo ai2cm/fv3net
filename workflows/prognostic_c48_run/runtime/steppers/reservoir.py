@@ -327,7 +327,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                     f"Scattering increment diags (rank {GLOBAL_COMM.Get_rank()}):"
                     f" {list(diags.keys())}"
                 )
-                tendencies, diags, state = _scatter_stepper_return(
+                tendencies, diags, output_state = _scatter_stepper_return(
                     self.communicator, tendencies, diags, output_state
                 )
 
@@ -430,7 +430,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     f"Scattering predict return values (rank {GLOBAL_COMM.Get_rank()}):"
                     f" {list(output_state.keys()) + list(diags.keys())}"
                 )
-                tendencies, diags, state = _scatter_stepper_return(
+                tendencies, diags, output_state = _scatter_stepper_return(
                     self.communicator, tendencies, diags, output_state
                 )
         else:
