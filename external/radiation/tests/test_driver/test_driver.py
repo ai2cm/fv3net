@@ -24,7 +24,7 @@ nlay = 63
 
 def getscalars(indict):
     for var in indict.keys():
-        if not type(indict[var]) == dict:
+        if not isinstance(indict[var], dict):
             if indict[var].size == 1:
                 indict[var] = indict[var][0]
 

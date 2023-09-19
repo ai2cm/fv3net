@@ -3,8 +3,9 @@ import fsspec
 import numpy as np
 import os
 import tensorflow as tf
-from typing import Union, Sequence
+from typing import Union, Sequence, cast
 import yaml
+import fv3fit
 from fv3fit._shared.predictor import Reloadable
 from fv3fit.reservoir._reshaping import stack_array_preserving_last_dim
 
@@ -14,7 +15,7 @@ from fv3fit._shared import io
 ArrayLike = Union[np.ndarray, tf.Tensor]
 
 
-class Transformer(abc.ABC):
+class BaseTransformer(abc.ABC):
     @property
     @abc.abstractmethod
     def n_latent_dims(self):
@@ -29,8 +30,13 @@ class Transformer(abc.ABC):
         pass
 
 
+class Transformer(BaseTransformer, Reloadable):
+    def __init__(self, **kwargs):
+        self.super().__init__(**kwargs)
+
+
 @io.register("do-nothing-transformer")
-class DoNothingAutoencoder(Transformer, Reloadable):
+class DoNothingAutoencoder(Transformer):
     _CONFIG_NAME = "mock_transformer.yaml"
 
     """Useful class for tests. Encode just concatenates input
@@ -68,8 +74,37 @@ class DoNothingAutoencoder(Transformer, Reloadable):
         return cls(original_feature_sizes=config["original_feature_sizes"],)
 
 
+class TransformerGroup:
+    """For convenience, keep all the transformers together in a single
+    object. To streamline the logic, there may be replicated transformers
+    stored when variable groups are identical sets.
+    """
+
+    INPUT_DIR = "input_transformer"
+    OUTPUT_DIR = "output_transformer"
+    HYBRID_DIR = "hybrid_transformer"
+
+    def __init__(self, input: Transformer, output: Transformer, hybrid: Transformer):
+        self.input = input
+        self.output = output
+        self.hybrid = hybrid
+
+    def dump(self, path):
+
+        self.input.dump(os.path.join(path, self.INPUT_DIR))
+        self.output.dump(os.path.join(path, self.OUTPUT_DIR))
+        self.hybrid.dump(os.path.join(path, self.HYBRID_DIR))
+
+    @classmethod
+    def load(cls, path) -> "TransformerGroup":
+        input = cast(Transformer, fv3fit.load(os.path.join(path, cls.INPUT_DIR)))
+        output = cast(Transformer, fv3fit.load(os.path.join(path, cls.OUTPUT_DIR)))
+        hybrid = cast(Transformer, fv3fit.load(os.path.join(path, cls.HYBRID_DIR)))
+        return cls(input=input, output=output, hybrid=hybrid)
+
+
 def decode_columns(
-    encoded_output: np.ndarray, transformer: Transformer, xy_shape: Sequence[int]
+    encoded_output: np.ndarray, transformer: Transformer
 ) -> Sequence[np.ndarray]:
     """
     Differs from encode_columns as the decoder expects a single input array
@@ -84,9 +119,10 @@ def decode_columns(
         raise ValueError("Unexpected dimension size in decoding operation.")
 
     feature_size = encoded_output.shape[-1]
+    leading_shape = encoded_output.shape[:-1]
     encoded_output = encoded_output.reshape(-1, feature_size)
     decoded = transformer.decode(encoded_output)
-    var_arrays = [arr.reshape(*xy_shape, -1) for arr in decoded]
+    var_arrays = [arr.reshape(*leading_shape, -1) for arr in decoded]
     return var_arrays
 
 

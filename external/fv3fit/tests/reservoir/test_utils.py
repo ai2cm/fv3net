@@ -1,8 +1,25 @@
 import numpy as np
 import pytest
-from fv3fit.reservoir.utils import square_even_terms, process_batch_Xy_data
+from fv3fit.reservoir.utils import (
+    square_even_terms,
+    process_batch_data,
+    SynchronziationTracker,
+    assure_txyz_dims,
+)
+
 from fv3fit.reservoir.transformers import DoNothingAutoencoder
-from fv3fit.reservoir.domain import RankDivider
+from fv3fit.reservoir.domain2 import RankXYDivider
+
+
+def test_SynchronziationTracker():
+    sync_tracker = SynchronziationTracker(n_synchronize=6)
+    batches = np.arange(15).reshape(3, 5)
+    expected = [np.array([]), np.array([6, 7, 8, 9]), np.array([10, 11, 12, 13, 14])]
+    for expected_trimmed, batch in zip(expected, batches):
+        sync_tracker.count_synchronization_steps(len(batch))
+        np.testing.assert_array_equal(
+            sync_tracker.trim_synchronization_samples_if_needed(batch), expected_trimmed
+        )
 
 
 @pytest.mark.parametrize(
@@ -22,42 +39,51 @@ def test__square_even_terms(arr, axis, expected):
     np.testing.assert_array_equal(square_even_terms(arr, axis=axis), expected)
 
 
-@pytest.mark.parametrize("nz", [1, 3])
-def test_process_batch_Xy_data(nz):
-    overlap = 1
-    nvars = 2
+@pytest.mark.parametrize(
+    "nz, overlap, trim_halo",
+    [(1, 1, False), (3, 1, False), (1, 0, False), (3, 0, False), (3, 1, True)],
+)
+def test_process_batch_data(nz, overlap, trim_halo):
     nt, nx, ny = 10, 8, 8
-    subdomain_layout = [2, 2]
-    rank_divider = RankDivider(
-        subdomain_layout=subdomain_layout,
-        rank_dims=["x", "y"],
-        rank_extent=[nx, ny],
-        overlap=overlap,
-    )
+    subdomain_layout = (2, 2)
     autoencoder = DoNothingAutoencoder([nz, nz])
     batch_data = {
         "a": np.ones((nt, nx, ny, nz)),
         "b": np.ones((nt, nx, ny, nz)),
     }
-    time_series_with_overlap, time_series_without_overlap = process_batch_Xy_data(
+    rank_divider = RankXYDivider(
+        subdomain_layout=subdomain_layout,
+        overlap=overlap,
+        overlap_rank_extent=(nx, ny),
+        z_feature_size=autoencoder.n_latent_dims,
+    )
+
+    time_series = process_batch_data(
         variables=["a", "b"],
         batch_data=batch_data,
         rank_divider=rank_divider,
         autoencoder=autoencoder,
+        trim_halo=trim_halo,
     )
-    features_per_subdomain_with_overlap = (
-        np.prod(rank_divider.get_subdomain_extent(True)) * nvars * nz
-    )
-    features_per_subdomain_without_overlap = (
-        np.prod(rank_divider.get_subdomain_extent(False)) * nvars * nz
-    )
-    assert time_series_with_overlap.shape == (
-        nt,
-        features_per_subdomain_with_overlap,
-        rank_divider.n_subdomains,
-    )
-    assert time_series_without_overlap.shape == (
-        nt,
-        features_per_subdomain_without_overlap,
-        rank_divider.n_subdomains,
-    )
+
+    if trim_halo is True:
+        features_per_subdomain = (
+            rank_divider.get_no_overlap_rank_divider().flat_subdomain_len
+        )
+    else:
+        features_per_subdomain = rank_divider.flat_subdomain_len
+    assert time_series.shape == (nt, rank_divider.n_subdomains, features_per_subdomain,)
+
+
+def test_assure_txyz_dims():
+    nt, nx, ny, nz = 5, 4, 4, 6
+    arr_3d = np.ones((nt, nx, ny, nz))
+    arr_2d = np.ones((nt, nx, ny))
+    assert assure_txyz_dims(arr_3d).shape == (nt, nx, ny, nz)
+    assert assure_txyz_dims(arr_2d).shape == (nt, nx, ny, 1)
+
+
+def test_assure_txyz_dims_incompatible_shapes():
+    nt, nx, ny, nz = 5, 4, 4, 6
+    with pytest.raises(ValueError):
+        assure_txyz_dims(np.ones((nt, nx, ny, nz, 2)))

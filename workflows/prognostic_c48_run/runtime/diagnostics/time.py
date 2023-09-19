@@ -10,6 +10,7 @@ from typing import (
 
 import cftime
 import datetime
+import pandas as pd
 import vcm
 
 
@@ -59,7 +60,10 @@ class SelectedTimes(Container[cftime.DatetimeJulian]):
 
 class IntervalTimes(Container[cftime.DatetimeJulian]):
     def __init__(
-        self, frequency_seconds: Union[float, int], initial_time: cftime.DatetimeJulian,
+        self,
+        frequency_seconds: Union[float, int],
+        initial_time: cftime.DatetimeJulian,
+        offset: datetime.timedelta = datetime.timedelta(seconds=0),
     ):
         """
         Args:
@@ -68,7 +72,7 @@ class IntervalTimes(Container[cftime.DatetimeJulian]):
 
         """
         self._frequency_seconds = frequency_seconds
-        self.initial_time = initial_time
+        self.initial_time = initial_time + offset
         if self.frequency > datetime.timedelta(days=1.0) and initial_time is None:
             raise ValueError(
                 "Minimum output frequency is daily when intial_time is not provided."
@@ -140,16 +144,23 @@ class TimeConfig:
         frequency: frequency in seconds, used for kind=interval-average or interval
         includes_lower: for interval-average, whether the interval includes its upper
             or lower limit. Default: False.
+        offset: Timedelta offset for a fixed interval diagnostic. Must be a valid input
+            to ``pandas.TimeDelta``.  Examples: ``3h``.
     """
 
     frequency: Optional[float] = None
     times: Optional[List[str]] = None
     kind: str = "every"
     includes_lower: bool = False
+    offset: Optional[str] = None
 
     def time_container(self, initial_time: cftime.DatetimeJulian) -> TimeContainer:
         if self.kind == "interval" and self.frequency:
-            return TimeContainer(IntervalTimes(self.frequency, initial_time))
+            if self.offset is None:
+                offset = datetime.timedelta(seconds=0)
+            else:
+                offset = pd.to_timedelta(self.offset)
+            return TimeContainer(IntervalTimes(self.frequency, initial_time, offset))
         elif self.kind == "selected":
             return TimeContainer(SelectedTimes(self.times or []))
         elif self.kind == "every":
