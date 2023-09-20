@@ -13,11 +13,6 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Shift hybrid data by this number of timesteps.
-# -1 is common use case for saving the next timestep's ML prediction at
-# the same sample index as reservoir input.
-TIME_SHIFT_HYBRID_DATA = -1
-
 
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -90,7 +85,16 @@ def _get_parser() -> argparse.ArgumentParser:
             "All datasets loaded must have the same space and time coordinates."
         ),
     )
-
+    parser.add_argument(
+        "--hybrid-data-time-shift",
+        type=int,
+        default=-1,
+        help=(
+            "Number of timesteps to shift hybrid data by. "
+            "-1 is common use case for saving the next timestep's ML prediction at "
+            "the same sample index as reservoir input."
+        ),
+    )
     return parser
 
 
@@ -119,7 +123,7 @@ if __name__ == "__main__":
     if len(args.hybrid_data_paths) > 0:
         for path in args.hybrid_data_paths:
             _hybrid_data = intake.open_zarr(path).to_dask()
-            _hybrid_data = _hybrid_data.shift(time=TIME_SHIFT_HYBRID_DATA)
+            _hybrid_data = _hybrid_data.shift(time=args.hybrid_data_time_shift)
             rename_hybrid_time_shifted_vars.update(
                 {var: f"{var}_at_next_time_step" for var in _hybrid_data.data_vars}
             )
