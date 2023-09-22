@@ -27,6 +27,24 @@ class MockPredictor:
         return xr.Dataset({self.output_variables[0]: in_})
 
 
+def test_RenamingAdapter_output_variables():
+    model = RenamingAdapter(
+        MockPredictor(
+            input_variables=["renamed_input"], output_variables=["rename_output"]
+        ),
+        rename_in={"x": "renamed_input"},
+        rename_out={"y": "rename_output"},
+    )
+    assert model.output_variables == {"y"}
+
+
+def test_MultiModelAdapter_raises_duplicate_output_error():
+    model0 = MockPredictor(output_variables=["y0"], input_variables=["x"])
+    model1 = MockPredictor(output_variables=["y0"], input_variables=["x1"])
+    with pytest.raises(ValueError):
+        MultiModelAdapter([model0, model1]).output_variables
+
+
 def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
 
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})

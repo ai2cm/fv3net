@@ -106,6 +106,11 @@ class RenamingAdapter:
         invert_rename_in = invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
+    @property
+    def output_variables(self) -> Set[str]:
+        invert_rename_out = invert_dict(self.rename_out)
+        return {invert_rename_out.get(var, var) for var in self.model.output_variables}
+
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
         prediction = self.model.predict(input_)
@@ -132,6 +137,18 @@ class MultiModelAdapter:
     @property
     def input_variables(self) -> Set[str]:
         vars = [model.input_variables for model in self.models]
+        return {var for model_vars in vars for var in model_vars}
+
+    @property
+    def output_variables(self) -> Set[str]:
+        vars = [model.output_variables for model in self.models]
+        flattened = [item for sublist in vars for item in sublist]
+        if len(flattened) != len(set(flattened)):
+            duplicates = set([item for item in flattened if flattened.count(item) > 1])
+            raise ValueError(
+                f"Multiple ML models have the same output variable(s): {duplicates}. "
+                "This is not supported."
+            )
         return {var for model_vars in vars for var in model_vars}
 
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
