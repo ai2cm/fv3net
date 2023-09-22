@@ -25,7 +25,7 @@ def _get_predictions_over_batch(
     states_with_overlap_time_series: Sequence[np.ndarray],
     hybrid_inputs_time_series: Optional[Sequence[np.ndarray]] = None,
 ):
-    prediction_time_series = []
+    imperfect_prediction_time_series, prediction_time_series = [], []
     n_timesteps = states_with_overlap_time_series[0].shape[0]
     for t in range(n_timesteps):
         state = [
@@ -39,9 +39,10 @@ def _get_predictions_over_batch(
                 variable_time_series
                 for variable_time_series in hybrid_inputs_time_series[t]
             ]
+            imperfect_prediction_time_series.append(predict_kwargs["hybrid_input"])
         prediction = model.predict(**predict_kwargs)  # type: ignore
         prediction_time_series.append(prediction)
-    return prediction_time_series
+    return prediction_time_series, imperfect_prediction_time_series
 
 
 def _time_mean_dataset(variables, arr, label):
@@ -72,6 +73,7 @@ def validation_prediction(
     model.reset_state()
 
     one_step_prediction_time_series = []
+    one_step_imperfect_prediction_time_series = []
     target_time_series = []
     for batch_data in val_batches:
         states_with_overlap_time_series = get_ordered_X(
@@ -87,11 +89,13 @@ def validation_prediction(
             )
         else:
             hybrid_inputs_time_series = None
-        batch_predictions = _get_predictions_over_batch(
+
+        batch_predictions, batch_imperfect_predictions = _get_predictions_over_batch(
             model, states_with_overlap_time_series, hybrid_inputs_time_series
         )
 
         one_step_prediction_time_series += batch_predictions
+        one_step_imperfect_prediction_time_series += batch_imperfect_predictions
         target_time_series.append(
             _get_states_without_overlap(
                 states_with_overlap_time_series, overlap=model.rank_divider.overlap
@@ -106,11 +110,27 @@ def validation_prediction(
     one_step_predictions = np.array(one_step_prediction_time_series)[n_synchronize:-1]
     time_means_to_calculate = {
         "time_mean_prediction": one_step_predictions,
-        "time_mean_error": one_step_predictions - target,
+        "time_mean_prediction_error": one_step_predictions - target,
         "time_mean_persistence_error": persistence - target,
-        "time_mean_mse": (one_step_predictions - target) ** 2,
+        "time_mean_prediction_mse": (one_step_predictions - target) ** 2,
         "time_mean_persistence_mse": (persistence - target) ** 2,
     }
+
+    if len(one_step_imperfect_prediction_time_series) > 0:
+        one_step_imperfect_predictions = np.array(
+            one_step_imperfect_prediction_time_series
+        )[n_synchronize:-1]
+        imperfect_prediction_time_means_to_calculate = {
+            "time_mean_imperfect_prediction": one_step_imperfect_predictions,
+            "time_mean_imperfect_prediction_error": one_step_imperfect_predictions
+            - target,
+            "time_mean_imperfect_prediction_mse": (
+                one_step_imperfect_predictions - target
+            )
+            ** 2,
+        }
+        time_means_to_calculate.update(imperfect_prediction_time_means_to_calculate)
+
     diags_ = []
     for key, data in time_means_to_calculate.items():
         diags_.append(_time_mean_dataset(model.input_variables, data, key))
@@ -118,28 +138,30 @@ def validation_prediction(
     return xr.merge(diags_)
 
 
+UNITS = {
+    "air_temperature": "K",
+    "specific_humidity": "kg/kg",
+    "air_pressure": "Pa",
+    "eastward_wind": "m/s",
+    "northward_wind": "m/s",
+}
+
+
 def log_rmse_z_plots(ds_val, variables):
     for var in variables:
-        _rmse_z_persistence = np.sqrt(
-            ds_val[f"time_mean_persistence_mse_{var}"].mean(["x", "y"])
-        ).values
-        _rmse_z_prediction = np.sqrt(
-            ds_val[f"time_mean_mse_{var}"].mean(["x", "y"])
-        ).values
-        units = {
-            "air_temperature": "K",
-            "specific_humidity": "kg/kg",
-            "air_pressure": "Pa",
-            "eastward_wind": "m/s",
-            "northward_wind": "m/s",
-        }
+        rmse = {}
+        for comparison in ["persistence", "prediction", "imperfect_prediction"]:
+            mse_key = f"time_mean_{comparison}_mse_{var}"
+            if mse_key in ds_val:
+                rmse[comparison] = np.sqrt(ds_val[mse_key].mean(["x", "y"])).values
+
         wandb.log(
             {
                 f"val_rmse_zplot_{var}": wandb.plot.line_series(
                     xs=ds_val.z.values,
-                    ys=[_rmse_z_prediction, _rmse_z_persistence],
-                    keys=["prediction", "persistence"],
-                    title=f"validation RMSE {units.get(var, '')}: {var}",
+                    ys=list(rmse.values()),
+                    keys=list(rmse.keys()),
+                    title=f"validation RMSE {UNITS.get(var, '')}: {var}",
                     xname="model level",
                 )
             }
@@ -147,11 +169,36 @@ def log_rmse_z_plots(ds_val, variables):
 
 
 def log_rmse_scalar_metrics(ds_val, variables):
-    scaled_errors = []
+    scaled_errors_persistence, scaled_errors_imperfect = [], []
     for var in variables:
-        _mse_persistence = ds_val[f"time_mean_persistence_mse_{var}"].mean().values
-        _mse_prediction = ds_val[f"time_mean_mse_{var}"].mean().values
-        wandb.log({f"val_rmse_{var}": np.sqrt(_mse_prediction)})
-        wandb.log({f"val_rmse_{var}_persistence": np.sqrt(_mse_persistence)})
-        scaled_errors.append(_mse_prediction / _mse_persistence)
-    wandb.log({"val_rmse_scaled_avg": np.sqrt(np.mean(scaled_errors))})
+        log_data = {}
+        for comparison in ["persistence", "prediction", "imperfect_prediction"]:
+            mse_key = f"time_mean_{comparison}_mse_{var}"
+            if mse_key in ds_val:
+                log_data[mse_key] = ds_val[mse_key].mean().values
+                log_data[mse_key.replace("mse", "rmse")] = np.sqrt(log_data[mse_key])
+        # scaled errors are the average across variables of prediction/persistence
+        # and prediction/imperfect prediction errors
+        scaled_errors_persistence.append(
+            log_data[f"time_mean_prediction_mse_{var}"]
+            / log_data[f"time_mean_persistence_mse_{var}"]
+        )
+        try:
+            scaled_errors_imperfect.append(
+                log_data[f"time_mean_prediction_mse_{var}"]
+                / log_data[f"time_mean_imperfect_prediction_mse_{var}"]
+            )
+        except (KeyError):
+            pass
+
+    log_data["val_rmse_prediction_vs_persistence_scaled_avg"] = np.sqrt(
+        np.mean(scaled_errors_persistence)
+    )
+    try:
+        log_data["val_rmse_prediction_vs_imperfect_scaled_avg"] = np.sqrt(
+            np.mean(scaled_errors_imperfect)
+        )
+    except (KeyError):
+        pass
+
+    wandb.log(log_data)
