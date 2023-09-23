@@ -37,6 +37,7 @@ from runtime.names import (
     TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
     PREPHYSICS_OVERRIDES,
+    SURFACE_FLUX_OVERRIDES,
     A_GRID_WIND_TENDENCIES,
     D_GRID_WIND_TENDENCIES,
     EASTWARD_WIND_TENDENCY,
@@ -225,6 +226,16 @@ def state_updates_from_tendency(tendency_updates):
     }
 
     return updates
+
+
+def _check_surface_flux_overrides_exist(namelist_override_flag, state_update_keys):
+    if namelist_override_flag is True:
+        if not set(SURFACE_FLUX_OVERRIDES).issubset(state_update_keys):
+            raise ValueError(
+                "Namelist flag 'override_surface_radiative_fluxes' is set to True."
+                f"Surface flux overrides {SURFACE_FLUX_OVERRIDES} must be in "
+                "prephysics updates."
+            )
 
 
 class TimeLoop(
@@ -595,6 +606,9 @@ class TimeLoop(
         state_updates = {
             k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
+        _check_surface_flux_overrides_exist(
+            self._fv3gfs.override_surface_radiative_fluxes, list(state_updates.keys())
+        )
         self._state_updates = dissoc(self._state_updates, *PREPHYSICS_OVERRIDES)
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
