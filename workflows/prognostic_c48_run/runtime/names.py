@@ -38,10 +38,13 @@ TENDENCY_TO_STATE_NAME: Mapping[Hashable, Hashable] = {
     "dQp": DELP,
 }
 STATE_NAME_TO_TENDENCY = {value: key for key, value in TENDENCY_TO_STATE_NAME.items()}
-PREPHYSICS_OVERRIDES = [
+SURFACE_FLUX_OVERRIDES = [
     "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
     "override_for_time_adjusted_total_sky_net_shortwave_flux_at_surface",
     "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
+]
+PREPHYSICS_OVERRIDES = [
+    *SURFACE_FLUX_OVERRIDES,
     "ocean_surface_temperature",
     "surface_temperature",
 ]
