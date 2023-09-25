@@ -607,7 +607,8 @@ class TimeLoop(
             k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
         _check_surface_flux_overrides_exist(
-            self._fv3gfs.override_surface_radiative_fluxes, list(state_updates.keys())
+            self._fv3gfs.flags.override_surface_radiative_fluxes,
+            list(state_updates.keys()),
         )
         self._state_updates = dissoc(self._state_updates, *PREPHYSICS_OVERRIDES)
         self._log_debug(
