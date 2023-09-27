@@ -4,4 +4,5 @@ from .compute import (
     compute_ml_momentum_diagnostics,
     compute_baseline_diagnostics,
     rename_diagnostics,
+    enforce_heating_and_moistening_tendency_constraints,
 )

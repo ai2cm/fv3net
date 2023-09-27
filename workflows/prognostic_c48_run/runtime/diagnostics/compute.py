@@ -18,6 +18,91 @@ cp = 1004
 KG_PER_M2_PER_M = 1000.0
 
 
+def enforce_heating_and_moistening_tendency_constraints(
+    state: State,
+    tendency: State,
+    timestep: float,
+    hydrostatic: bool,
+    mse_conserving: bool,
+    temperature_tendency_name="dQ1",
+    humidity_tendency_name="dQ2",
+):
+    temperature_tendency_initial = tendency.get(
+        temperature_tendency_name, xr.zeros_like(state[SPHUM])
+    )
+    humidity_tendency_initial = tendency.get(
+        humidity_tendency_name, xr.zeros_like(state[SPHUM])
+    )
+    delp = state[DELP]
+    tendency_updates, diagnostics_updates = {}, {}
+
+    if mse_conserving is True:
+        (
+            humidity_tendency_updated,
+            temperature_tendency_updated,
+        ) = vcm.non_negative_sphum_mse_conserving(
+            state[SPHUM],
+            humidity_tendency_initial,
+            timestep,
+            q1=temperature_tendency_initial,
+        )
+    else:
+        (
+            temperature_tendency_updated,
+            humidity_tendency_updated,
+        ) = vcm.non_negative_sphum(
+            state[SPHUM],
+            dQ1=temperature_tendency_initial,
+            dQ2=humidity_tendency_initial,
+            dt=timestep,
+        )
+
+    if temperature_tendency_name in tendency:
+        if hydrostatic:
+            heating = vcm.column_integrated_heating_from_isobaric_transition(
+                temperature_tendency_updated - tendency[temperature_tendency_name],
+                delp,
+                "z",
+            )
+        else:
+            heating = vcm.column_integrated_heating_from_isochoric_transition(
+                temperature_tendency_updated - tendency[temperature_tendency_name],
+                delp,
+                "z",
+            )
+        heating = heating.assign_attrs(
+            long_name="Change in ML column heating due to non-negative specific "
+            "humidity limiter"
+        )
+        diagnostics_updates[
+            "column_integrated_dQ1_change_non_neg_sphum_constraint"
+        ] = heating
+        tendency_updates[temperature_tendency_name] = temperature_tendency_updated
+
+    if "dQ2" in tendency:
+        moistening = vcm.mass_integrate(
+            temperature_tendency_updated - tendency[humidity_tendency_name],
+            delp,
+            dim="z",
+        )
+        moistening = moistening.assign_attrs(
+            units="kg/m^2/s",
+            long_name="Change in ML column moistening due to non-negative specific "
+            "humidity limiter",
+        )
+        diagnostics_updates[
+            "column_integrated_dQ2_change_non_neg_sphum_constraint"
+        ] = moistening
+
+        tendency_updates[humidity_tendency_name] = temperature_tendency_updated
+
+    diagnostics_updates["specific_humidity_limiter_active"] = xr.where(
+        humidity_tendency_initial != humidity_tendency_updated, 1, 0
+    )
+
+    return tendency_updates, diagnostics_updates
+
+
 def precipitation_sum(
     physics_precip: xr.DataArray, column_dq2: xr.DataArray, dt: float
 ) -> xr.DataArray:
@@ -120,7 +205,7 @@ def compute_diagnostics(
             f"{TENDENCY_TO_STATE_NAME[k]}_tendency_due_to_nudging": v
             for k, v in tendency.items()
         }
-    elif label == "machine_learning":
+    elif label in {"machine_learning", "reservoir"}:
         diags_3d = {
             "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
                 description=f"air temperature tendency due to {label}"
@@ -129,6 +214,7 @@ def compute_diagnostics(
                 description=f"specific humidity tendency due to {label}"
             ),
         }
+
     diags.update(diags_3d)
 
     # add 3D state to diagnostics for backwards compatibility

@@ -7,9 +7,14 @@ from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, cast
 
 import fv3fit
 import xarray as xr
-from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
-from runtime.names import DELP, SPHUM, is_state_update_variable, is_tendency_variable
+from runtime.diagnostics import (
+    compute_diagnostics,
+    compute_ml_momentum_diagnostics,
+    enforce_heating_and_moistening_tendency_constraints,
+)
+from runtime.names import is_state_update_variable, is_tendency_variable
 from runtime.types import Diagnostics, State
+
 import vcm
 
 
@@ -202,8 +207,6 @@ class PureMLStepper:
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
-        delp = state[DELP]
-
         prediction: State = predict(self.model, state)
 
         tendency, state_updates = {}, {}
@@ -218,52 +221,20 @@ class PureMLStepper:
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
 
-        dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
-        dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
-
-        if self.mse_conserving_limiter:
-            dQ2_updated, dQ1_updated = vcm.non_negative_sphum_mse_conserving(
-                state[SPHUM], dQ2_initial, self.timestep, q1=dQ1_initial,
-            )
-        else:
-            dQ1_updated, dQ2_updated = vcm.non_negative_sphum(
-                state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
-            )
-
-        if "dQ1" in tendency:
-            if self.hydrostatic:
-                heating = vcm.column_integrated_heating_from_isobaric_transition(
-                    dQ1_updated - tendency["dQ1"], delp, "z"
-                )
-            else:
-                heating = vcm.column_integrated_heating_from_isochoric_transition(
-                    dQ1_updated - tendency["dQ1"], delp, "z"
-                )
-            heating = heating.assign_attrs(
-                long_name="Change in ML column heating due to non-negative specific "
-                "humidity limiter"
-            )
-            diagnostics.update(
-                {"column_integrated_dQ1_change_non_neg_sphum_constraint": heating}
-            )
-            tendency.update({"dQ1": dQ1_updated})
-        if "dQ2" in tendency:
-            moistening = vcm.mass_integrate(
-                dQ2_updated - tendency["dQ2"], delp, dim="z"
-            )
-            moistening = moistening.assign_attrs(
-                units="kg/m^2/s",
-                long_name="Change in ML column moistening due to non-negative specific "
-                "humidity limiter",
-            )
-            diagnostics.update(
-                {"column_integrated_dQ2_change_non_neg_sphum_constraint": moistening}
-            )
-            tendency.update({"dQ2": dQ2_updated})
-
-        diagnostics["specific_humidity_limiter_active"] = xr.where(
-            dQ2_initial != dQ2_updated, 1, 0
+        (
+            tendency_updates,
+            diagnostics_updates,
+        ) = enforce_heating_and_moistening_tendency_constraints(
+            state=state,
+            tendency=tendency,
+            timestep=self.timestep,
+            mse_conserving=self.mse_conserving_limiter,
+            hydrostatic=self.hydrostatic,
+            temperature_tendency_name="dQ1",
+            humidity_tendency_name="dQ2",
         )
+        tendency.update(tendency_updates)
+        diagnostics.update(diagnostics_updates)
 
         return (
             tendency,
