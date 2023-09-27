@@ -221,6 +221,8 @@ class PureMLStepper:
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
 
+        # Adjust dQ1 and dQ2 to ensure non-negative humidity and optionally conserve MSE
+        # and add diagnostics tracking the tendency adjustments related to this step
         (
             tendency_updates,
             diagnostics_updates,
