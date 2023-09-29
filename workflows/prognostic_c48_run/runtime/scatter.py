@@ -30,11 +30,10 @@ def scatter_within_tile_for_prescriber(
     """
     if communicator.tile.rank == 0:
         state: State = time_lookup_function(time)
+        tile = communicator.partitioner.tile_index(communicator.rank)
+        ds = xr.Dataset(state).isel(tile=tile)
     else:
-        state = {}
-
-    tile = communicator.partitioner.tile_index(communicator.rank)
-    ds = xr.Dataset(state).isel(tile=tile)
+        ds = xr.Dataset({})
 
     return scatter_within_tile(communicator, ds)
 
