@@ -280,3 +280,25 @@ def compute_baseline_diagnostics(state: State) -> Diagnostics:
             description="surface precipitation rate due to parameterized physics"
         ),
     )
+
+
+def tendencies_from_state_updates(
+    initial_state: State, updated_state: State, dt: float
+):
+    """Compute tendencies from state updates
+
+    Args:
+        initial_state: initial state
+        updated_state: updated state
+        variables: variables to compute tendencies for
+
+    Returns:
+        tendencies: tendencies computed from state updates
+    """
+    tendencies = {}
+    for variable in updated_state:
+        tendency_var = STATE_NAME_TO_TENDENCY[variable]
+        tendencies[tendency_var] = (
+            updated_state[variable] - initial_state[variable]
+        ) / dt
+    return tendencies

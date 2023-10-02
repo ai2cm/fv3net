@@ -30,6 +30,7 @@ from runtime.diagnostics.compute import (
     precipitation_sum,
     precipitation_accumulation,
     rename_diagnostics,
+    tendencies_from_state_updates,
 )
 import runtime.diagnostics.tracers
 from runtime.monitor import Monitor
@@ -710,10 +711,14 @@ class TimeLoop(
     def _apply_reservoir_update_to_state(self) -> Diagnostics:
         # TODO: handle tendencies
         if self._reservoir_predict_stepper is not None:
-            [_, diags, state] = self._reservoir_predict_stepper(
+            [_, diags, state_updates] = self._reservoir_predict_stepper(
                 self._state.time, self._state
             )
-            self._state.update_mass_conserving(state)
+            _tendencies = tendencies_from_state_updates(
+                initial_state=self._state, state_updates=state_updates
+            )
+
+            self._state.update_mass_conserving(state_updates)
             return diags
         else:
             return {}
