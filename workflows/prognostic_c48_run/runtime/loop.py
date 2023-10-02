@@ -30,7 +30,6 @@ from runtime.diagnostics.compute import (
     precipitation_sum,
     precipitation_accumulation,
     rename_diagnostics,
-    tendencies_from_state_updates,
 )
 import runtime.diagnostics.tracers
 from runtime.monitor import Monitor
@@ -43,6 +42,7 @@ from runtime.tendency import (
     add_tendency,
     prepare_tendencies_for_dynamical_core,
     state_updates_from_tendency,
+    tendencies_from_state_updates,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -580,10 +580,11 @@ class TimeLoop(
             [_, diags, state_updates] = self._reservoir_predict_stepper(
                 self._state.time, self._state
             )
-            _tendencies = tendencies_from_state_updates(
-                initial_state=self._state, state_updates=state_updates
+            _ = tendencies_from_state_updates(
+                initial_state=self._state,
+                updated_state=state_updates,
+                dt=self._timestep,
             )
-
             self._state.update_mass_conserving(state_updates)
             return diags
         else:
