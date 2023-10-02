@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from runtime.loop import (
+from runtime.tendency import (
     add_tendency,
     fillna_tendencies,
     prepare_agrid_wind_tendencies,
