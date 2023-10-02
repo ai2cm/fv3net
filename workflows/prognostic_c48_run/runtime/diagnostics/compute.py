@@ -81,9 +81,7 @@ def enforce_heating_and_moistening_tendency_constraints(
 
     if "dQ2" in tendency:
         moistening = vcm.mass_integrate(
-            temperature_tendency_updated - tendency[humidity_tendency_name],
-            delp,
-            dim="z",
+            humidity_tendency_updated - tendency[humidity_tendency_name], delp, dim="z",
         )
         moistening = moistening.assign_attrs(
             units="kg/m^2/s",
@@ -94,7 +92,7 @@ def enforce_heating_and_moistening_tendency_constraints(
             "column_integrated_dQ2_change_non_neg_sphum_constraint"
         ] = moistening
 
-        tendency_updates[humidity_tendency_name] = temperature_tendency_updated
+        tendency_updates[humidity_tendency_name] = humidity_tendency_updated
 
     diagnostics_updates["specific_humidity_limiter_active"] = xr.where(
         humidity_tendency_initial != humidity_tendency_updated, 1, 0
