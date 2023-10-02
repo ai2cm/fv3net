@@ -148,6 +148,8 @@ UNITS = {
 
 
 def log_rmse_z_plots(ds_val, variables):
+    # Note: spatial mean is not area-averaged. If reporting metrics in publication
+    # will need to change this.
     for var in variables:
         rmse = {}
         for comparison in ["persistence", "prediction", "imperfect_prediction"]:
