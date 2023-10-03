@@ -245,12 +245,12 @@ def compute_ml_momentum_diagnostics(state: State, tendency: State) -> Diagnostic
     )
 
 
-def rename_diagnostics(diags: Diagnostics):
+def rename_diagnostics(diags: Diagnostics, label: str = "machine_learning"):
     """Postfix ML output names with _diagnostic and create zero-valued outputs in
     their stead. Function operates in place."""
     ml_tendencies = {
-        "net_moistening_due_to_machine_learning",
-        "net_heating_due_to_machine_learning",
+        f"net_moistening_due_to_{label}",
+        f"net_heating_due_to_{label}",
         "column_integrated_dQu",
         "column_integrated_dQv",
         "override_for_time_adjusted_total_sky_downward_shortwave_flux_at_surface",
