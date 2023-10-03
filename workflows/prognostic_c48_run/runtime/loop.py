@@ -42,7 +42,6 @@ from runtime.tendency import (
     add_tendency,
     prepare_tendencies_for_dynamical_core,
     state_updates_from_tendency,
-    tendencies_from_state_updates,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -340,7 +339,10 @@ class TimeLoop(
         if config.reservoir_corrector is not None:
             res_config = config.reservoir_corrector
             incrementer, predictor = get_reservoir_steppers(
-                res_config, MPI.COMM_WORLD.Get_rank(), init_time=init_time
+                res_config,
+                MPI.COMM_WORLD.Get_rank(),
+                init_time=init_time,
+                model_timestep=self._timestep,
             )
         else:
             incrementer, predictor = None, None
@@ -580,11 +582,7 @@ class TimeLoop(
             [_, diags, state_updates] = self._reservoir_predict_stepper(
                 self._state.time, self._state
             )
-            _ = tendencies_from_state_updates(
-                initial_state=self._state,
-                updated_state=state_updates,
-                dt=self._timestep,
-            )
+
             self._state.update_mass_conserving(state_updates)
             return diags
         else:

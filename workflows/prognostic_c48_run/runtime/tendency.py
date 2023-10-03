@@ -13,14 +13,14 @@ from runtime.names import (
     Y_WIND_TENDENCY,
     STATE_NAME_TO_TENDENCY,
 )
-from runtime.types import State
+from runtime.types import State, Tendencies
 from toolz import dissoc
 
 
 def tendencies_from_state_updates(
     initial_state: State, updated_state: State, dt: float
-):
-    """Compute tendencies from state updates
+) -> Tendencies:
+    """Compute tendencies given intial and updated states
 
     Args:
         initial_state: initial state
