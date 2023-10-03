@@ -17,7 +17,7 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST
+from runtime.names import SST, SPHUM, TEMP
 from runtime.tendency import add_tendency, tendencies_from_state_updates
 from runtime.diagnostics import (
     enforce_heating_and_moistening_tendency_constraints,
@@ -180,6 +180,7 @@ class _ReservoirStepper:
         self.input_averager = input_averager
         self.warm_start = warm_start
         self.hydrostatic = hydrostatic
+        self.mse_conserving_limiter = mse_conserving_limiter
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -365,39 +366,40 @@ class ReservoirPredictStepper(_ReservoirStepper):
             if self.input_averager is not None:
                 inputs.update(self.input_averager.get_averages())
 
-            tendencies, diags, predicted_state = self.predict(inputs, state)
+            tendencies, diags, updated_state = self.predict(inputs, state)
 
             hybrid_diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_hyb_in" for k in inputs}
             )
             diags.update(hybrid_diags)
 
-            # TODO: Currently the reservoir only predicts updated states and returns
-            # empty tendencies. If tendency predictions are implemented in the
-            # prognostic run, the limiter/conservation updates should be updated to
-            # take this option into account and use the predicted tendencies directly.
-            tendencies_from_state_prediction = tendencies_from_state_updates(
-                initial_state=state, updated_state=predicted_state, dt=self.timestep,
-            )
-            (
-                tendency_updates_from_constraints,
-                diagnostics_updates_from_constraints,
-            ) = enforce_heating_and_moistening_tendency_constraints(
-                state=state,
-                tendency=tendencies_from_state_prediction,
-                timestep=self.model_timestep,
-                mse_conserving=self.mse_conserving_limiter,
-                hydrostatic=self.hydrostatic,
-                temperature_tendency_name="dQ1",
-                humidity_tendency_name="dQ2",
-            )
-            diags.update(diagnostics_updates_from_constraints)
-            updated_state = add_tendency(
-                state=state,
-                tendency=tendency_updates_from_constraints,
-                dt=self.model_timestep,
-            )
-            tendencies.update(tendency_updates_from_constraints)
+            if {TEMP, SPHUM}.issubset(list(updated_state.keys())):
+                # TODO: Currently the reservoir only predicts updated states and returns
+                # empty tendencies. If tendency predictions are implemented in the
+                # prognostic run, the limiter/conservation updates should be updated to
+                # take this option into account and use predicted tendencies directly.
+                tendencies_from_state_prediction = tendencies_from_state_updates(
+                    initial_state=state, updated_state=updated_state, dt=self.timestep,
+                )
+                (
+                    tendency_updates_from_constraints,
+                    diagnostics_updates_from_constraints,
+                ) = enforce_heating_and_moistening_tendency_constraints(
+                    state=state,
+                    tendency=tendencies_from_state_prediction,
+                    timestep=self.model_timestep,
+                    mse_conserving=self.mse_conserving_limiter,
+                    hydrostatic=self.hydrostatic,
+                    temperature_tendency_name="dQ1",
+                    humidity_tendency_name="dQ2",
+                )
+                diags.update(diagnostics_updates_from_constraints)
+                updated_state = add_tendency(
+                    state=state,
+                    tendency=tendency_updates_from_constraints,
+                    dt=self.model_timestep,
+                )
+                tendencies.update(tendency_updates_from_constraints)
 
         else:
             tendencies, diags, updated_state = {}, {}, {}

@@ -16,6 +16,8 @@ from runtime.steppers.reservoir import (
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
+MODEL_TIMESTEP = 900
+
 
 def test_reservoir_stepper_state():
     fsm = _FiniteStateMachine()
@@ -128,6 +130,7 @@ def get_mock_ReservoirSteppers():
         model,
         datetime(2020, 1, 1, 0, 0, 0),
         timedelta(minutes=10),
+        MODEL_TIMESTEP,
         2,
         state_machine=state_machine,
     )
@@ -136,6 +139,7 @@ def get_mock_ReservoirSteppers():
         model,
         datetime(2020, 1, 1, 0, 0, 0),
         timedelta(minutes=10),
+        MODEL_TIMESTEP,
         2,
         state_machine=state_machine,
     )
@@ -211,7 +215,9 @@ def test_get_reservoir_steppers(patched_reservoir_module):
 
     config = ReservoirConfig({0: "model"}, 0, reservoir_timestep="10m")
     time = datetime(2020, 1, 1, 0, 0, 0)
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, time)
+    incrementer, predictor = reservoir.get_reservoir_steppers(
+        config, 0, time, MODEL_TIMESTEP
+    )
 
     # Check that both steppers share model and state machine objects
     assert incrementer.model is predictor.model
@@ -229,7 +235,9 @@ def test_reservoir_steppers_state_machine_constraint(patched_reservoir_module):
 
     config = ReservoirConfig({0: "model"}, 0, reservoir_timestep="10m")
     time = datetime(2020, 1, 1, 0, 0, 0)
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, time)
+    incrementer, predictor = reservoir.get_reservoir_steppers(
+        config, 0, time, MODEL_TIMESTEP
+    )
 
     # check that steppers respect state machine limit
     state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
@@ -246,7 +254,9 @@ def test_reservoir_steppers_with_interval_averaging(patched_reservoir_module):
         {0: "model"}, 0, reservoir_timestep="30m", time_average_inputs=True
     )
     init_time = datetime(2020, 1, 1, 0, 0, 0)
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, init_time)
+    incrementer, predictor = reservoir.get_reservoir_steppers(
+        config, 0, init_time, MODEL_TIMESTEP
+    )
 
     state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
     incrementer(init_time, state)
@@ -261,7 +271,9 @@ def test_reservoir_steppers_diagnostic_only(patched_reservoir_module):
         {0: "model"}, 0, reservoir_timestep="10m", diagnostic_only=True
     )
     init_time = datetime(2020, 1, 1, 0, 0, 0)
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, init_time)
+    incrementer, predictor = reservoir.get_reservoir_steppers(
+        config, 0, init_time, MODEL_TIMESTEP
+    )
 
     state = MockState(a=xr.DataArray(np.ones(1), dims=["x"]))
     incrementer(init_time, state)
@@ -275,7 +287,9 @@ def test_reservoir_steppers_renaming(patched_reservoir_module):
         {0: "model"}, 0, reservoir_timestep="10m", rename_mapping={"a": "b"}
     )
     init_time = datetime(2020, 1, 1, 0, 0, 0)
-    incrementer, predictor = reservoir.get_reservoir_steppers(config, 0, init_time)
+    incrementer, predictor = reservoir.get_reservoir_steppers(
+        config, 0, init_time, MODEL_TIMESTEP
+    )
 
     res_input = MockState(b=xr.DataArray(np.ones(3), dims=["x"]))
     # different dimension to test diagnostics dims renaming
@@ -289,4 +303,6 @@ def test_reservoir_steppers_renaming(patched_reservoir_module):
 def test_model_paths_and_rank_index_mismatch_on_load():
     config = ReservoirConfig({1: "model"}, 0, reservoir_timestep="10m")
     with pytest.raises(KeyError):
-        reservoir.get_reservoir_steppers(config, 1, datetime(2020, 1, 1))
+        reservoir.get_reservoir_steppers(
+            config, 1, datetime(2020, 1, 1), MODEL_TIMESTEP
+        )
