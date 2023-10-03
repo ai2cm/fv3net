@@ -338,6 +338,7 @@ class TimeLoop(
     ) -> Tuple[Optional[Stepper], Optional[Stepper]]:
         if config.reservoir_corrector is not None:
             res_config = config.reservoir_corrector
+            self._log_info("Getting reservoir steppers")
             incrementer, predictor = get_reservoir_steppers(
                 res_config,
                 MPI.COMM_WORLD.Get_rank(),
@@ -589,16 +590,14 @@ class TimeLoop(
                 stepper_diags,
                 net_moistening,
             ) = self._reservoir_predict_stepper.get_diagnostics(
-                self._state, self._tendencies
+                self._state, tendencies_from_state_prediction
             )
             diags.update(stepper_diags)
             if self._reservoir_predict_stepper.diagnostic is True:  # type: ignore
                 rename_diagnostics(diags, label="reservoir_predictor")
 
             state_updates[TOTAL_PRECIP] = precipitation_sum(
-                self._state[TOTAL_PRECIP],
-                diags[f"net_moistening_due_to_reservoir"],
-                self._timestep,
+                self._state[TOTAL_PRECIP], net_moistening, self._timestep,
             )
 
             self._state.update_mass_conserving(state_updates)
@@ -615,6 +614,7 @@ class TimeLoop(
                     ),
                 }
             )
+
             return diags
         else:
             return {}

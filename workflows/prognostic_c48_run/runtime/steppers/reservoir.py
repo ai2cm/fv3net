@@ -282,7 +282,8 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
-
+            logger.info(f"reservoir increment inputs: {list(inputs.keys())}")
+            logger.info({k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs})
             diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs}
             )
@@ -400,6 +401,10 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     dt=self.model_timestep,
                 )
                 tendencies.update(tendency_updates_from_constraints)
+                logger.info(
+                    f"diags after update by sphum limiter and MSE conservation: ",
+                    f"{diags.keys()}",
+                )
 
         else:
             tendencies, diags, updated_state = {}, {}, {}
