@@ -19,7 +19,10 @@ from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 from runtime.names import SST
 from runtime.tendency import add_tendency, tendencies_from_state_updates
-from runtime.diagnostics import enforce_heating_and_moistening_tendency_constraints
+from runtime.diagnostics import (
+    enforce_heating_and_moistening_tendency_constraints,
+    compute_diagnostics,
+)
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, NameDict
 
@@ -373,7 +376,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             # empty tendencies. If tendency predictions are implemented in the
             # prognostic run, the limiter/conservation updates should be updated to
             # take this option into account and use the predicted tendencies directly.
-            _tendencies_from_state_update = tendencies_from_state_updates(
+            tendencies_from_state_prediction = tendencies_from_state_updates(
                 initial_state=state, updated_state=predicted_state, dt=self.timestep,
             )
             (
@@ -381,7 +384,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
                 diagnostics_updates_from_constraints,
             ) = enforce_heating_and_moistening_tendency_constraints(
                 state=state,
-                tendency=_tendencies_from_state_update,
+                tendency=tendencies_from_state_prediction,
                 timestep=self.model_timestep,
                 mse_conserving=self.mse_conserving_limiter,
                 hydrostatic=self.hydrostatic,
@@ -394,11 +397,16 @@ class ReservoirPredictStepper(_ReservoirStepper):
                 tendency=tendency_updates_from_constraints,
                 dt=self.model_timestep,
             )
+            tendencies.update(tendency_updates_from_constraints)
 
         else:
             tendencies, diags, updated_state = {}, {}, {}
 
         return tendencies, diags, updated_state
+
+    def get_diagnostics(self, state, tendency):
+        diags = compute_diagnostics(state, tendency, self.label, self.hydrostatic)
+        return diags, diags[f"net_moistening_due_to_{self.label}"]
 
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:

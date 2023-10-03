@@ -577,13 +577,44 @@ class TimeLoop(
             return {}
 
     def _apply_reservoir_update_to_state(self) -> Diagnostics:
-        # TODO: handle tendencies
+        # TODO: handle tendencies. Currently the returned tendencies
+        # are only used for diagnostics and are not used in updating state
         if self._reservoir_predict_stepper is not None:
-            [_, diags, state_updates] = self._reservoir_predict_stepper(
-                self._state.time, self._state
+            [
+                tendencies_from_state_prediction,
+                diags,
+                state_updates,
+            ] = self._reservoir_predict_stepper(self._state.time, self._state)
+            (
+                stepper_diags,
+                net_moistening,
+            ) = self._reservoir_predict_stepper.get_diagnostics(
+                self._state, self._tendencies
+            )
+            diags.update(stepper_diags)
+            if self._reservoir_predict_stepper.diagnostic is True:  # type: ignore
+                rename_diagnostics(diags, label="reservoir_predictor")
+
+            state_updates[TOTAL_PRECIP] = precipitation_sum(
+                self._state[TOTAL_PRECIP],
+                diags[f"net_moistening_due_to_reservoir"],
+                self._timestep,
             )
 
             self._state.update_mass_conserving(state_updates)
+
+            diags.update({name: self._state[name] for name in self._states_to_output})
+            diags.update(
+                {
+                    "area": self._state[AREA],
+                    "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                        "cnvprcp"
+                    ).data_array,
+                    TOTAL_PRECIP_RATE: precipitation_rate(
+                        self._state[TOTAL_PRECIP], self._timestep
+                    ),
+                }
+            )
             return diags
         else:
             return {}
