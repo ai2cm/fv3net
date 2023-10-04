@@ -79,7 +79,8 @@ def enforce_heating_and_moistening_tendency_constraints(
     try:
         heating = heating.assign_attrs(
             long_name="Change in ML column heating due to non-negative specific "
-            "humidity limiter"
+            "humidity limiter",
+            units="W/m**2",
         )
         diagnostics_updates[
             "column_integrated_dQ1_change_non_neg_sphum_constraint"
@@ -94,14 +95,15 @@ def enforce_heating_and_moistening_tendency_constraints(
         moistening = vcm.mass_integrate(
             humidity_tendency_updated - tendency[humidity_tendency_name], delp, dim="z",
         )
+
+    elif zero_fill_missing_tendencies is True:
+        moistening = xr.zeros_like(state[SPHUM]).isel(z=0).squeeze()
+    try:
         moistening = moistening.assign_attrs(
             units="kg/m^2/s",
             long_name="Change in ML column moistening due to non-negative specific "
             "humidity limiter",
         )
-    elif zero_fill_missing_tendencies is True:
-        moistening = xr.zeros_like(state[SPHUM]).isel(z=0).squeeze()
-    try:
         diagnostics_updates[
             "column_integrated_dQ2_change_non_neg_sphum_constraint"
         ] = moistening
