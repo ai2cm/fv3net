@@ -222,11 +222,9 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         reservoir_inputs = xr.Dataset(
             {
                 k: state[self.rename_mapping.get(k, k)]
-                for k in self.model.input_variables
+                for k in self.model.nonhybrid_input_variables
             }
         )
-        logger.info(f'model input variables: {self.model.input_variables}')
-        logger.info(f'model rename mapping: {self.rename_mapping}')
 
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
@@ -271,12 +269,6 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs}
             )
-
-            logger.info(f"reservoir increment inputs: {list(inputs.keys())}")
-            logger.info(f'self.rename_mapping: {self.rename_mapping}')
-            logger.info({k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs})
-
-
 
             # prevent conflict with non-halo diagnostics
             if self.model.input_overlap > 0:
@@ -343,7 +335,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             inputs = xr.Dataset(
                 {
                     k: state[self.rename_mapping.get(k, k)]
-                    for k in self.model.model.hybrid_variables
+                    for k in self.model.hybrid_variables
                 }
             )
         else:
