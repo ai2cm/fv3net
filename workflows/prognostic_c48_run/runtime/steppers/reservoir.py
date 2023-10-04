@@ -399,7 +399,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     hydrostatic=self.hydrostatic,
                     temperature_tendency_name="dQ1",
                     humidity_tendency_name="dQ2",
-                    zero_fill_tendencies=True,
+                    zero_fill_missing_tendencies=True,
                 )
 
                 diags.update(diagnostics_updates_from_constraints)
