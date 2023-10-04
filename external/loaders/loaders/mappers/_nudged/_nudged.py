@@ -285,10 +285,10 @@ def open_nudge_to_fine_scream(
     rename_vars: Mapping[Hashable, Hashable] = {
         "T_mid_tendency_due_to_nudging": "dQ1",
         "qv_tendency_due_to_nudging": "dQ2",
-        "u_tendency_due_to_nudging": "dQxwind",
-        "v_tendency_due_to_nudging": "dQywind",
-        "tendency_of_u_due_to_scream_physics": "pQu",
-        "tendency_of_v_due_to_scream_physics": "pQv",
+        "U_tendency_due_to_nudging": "dQxwind",
+        "V_tendency_due_to_nudging": "dQywind",
+        "tendency_of_U_due_to_scream_physics": "pQu",
+        "tendency_of_V_due_to_scream_physics": "pQv",
         "tendency_of_T_mid_due_to_scream_physics": "pQ1",
         "tendency_of_qv_due_to_scream_physics": "pQ2",
     }

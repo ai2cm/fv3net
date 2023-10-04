@@ -8,6 +8,9 @@ from fv3fit.reservoir.readout import (
 import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
+import wandb
+
+
 from .. import Predictor
 from .utils import (
     square_even_terms,
@@ -27,7 +30,7 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-
+from .validation import validation_prediction, log_rmse_z_plots, log_rmse_scalar_metrics
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -237,7 +240,7 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
         )
-        return ReservoirDatasetAdapter(
+        adapter = ReservoirDatasetAdapter(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
@@ -253,11 +256,24 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
         )
-        return HybridReservoirDatasetAdapter(
+        adapter = HybridReservoirDatasetAdapter(  # type: ignore
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
         )
+
+    if validation_batches is not None and wandb.run is not None:
+        try:
+            ds_val = validation_prediction(
+                model,
+                val_batches=validation_batches,
+                n_synchronize=hyperparameters.n_timesteps_synchronize,
+            )
+            log_rmse_z_plots(ds_val, model.output_variables)
+            log_rmse_scalar_metrics(ds_val, model.output_variables)
+        except Exception as e:
+            logging.error("Error logging validation metrics to wandb", exc_info=e)
+    return adapter
 
 
 def _get_reservoir_state_time_series(
