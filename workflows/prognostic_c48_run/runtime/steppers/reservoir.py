@@ -242,8 +242,6 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                 for k in self.model.nonhybrid_input_variables
             }
         )
-        logger.info(f"model input variables: {self.model.input_variables}")
-        logger.info(f"model rename mapping: {self.rename_mapping}")
 
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
@@ -284,15 +282,9 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
-            logger.info(f"reservoir increment inputs: {list(inputs.keys())}")
-            logger.info({k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs})
             diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs}
             )
-
-            logger.info(f"reservoir increment inputs: {list(inputs.keys())}")
-            logger.info(f"self.rename_mapping: {self.rename_mapping}")
-            logger.info({k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs})
 
             # prevent conflict with non-halo diagnostics
             if self.model.input_overlap > 0:
@@ -315,6 +307,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
     """
 
     label = "reservoir_predictor"
+    DIAGS_OUTPUT_SUFFIX = "rc_out"
 
     def predict(self, inputs, state):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
@@ -324,7 +317,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         output_state = rename_dataset_members(result, self.rename_mapping)
 
         diags = rename_dataset_members(
-            output_state, {k: f"{k}_rc_out" for k in output_state}
+            output_state, {k: f"{k}_{self.DIAGS_OUTPUT_SUFFIX}" for k in output_state}
         )
 
         for k, v in output_state.items():
@@ -380,13 +373,20 @@ class ReservoirPredictStepper(_ReservoirStepper):
             )
             diags.update(hybrid_diags)
 
-            if {TEMP, SPHUM}.issubset(list(updated_state.keys())):
+            # This check is done on the _rc_out diags since those are always available.
+            # This allows zero field diags to be returned on timesteps where the
+            # reservoir is not updating the state.
+            diags_Tq_vars = {f"{v}_{self.DIAGS_OUTPUT_SUFFIX}" for v in [TEMP, SPHUM]}
+
+            if diags_Tq_vars.issubset(list(diags.keys())):
                 # TODO: Currently the reservoir only predicts updated states and returns
                 # empty tendencies. If tendency predictions are implemented in the
                 # prognostic run, the limiter/conservation updates should be updated to
                 # take this option into account and use predicted tendencies directly.
                 tendencies_from_state_prediction = tendencies_from_state_updates(
-                    initial_state=state, updated_state=updated_state, dt=self.timestep,
+                    initial_state=state,
+                    updated_state=updated_state,
+                    dt=self.model_timestep,
                 )
                 (
                     tendency_updates_from_constraints,
@@ -400,17 +400,14 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     temperature_tendency_name="dQ1",
                     humidity_tendency_name="dQ2",
                 )
+
                 diags.update(diagnostics_updates_from_constraints)
                 updated_state = add_tendency(
                     state=state,
-                    tendency=tendency_updates_from_constraints,
+                    tendencies=tendency_updates_from_constraints,
                     dt=self.model_timestep,
                 )
                 tendencies.update(tendency_updates_from_constraints)
-                logger.info(
-                    f"diags after update by sphum limiter and MSE conservation: ",
-                    f"{diags.keys()}",
-                )
 
         else:
             tendencies, diags, updated_state = {}, {}, {}

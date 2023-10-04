@@ -70,16 +70,21 @@ def enforce_heating_and_moistening_tendency_constraints(
                 delp,
                 "z",
             )
-        heating = heating.assign_attrs(
-            long_name="Change in ML column heating due to non-negative specific "
-            "humidity limiter"
-        )
-        diagnostics_updates[
-            "column_integrated_dQ1_change_non_neg_sphum_constraint"
-        ] = heating
-        tendency_updates[temperature_tendency_name] = temperature_tendency_updated
+    else:
+        # Still need to output zeros if no tendency is predicted so that reservoir
+        # diagnostics are available on the updated timesteps
+        heating = xr.zeros_like(state[SPHUM]).isel(z=0).squeeze()
 
-    if "dQ2" in tendency:
+    heating = heating.assign_attrs(
+        long_name="Change in ML column heating due to non-negative specific "
+        "humidity limiter"
+    )
+    diagnostics_updates[
+        "column_integrated_dQ1_change_non_neg_sphum_constraint"
+    ] = heating
+    tendency_updates[temperature_tendency_name] = temperature_tendency_updated
+
+    if humidity_tendency_name in tendency:
         moistening = vcm.mass_integrate(
             humidity_tendency_updated - tendency[humidity_tendency_name], delp, dim="z",
         )
@@ -88,11 +93,13 @@ def enforce_heating_and_moistening_tendency_constraints(
             long_name="Change in ML column moistening due to non-negative specific "
             "humidity limiter",
         )
-        diagnostics_updates[
-            "column_integrated_dQ2_change_non_neg_sphum_constraint"
-        ] = moistening
+    else:
+        moistening = xr.zeros_like(state[SPHUM]).isel(z=0).squeeze()
 
-        tendency_updates[humidity_tendency_name] = humidity_tendency_updated
+    diagnostics_updates[
+        "column_integrated_dQ2_change_non_neg_sphum_constraint"
+    ] = moistening
+    tendency_updates[humidity_tendency_name] = humidity_tendency_updated
 
     diagnostics_updates["specific_humidity_limiter_active"] = xr.where(
         humidity_tendency_initial != humidity_tendency_updated, 1, 0
@@ -203,7 +210,7 @@ def compute_diagnostics(
             f"{TENDENCY_TO_STATE_NAME[k]}_tendency_due_to_nudging": v
             for k, v in tendency.items()
         }
-    elif label in {"machine_learning", "reservoir"}:
+    elif label in {"machine_learning", "reservoir_predictor"}:
         diags_3d = {
             "dQ1": temperature_tendency.assign_attrs(units="K/s").assign_attrs(
                 description=f"air temperature tendency due to {label}"
