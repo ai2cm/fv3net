@@ -24,8 +24,9 @@ def enforce_heating_and_moistening_tendency_constraints(
     timestep: float,
     hydrostatic: bool,
     mse_conserving: bool,
-    temperature_tendency_name="dQ1",
-    humidity_tendency_name="dQ2",
+    temperature_tendency_name: str = "dQ1",
+    humidity_tendency_name: str = "dQ2",
+    zero_fill_missing_tendencies: bool = False,
 ):
     temperature_tendency_initial = tendency.get(
         temperature_tendency_name, xr.zeros_like(state[SPHUM])
@@ -70,19 +71,24 @@ def enforce_heating_and_moistening_tendency_constraints(
                 delp,
                 "z",
             )
-    else:
+    elif zero_fill_missing_tendencies is True:
         # Still need to output zeros if no tendency is predicted so that reservoir
         # diagnostics are available on the updated timesteps
         heating = xr.zeros_like(state[SPHUM]).isel(z=0).squeeze()
 
-    heating = heating.assign_attrs(
-        long_name="Change in ML column heating due to non-negative specific "
-        "humidity limiter"
-    )
-    diagnostics_updates[
-        "column_integrated_dQ1_change_non_neg_sphum_constraint"
-    ] = heating
-    tendency_updates[temperature_tendency_name] = temperature_tendency_updated
+    try:
+        heating = heating.assign_attrs(
+            long_name="Change in ML column heating due to non-negative specific "
+            "humidity limiter"
+        )
+        diagnostics_updates[
+            "column_integrated_dQ1_change_non_neg_sphum_constraint"
+        ] = heating
+        tendency_updates[temperature_tendency_name] = temperature_tendency_updated
+    except NameError:
+        logger.info(
+            "No heating tendency found, skipping heating due to limiter diagnostics"
+        )
 
     if humidity_tendency_name in tendency:
         moistening = vcm.mass_integrate(
@@ -93,18 +99,22 @@ def enforce_heating_and_moistening_tendency_constraints(
             long_name="Change in ML column moistening due to non-negative specific "
             "humidity limiter",
         )
-    else:
+    elif zero_fill_missing_tendencies is True:
         moistening = xr.zeros_like(state[SPHUM]).isel(z=0).squeeze()
-
-    diagnostics_updates[
-        "column_integrated_dQ2_change_non_neg_sphum_constraint"
-    ] = moistening
-    tendency_updates[humidity_tendency_name] = humidity_tendency_updated
+    try:
+        diagnostics_updates[
+            "column_integrated_dQ2_change_non_neg_sphum_constraint"
+        ] = moistening
+        tendency_updates[humidity_tendency_name] = humidity_tendency_updated
+    except NameError:
+        logger.info(
+            "No moistening tendency found, skipping moistening due to "
+            "limiter diagnostics"
+        )
 
     diagnostics_updates["specific_humidity_limiter_active"] = xr.where(
         humidity_tendency_initial != humidity_tendency_updated, 1, 0
     )
-
     return tendency_updates, diagnostics_updates
 
 
