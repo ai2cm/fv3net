@@ -110,8 +110,9 @@ def get_mock_reservoir_model():
     mock_model = MagicMock()
     mock_model.input_variables = ["a"]
     mock_model.output_variables = ["a"]
+    mock_model.nonhybrid_input_variables = ["a"]
     mock_model.model.input_variables = ["a"]
-    mock_model.model.hybrid_variables = ["a"]
+    mock_model.hybrid_variables = ["a"]
     mock_model.is_hybrid.return_value = True
     mock_model.input_overlap = 1
     out_data = xr.DataArray(np.ones(1), dims=["x"])
