@@ -69,15 +69,12 @@ def invert_dict(d: Mapping) -> Mapping:
 
 
 def rename_dataset_members(ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
-    logger.info(f'renaming original ds: {ds}')
     all_names = set(ds.dims) & set(rename)
     rename_restricted = {key: rename[key] for key in all_names}
     redimed = ds.rename_dims(rename_restricted)
 
     all_names = set(ds.data_vars) & set(rename)
     rename_restricted = {key: rename[key] for key in all_names}
-    logger.info(f"rename_restricted: {rename_restricted}")
-    logger.info(f"redimed: {list(redimed.keys())}")
     return redimed.rename(rename_restricted)
 
 
