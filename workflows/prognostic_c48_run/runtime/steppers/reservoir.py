@@ -222,10 +222,9 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         reservoir_inputs = xr.Dataset(
             {
                 k: state[self.rename_mapping.get(k, k)]
-                for k in self.model.input_variables
+                for k in self.model.nonhybrid_input_variables
             }
         )
-
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
             try:
@@ -335,7 +334,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             inputs = xr.Dataset(
                 {
                     k: state[self.rename_mapping.get(k, k)]
-                    for k in self.model.model.hybrid_variables
+                    for k in self.model.hybrid_variables
                 }
             )
         else:
@@ -368,7 +367,7 @@ def _get_time_averagers(model, do_time_average):
         increment_averager = TimeAverageInputs(model.model.input_variables)
         predict_averager: Optional[TimeAverageInputs]
         if model.is_hybrid:
-            hybrid_inputs = model.model.hybrid_variables
+            hybrid_inputs = model.hybrid_variables
             variables = hybrid_inputs if hybrid_inputs is not None else []
             predict_averager = TimeAverageInputs(variables)
         else:
