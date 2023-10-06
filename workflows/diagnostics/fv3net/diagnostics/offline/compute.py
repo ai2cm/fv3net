@@ -310,11 +310,11 @@ def get_prediction(
 
 
 def _daskify_sequence(batches):
-    temp_data_dir = temporary_directory()
-    for i, batch in enumerate(batches):
-        logger.info(f"Locally caching batch {i+1}/{len(batches)+1}")
-        batch.to_netcdf(os.path.join(temp_data_dir.name, f"{i}.nc"))
-    dask_ds = xr.open_mfdataset(os.path.join(temp_data_dir.name, "*.nc"))
+    with temporary_directory() as td:
+        for i, batch in enumerate(batches):
+            logger.info(f"Locally caching batch {i+1}/{len(batches)+1}")
+            batch.to_netcdf(os.path.join(td, f"{i}.nc"))
+        dask_ds = xr.open_mfdataset(os.path.join(td, "*.nc"))
     return dask_ds
 
 
