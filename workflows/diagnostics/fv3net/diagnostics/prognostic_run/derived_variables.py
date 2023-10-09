@@ -7,6 +7,7 @@ import vcm
 
 SECONDS_PER_DAY = 86400
 TOLERANCE = 1.0e-12
+ML_STEPPER_NAMES = ["machine_learning", "reservoir_predictor"]
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,16 @@ def _column_pq2(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
-    if "net_heating_due_to_machine_learning" in ds:
+
+    ml_col_heating_names = {
+        f"column_heating_due_to_{stepper}" for stepper in ML_STEPPER_NAMES
+    }
+    if len(ml_col_heating_names.intersection(set(ds.variables))) > 0:
+        column_dq1 = xr.zeros_like(ds.PRATEsfc)
+        for var in ml_col_heating_names:
+            if var in ds:
+                column_dq1 = column_dq1 + ds[var]
+    elif "net_heating_due_to_machine_learning" in ds:
         warnings.warn(
             "'net_heating_due_to_machine_learning' is a deprecated variable name. "
             "It will not be supported in future versions of fv3net. Use "
@@ -110,8 +120,6 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
         )
         # fix isochoric vs isobaric transition issue
         column_dq1 = 716.95 / 1004 * ds.net_heating
-    elif "column_heating_due_to_machine_learning" in ds:
-        column_dq1 = ds.column_heating_due_to_machine_learning
     elif "storage_of_internal_energy_path_due_to_machine_learning" in ds:
         column_dq1 = ds.storage_of_internal_energy_path_due_to_machine_learning
     else:
@@ -125,8 +133,15 @@ def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
-    if "net_moistening_due_to_machine_learning" in ds:
-        column_dq2 = SECONDS_PER_DAY * ds.net_moistening_due_to_machine_learning
+
+    ml_col_moistening_names = {
+        f"net_moistening_due_to_{stepper}" for stepper in ML_STEPPER_NAMES
+    }
+    if len(ml_col_moistening_names.intersection(set(ds.variables))) > 0:
+        column_dq2 = xr.zeros_like(ds.PRATEsfc)
+        for var in ml_col_moistening_names:
+            if var in ds:
+                column_dq2 = column_dq2 + ds[var]
     elif "storage_of_specific_humidity_path_due_to_machine_learning" in ds:
         column_dq2 = (
             SECONDS_PER_DAY
