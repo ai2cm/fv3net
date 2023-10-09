@@ -11,9 +11,32 @@ from runtime.names import (
     NORTHWARD_WIND_TENDENCY,
     X_WIND_TENDENCY,
     Y_WIND_TENDENCY,
+    STATE_NAME_TO_TENDENCY,
 )
-from runtime.types import State
+from runtime.types import State, Tendencies
 from toolz import dissoc
+
+
+def tendencies_from_state_updates(
+    initial_state: State, updated_state: State, dt: float
+) -> Tendencies:
+    """Compute tendencies given intial and updated states
+
+    Args:
+        initial_state: initial state
+        updated_state: updated state
+        variables: variables to compute tendencies for
+
+    Returns:
+        tendencies: tendencies computed from state updates
+    """
+    tendencies = {}
+    for variable in updated_state:
+        tendency_var = STATE_NAME_TO_TENDENCY[variable]
+        tendencies[tendency_var] = (
+            updated_state[variable] - initial_state[variable]
+        ) / dt
+    return tendencies
 
 
 def state_updates_from_tendency(tendency_updates):
