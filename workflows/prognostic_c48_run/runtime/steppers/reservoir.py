@@ -242,7 +242,6 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                 for k in self.model.nonhybrid_input_variables
             }
         )
-
         n_halo_points = self.model.input_overlap
         if n_halo_points > 0:
             try:
