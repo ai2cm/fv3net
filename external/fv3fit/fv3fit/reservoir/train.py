@@ -204,8 +204,11 @@ def train_reservoir_model(
                         _hybrid_rank_divider_w_overlap,
                     )
                     hybrid_time_series = hybrid_time_series * hybrid_input_mask_array
+                else:
+                    hybrid_input_mask_array = None
             else:
                 hybrid_time_series = None
+                hybrid_input_mask_array = None
 
             readout_input, readout_output = _construct_readout_inputs_outputs(
                 reservoir_state_time_series,
@@ -265,6 +268,7 @@ def train_reservoir_model(
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
+            hybrid_input_mask=hybrid_input_mask_array,
         )
         adapter = HybridReservoirDatasetAdapter(  # type: ignore
             model=model,
