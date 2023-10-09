@@ -88,9 +88,11 @@ def _get_input_mask_array(
             f"'{mask_variable}' must be included in training data if "
             "the mask_variable is specified in training configuration."
         )
-    mask = rank_divider.get_all_subdomains_with_flat_feature(
-        assure_txyz_dims(sample_batch[mask_variable])[0]
-    )
+    mask = assure_txyz_dims(sample_batch[mask_variable])
+    mask = mask * np.ones(
+        rank_divider._rank_extent_all_features
+    )  # broadcast feature dim
+    mask = rank_divider.get_all_subdomains_with_flat_feature(mask[0])
     if set(np.unique(mask)) != {0, 1}:
         raise ValueError(
             f"Mask variable values in field {mask_variable} are not " "all in {0, 1}."
@@ -194,6 +196,14 @@ def train_reservoir_model(
                     autoencoder=transformers.hybrid,
                     trim_halo=True,
                 )
+
+                if hyperparameters.mask_variable is not None:
+                    hybrid_input_mask_array = _get_input_mask_array(
+                        hyperparameters.mask_variable,
+                        batch_data,
+                        _hybrid_rank_divider_w_overlap,
+                    )
+                    hybrid_time_series = hybrid_time_series * hybrid_input_mask_array
             else:
                 hybrid_time_series = None
 
