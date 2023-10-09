@@ -47,6 +47,7 @@ def get_reservoir_computing_model(
     )
     transformers = TransformerGroup(input=encoder, output=encoder, hybrid=encoder)
     if hybrid:
+        input_mask = np.ones(divider.flat_subdomain_len)
         predictor = HybridReservoirComputingModel(
             input_variables=variables,
             output_variables=variables,
@@ -55,6 +56,7 @@ def get_reservoir_computing_model(
             readout=readout,
             rank_divider=divider,
             transformers=transformers,
+            hybrid_input_mask=input_mask,
         )
     else:
         predictor = ReservoirComputingModel(

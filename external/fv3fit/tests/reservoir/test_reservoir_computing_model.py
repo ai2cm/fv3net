@@ -9,6 +9,7 @@ from fv3fit.reservoir import (
     ReservoirComputingModel,
     Reservoir,
     ReservoirHyperparameters,
+    HybridReservoirComputingModel,
 )
 
 from helpers import get_reservoir_computing_model
@@ -142,8 +143,7 @@ def test_prediction_after_load(tmpdir):
         for v in predictor.input_variables
     ]
     predictor.synchronize(ts_sync)
-    for i in range(10):
-        prediction0 = predictor.predict()
+    prediction0 = predictor.predict()
 
     output_path = f"{str(tmpdir)}/predictor"
     predictor.dump(output_path)
@@ -151,8 +151,7 @@ def test_prediction_after_load(tmpdir):
     loaded_predictor.reset_state()
 
     loaded_predictor.synchronize(ts_sync)
-    for i in range(10):
-        prediction1 = loaded_predictor.predict()
+    prediction1 = loaded_predictor.predict()
     np.testing.assert_array_almost_equal(prediction0[0], prediction1[0])
 
 
@@ -180,111 +179,27 @@ def test_state_preserved_after_load(tmpdir):
     )
 
 
-@pytest.mark.skip(reason="HybridReservoirComputingModel for different variables broken")
 def test_HybridReservoirComputingModel_dump_load(tmpdir):
-    state_size = 1000
-    rank_divider = RankXYDivider((2, 2), (2, 2))
+    model = get_reservoir_computing_model(hybrid=True)
+    model.reset_state()
 
-    hyperparameters = ReservoirHyperparameters(
-        state_size=state_size,
-        adjacency_matrix_sparsity=0.9,
-        spectral_radius=1.0,
-        input_coupling_sparsity=0,
+    n_times = 20
+
+    ts_sync = [
+        np.ones((n_times, *model.rank_divider.rank_extent, 1))
+        for v in model.input_variables
+    ]
+    model.synchronize(ts_sync)
+    prediction0 = model.predict([ts[-1] for ts in ts_sync])
+
+    output_path = f"{str(tmpdir)}/predictor"
+    model.dump(output_path)
+    loaded_predictor = HybridReservoirComputingModel.load(output_path)
+    loaded_predictor.reset_state()
+
+    loaded_predictor.synchronize(ts_sync)
+    prediction1 = loaded_predictor.predict([ts[-1] for ts in ts_sync])
+    np.testing.assert_array_almost_equal(prediction0[0], prediction1[0])
+    np.testing.assert_array_equal(
+        model._hybrid_input_mask, loaded_predictor._hybrid_input_mask
     )
-    reservoir = Reservoir(hyperparameters, input_size=rank_divider.flat_subdomain_len)
-    assert reservoir
-    # TODO: If removing the large block diagonal form of the readout,
-    # this needs to be updated
-
-
-#     n_total_inputs = (
-#         state_size + rank_divider.subdomain_xy_size_without_overlap ** 2
-#     ) * rank_divider.n_subdomains
-#     readout = ReservoirComputingReadout(
-#         coefficients=np.random.rand(n_total_inputs, input_size),
-#         intercepts=np.random.rand(input_size),
-#     )
-#     hybrid_predictor = HybridReservoirComputingModel(
-#         input_variables=["a", "b"],
-#         hybrid_variables=["c"],
-#         output_variables=["a", "b"],
-#         reservoir=reservoir,
-#         readout=readout,
-#         rank_divider=rank_divider,
-#         autoencoder=DoNothingAutoencoder([1]),
-#     )
-#     hybrid_predictor.reset_state()
-#     ts_sync = [
-#         np.ones((input_size, hybrid_predictor.rank_divider.n_subdomains,))
-#         for i in range(20)
-#     ]
-
-#     hybrid_predictor.synchronize(ts_sync)
-
-#     # Training data always has a feature dim, even if it's size 1
-#     hybrid_input = [
-#         np.random.rand(*rank_divider.rank_extent, 1),
-#     ]
-#     prediction0 = hybrid_predictor.predict(hybrid_input)
-
-#     output_path = f"{str(tmpdir)}/predictor"
-#     hybrid_predictor.dump(output_path)
-#     loaded_hybrid_predictor = HybridReservoirComputingModel.load(output_path)
-#     loaded_hybrid_predictor.reset_state()
-
-#     loaded_hybrid_predictor.synchronize(ts_sync)
-#     prediction1 = loaded_hybrid_predictor.predict(hybrid_input)
-
-#     np.testing.assert_array_almost_equal(prediction0, prediction1)
-
-
-# def test_HybridReservoirComputingModel_concat_readout_inputs():
-#     # TODO: Complex test, will be simplified in future when the model is refactored
-#     input_size = 4
-#     state_size = 3
-#     hyperparameters = ReservoirHyperparameters(
-#         state_size=state_size,
-#         adjacency_matrix_sparsity=0.9,
-#         spectral_radius=1.0,
-#         input_coupling_sparsity=0,
-#     )
-#     rank_divider = default_rank_divider
-
-#     reservoir = Reservoir(
-#         hyperparameters, input_size=rank_divider.subdomain_size_with_overlap
-#     )
-#     n_hybrid_inputs = (
-#        rank_divider.subdomain_xy_size_without_overlap ** 2 * rank_divider.n_subdomains
-#     )
-#     readout = ReservoirComputingReadout(
-#         coefficients=np.random.rand(state_size + n_hybrid_inputs, input_size),
-#         intercepts=np.random.rand(input_size),
-#     )
-#     hybrid_predictor = HybridReservoirComputingModel(
-#         input_variables=["a", "b"],
-#         hybrid_variables=["c"],
-#         output_variables=["a", "b"],
-#         reservoir=reservoir,
-#         readout=readout,
-#         rank_divider=rank_divider,
-#         autoencoder=DoNothingAutoencoder([1]),
-#     )
-#     hybrid_predictor.reset_state()
-
-#     # hidden state of each subdomain is constant array of its index
-#     hybrid_predictor.reservoir_model.reservoir.state = np.array(
-#         [np.arange(rank_divider.n_subdomains) for zfeature in range(state_size)]
-#     )
-
-#     # partitioner indexing goes (0,0) -> 0, (1,0)-> 1, etc.
-#     hybrid_inputs = np.array([[0, -2], [-1, -3]])
-#     flat_hybrid_inputs = hybrid_predictor.rank_divider.flatten_subdomains_to_columns(
-#         hybrid_inputs, with_overlap=False
-#     )
-#     flattened_readout_input = hybrid_predictor._concatenate_readout_inputs(
-#         hybrid_predictor.reservoir_model.reservoir.state, flat_hybrid_inputs
-#     )
-#     np.testing.assert_array_equal(
-#         flattened_readout_input,
-#         np.array([0, 0, 0, 0, 1, 1, 1, -1, 2, 2, 2, -2, 3, 3, 3, -3]),
-#     )
