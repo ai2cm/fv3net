@@ -126,8 +126,8 @@ def open_netcdf_file(path: str) -> xr.Dataset:
 
 
 class _BaseNCLoader(TFDatasetLoader):
-    @abstractmethod
     @property
+    @abstractmethod
     def dim_order(self) -> Optional[Sequence[str]]:
         pass
 
