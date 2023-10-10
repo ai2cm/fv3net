@@ -1,6 +1,5 @@
 import xarray as xr
 import numpy as np
-import wandb
 
 from toolz import curry
 
@@ -12,7 +11,7 @@ def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
         raise ValueError("Inputs and targets must have the same number of time steps.")
 
     global_mean = _mean(dim=targets.dims, mask=mask, area=area)
-    # temporal_mean = _mean(dim="time", mask=mask, area=area)
+    temporal_mean = _mean(dim="time", mask=mask, area=area)
 
     # synchronize
     model.reset_state()
@@ -32,9 +31,14 @@ def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
     predictions.assign_coords(time=targets.time)
 
     metrics = _calculate_scores(predictions - targets, targets, mean_func=global_mean)
-    wandb.log(metrics)
+    metrics = {f"one_step_{key}": value for key, value in metrics.items()}
 
-    # spatial_metrics = _calculate_scores(predictions - targets, targets, mean_func=temporal_mean) # noqa
+    spatial_metrics = _calculate_scores(
+        predictions - targets, targets, mean_func=temporal_mean
+    )
+    spatial_metrics = {
+        f"one_step_spatial_{key}": value for key, value in spatial_metrics.items()
+    }
 
     # Run rollout
     model.reset_state()
@@ -53,8 +57,21 @@ def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
     predictions = xr.concat(predictions, dim="time")
     predictions.assign_coords(time=targets.time)
 
-    metrics = _calculate_scores(predictions - targets, targets, mean_func=global_mean)
-    wandb.log(metrics)
+    rollout_metrics = _calculate_scores(
+        predictions - targets, targets, mean_func=global_mean
+    )
+    metrics.update({f"rollout_{key}": value for key, value in rollout_metrics.items()})
+    spatial_rollout_metrics = _calculate_scores(
+        predictions - targets, targets, mean_func=temporal_mean
+    )
+    spatial_metrics.update(
+        {
+            f"rollout_spatial_{key}": value
+            for key, value in spatial_rollout_metrics.items()
+        }
+    )
+
+    return metrics, spatial_metrics
 
 
 @curry
