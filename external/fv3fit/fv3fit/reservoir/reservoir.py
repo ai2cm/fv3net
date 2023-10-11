@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import os
 import scipy
-from typing import Optional
+from typing import cast, Optional
 import yaml
 
 from .config import ReservoirHyperparameters
@@ -75,7 +75,9 @@ class Reservoir:
             masked_input = input * self.input_mask_array
         else:
             masked_input = input
-        self.state = np.tanh(masked_input @ self.W_in.T + self.state @ self.W_res.T)
+        self.state: np.ndarray = np.tanh(
+            masked_input @ self.W_in.T + self.state @ self.W_res.T
+        )
 
     def reset_state(self, input_shape: tuple):
         logger.info("Resetting reservoir state.")
@@ -184,7 +186,7 @@ class Reservoir:
 
         try:
             with fsspec.open(os.path.join(path, cls._STATE_NAME), "rb") as f:
-                state = np.load(f)
+                state = cast(np.ndarray, np.load(f))
         except (FileNotFoundError):
             state = None
 

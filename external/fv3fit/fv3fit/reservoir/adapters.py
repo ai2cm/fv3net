@@ -134,9 +134,6 @@ class ReservoirDatasetAdapter(Predictor):
     def reset_state(self):
         self.model.reset_state()
 
-    def set_state(self, new_state: np.ndarray):
-        self.model.set_state(new_state)
-
     def get_model_from_subdomain(self, subdomain_index: int) -> ReservoirDatasetAdapter:
         model = self.model.get_model_from_subdomain(subdomain_index)
         return ReservoirDatasetAdapter(
@@ -212,9 +209,6 @@ class HybridReservoirDatasetAdapter(Predictor):
 
     def reset_state(self):
         self.model.reset_state()
-
-    def set_state(self, new_state: np.ndarray):
-        self.model.set_state(new_state)
 
     def get_model_from_subdomain(
         self, subdomain_index: int

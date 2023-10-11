@@ -12,6 +12,7 @@ from .. import Predictor
 from .utils import (
     square_even_terms,
     process_batch_data,
+    process_validation_batch_data_to_dataset,
     get_ordered_X,
     assure_txyz_dims,
     SynchronziationTracker,
@@ -27,6 +28,7 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
+from .validation import validate_model
 
 
 logger = logging.getLogger(__name__)
@@ -223,6 +225,7 @@ def train_reservoir_model(
     readout = combine_readouts_from_subdomain_regressors(subdomain_regressors)
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
+    adapter_model: Union[ReservoirDatasetAdapter, HybridReservoirDatasetAdapter]
 
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
@@ -234,7 +237,7 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
         )
-        return ReservoirDatasetAdapter(
+        adapter_model = ReservoirDatasetAdapter(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
@@ -250,11 +253,28 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
         )
-        return HybridReservoirDatasetAdapter(
+        adapter_model = HybridReservoirDatasetAdapter(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
         )
+
+    if validation_batches is not None:
+        data = next(iter(validation_batches))
+        input_data = process_validation_batch_data_to_dataset(
+            data, adapter_model.input_variables
+        )
+        target_data = process_validation_batch_data_to_dataset(
+            data, adapter_model.output_variables
+        )
+        mask = data["mask_field"] if "mask_field" in data else None
+        area = data["area"] if "area" in data else None
+        metrics, spatial_metrics = validate_model(
+            adapter_model, input_data, 100, target_data, mask=mask, area=area
+        )
+        print(metrics["combined_score"])
+
+    return adapter_model
 
 
 def _get_reservoir_state_time_series(
