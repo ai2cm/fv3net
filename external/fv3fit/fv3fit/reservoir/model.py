@@ -122,6 +122,14 @@ class HybridReservoirComputingModel(Predictor):
     def reset_state(self):
         self.reservoir_model.reset_state()
 
+    def set_state(self, state: np.ndarray) -> None:
+        """Set the state of the reservoir model
+
+        Args:
+            state: state array of shape (n_subdomains, state_size)
+        """
+        self.reservoir_model.set_state(state)
+
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         self.reservoir_model.increment_state(prediction_with_overlap)
 
@@ -230,6 +238,14 @@ class ReservoirComputingModel(Predictor):
             self.reservoir.hyperparameters.state_size,
         )
         self.reservoir.reset_state(input_shape)
+
+    def set_state(self, state: np.ndarray) -> None:
+        """Set the state of the reservoir model
+
+        Args:
+            state: state array of shape (n_subdomains, state_size)
+        """
+        self.reservoir.set_state(state)
 
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         # input array is in native x, y, z_feature coordinates

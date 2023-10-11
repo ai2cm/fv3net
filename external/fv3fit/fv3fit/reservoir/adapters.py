@@ -58,12 +58,13 @@ class DatasetAdapter:
         self, outputs: Sequence[np.ndarray], output_dims: Sequence[str]
     ) -> xr.Dataset:
 
-        return xr.Dataset(
+        ds = xr.Dataset(
             {
                 var: self._ndarray_to_dataarray(output)
                 for var, output in zip(self.output_variables, outputs)
             }
-        ).transpose(*output_dims)
+        )
+        return ds.transpose(*[dim for dim in output_dims if dim in ds.dims])
 
     def input_dataset_to_arrays(
         self, inputs: xr.Dataset, variables: Iterable[Hashable]
@@ -132,6 +133,9 @@ class ReservoirDatasetAdapter(Predictor):
 
     def reset_state(self):
         self.model.reset_state()
+
+    def set_state(self, new_state: np.ndarray):
+        self.model.set_state(new_state)
 
     def get_model_from_subdomain(self, subdomain_index: int) -> ReservoirDatasetAdapter:
         model = self.model.get_model_from_subdomain(subdomain_index)
@@ -208,6 +212,9 @@ class HybridReservoirDatasetAdapter(Predictor):
 
     def reset_state(self):
         self.model.reset_state()
+
+    def set_state(self, new_state: np.ndarray):
+        self.model.set_state(new_state)
 
     def get_model_from_subdomain(
         self, subdomain_index: int
