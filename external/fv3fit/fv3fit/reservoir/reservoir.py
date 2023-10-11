@@ -92,6 +92,12 @@ class Reservoir:
             raise ValueError("Input shape tuple must describe either a 1D or 2D array.")
         self.state = state_after_reset
 
+    def set_state(self, new_state: np.ndarray):
+        if self.state is not None:
+            if self.state.shape != new_state.shape:
+                raise ValueError("Provided state does not match reservoir state shape")
+        self.state = new_state
+
     def synchronize(self, synchronization_time_series):
         self.reset_state(input_shape=synchronization_time_series[0].shape)
         for input in synchronization_time_series:
