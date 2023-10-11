@@ -293,14 +293,12 @@ def validate_model(
     predictions_ds = xr.concat(predictions, dim="time")
     predictions_ds.assign_coords(time=targets.time)
 
-    metrics = _calculate_scores(
-        predictions_ds - targets, targets, mean_func=global_mean
-    )
+    errors = (predictions_ds - targets).compute()
+
+    metrics = _calculate_scores(errors, targets, mean_func=global_mean)
     metrics = {f"one_step_{key}": value for key, value in metrics.items()}
 
-    spatial_metrics = _calculate_scores(
-        predictions_ds - targets, targets, mean_func=temporal_mean
-    )
+    spatial_metrics = _calculate_scores(errors, targets, mean_func=temporal_mean)
     spatial_metrics = {
         f"one_step_spatial_{key}": value for key, value in spatial_metrics.items()
     }
@@ -320,12 +318,11 @@ def validate_model(
     predictions_ds = xr.concat(predictions, dim="time")
     predictions_ds.assign_coords(time=targets.time)
 
-    rollout_metrics = _calculate_scores(
-        predictions_ds - targets, targets, mean_func=global_mean
-    )
+    errors = (predictions_ds - targets).compute()
+    rollout_metrics = _calculate_scores(errors, targets, mean_func=global_mean)
     metrics.update({f"rollout_{key}": value for key, value in rollout_metrics.items()})
     spatial_rollout_metrics = _calculate_scores(
-        predictions_ds - targets, targets, mean_func=temporal_mean
+        errors, targets, mean_func=temporal_mean
     )
     spatial_metrics.update(
         {
