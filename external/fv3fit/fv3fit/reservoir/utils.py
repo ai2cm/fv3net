@@ -1,7 +1,8 @@
 import logging
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Optional
+import xarray as xr
+from typing import Iterable, Hashable, Mapping, Optional
 
 from fv3fit.reservoir.transformers import (
     # ReloadableTransformer,
@@ -85,15 +86,15 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
     return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
 
 
-def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
+def get_ordered_X(X: Mapping[Hashable, tf.Tensor], variables: Iterable[Hashable]):
     ordered_tensors = [X[v] for v in variables]
     reshaped_tensors = [assure_txyz_dims(var_tensor) for var_tensor in ordered_tensors]
     return reshaped_tensors
 
 
 def process_batch_data(
-    variables: Iterable[str],
-    batch_data: Mapping[str, tf.Tensor],
+    variables: Iterable[Hashable],
+    batch_data: Mapping[Hashable, tf.Tensor],
     rank_divider: RankXYDivider,
     autoencoder: Optional[Transformer],
     trim_halo: bool,
@@ -119,6 +120,19 @@ def process_batch_data(
     else:
         data_trimmed = data_encoded
         return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
+
+
+def process_validation_batch_data_to_dataset(
+    batch_data: Mapping[Hashable, tf.Tensor], variables: Iterable[Hashable],
+):
+    ordered_data = get_ordered_X(batch_data, variables)
+    ds = xr.Dataset(
+        {
+            varname: xr.DataArray(data, dims=["time", "x", "y", "z"])
+            for varname, data in zip(variables, ordered_data)
+        }
+    )
+    return ds
 
 
 def get_standard_normalizing_transformer(variables, sample_batch):

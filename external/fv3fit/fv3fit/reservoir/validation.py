@@ -8,6 +8,7 @@ import wandb
 
 >>>>>>> d8b43153e (Add metric function)
 from toolz import curry
+from fv3fit.reservoir.adapters import ReservoirAdapterType
 
 from fv3fit.reservoir.utils import get_ordered_X
 from fv3fit.reservoir import (
@@ -211,7 +212,14 @@ def log_rmse_scalar_metrics(ds_val, variables):
     wandb.log(log_data)
 
 
-def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
+def validate_model(
+    model: ReservoirAdapterType,
+    inputs: xr.Dataset,
+    n_sync_steps: int,
+    targets: xr.Dataset,
+    mask=None,
+    area=None,
+):
 
     # want to do the index handling in this function
     if len(inputs.time) != len(targets.time):
@@ -223,7 +231,11 @@ def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
     # synchronize
     model.reset_state()
     for i in range(n_sync_steps):
-        model.increment(inputs.isel(time=i))
+        model.increment_state(inputs.isel(time=i))
+
+    if model.model.reservoir.state is None:
+        raise ValueError("Reservoir state is None after synchronization.")
+    synced_state = model.model.reservoir.state.copy()
 
     post_sync_inputs = inputs.isel(time=slice(n_sync_steps, -1))
     targets = targets.isel(time=slice(n_sync_steps + 1, None))
@@ -232,44 +244,44 @@ def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
     predictions = []
     for i in range(len(post_sync_inputs.time)):
         current_input = post_sync_inputs.isel(time=i)
-        model.increment(current_input)
+        model.increment_state(current_input)
         predictions.append(model.predict(current_input))
-    predictions = xr.concat(predictions, dim="time")
-    predictions.assign_coords(time=targets.time)
+    predictions_ds = xr.concat(predictions, dim="time")
+    predictions_ds.assign_coords(time=targets.time)
 
-    metrics = _calculate_scores(predictions - targets, targets, mean_func=global_mean)
+    metrics = _calculate_scores(
+        predictions_ds - targets, targets, mean_func=global_mean
+    )
     metrics = {f"one_step_{key}": value for key, value in metrics.items()}
 
     spatial_metrics = _calculate_scores(
-        predictions - targets, targets, mean_func=temporal_mean
+        predictions_ds - targets, targets, mean_func=temporal_mean
     )
     spatial_metrics = {
         f"one_step_spatial_{key}": value for key, value in spatial_metrics.items()
     }
 
     # Run rollout
-    model.reset_state()
-    for i in range(n_sync_steps):
-        model.increment(inputs.isel(time=i))
+    model.model.reservoir.set_state(synced_state)
 
     predictions = []
-    output_for_auto_regressive = {}
+    output_for_auto_regressive = xr.Dataset()
     for i in range(len(post_sync_inputs.time)):
         current_input = post_sync_inputs.isel(time=i)
         current_input.update(output_for_auto_regressive)
-        model.increment(current_input)
+        model.increment_state(current_input)
         output_for_auto_regressive = model.predict(current_input)
         predictions.append(output_for_auto_regressive)
 
-    predictions = xr.concat(predictions, dim="time")
-    predictions.assign_coords(time=targets.time)
+    predictions_ds = xr.concat(predictions, dim="time")
+    predictions_ds.assign_coords(time=targets.time)
 
     rollout_metrics = _calculate_scores(
-        predictions - targets, targets, mean_func=global_mean
+        predictions_ds - targets, targets, mean_func=global_mean
     )
     metrics.update({f"rollout_{key}": value for key, value in rollout_metrics.items()})
     spatial_rollout_metrics = _calculate_scores(
-        predictions - targets, targets, mean_func=temporal_mean
+        predictions_ds - targets, targets, mean_func=temporal_mean
     )
     spatial_metrics.update(
         {
@@ -277,6 +289,8 @@ def validate_model(model, inputs, n_sync_steps, targets, mask=None, area=None):
             for key, value in spatial_rollout_metrics.items()
         }
     )
+
+    metrics["combined_score"] = metrics["one_step_rmse"] + metrics["rollout_rmse"]
 
     return metrics, spatial_metrics
 
@@ -289,7 +303,7 @@ def _mean(data, dim, mask=None, area=None):
     if area is not None:
         data = data.weighted(area)
 
-    return data.mean(dim=dim)
+    return data.mean(dim=dim).compute()
 
 
 def _calculate_scores(errors, target, mean_func):
