@@ -600,6 +600,13 @@ class TimeLoop(
                 self._state[TOTAL_PRECIP], net_moistening, self._timestep,
             )
 
+            diags.update(
+                {
+                    "total_precip_input_to_precip_sum": self._state[TOTAL_PRECIP],
+                    "net_moistening_input_to_precip_sum": net_moistening,
+                }
+            )
+
             self._state.update_mass_conserving(state_updates)
 
             diags.update({name: self._state[name] for name in self._states_to_output})
