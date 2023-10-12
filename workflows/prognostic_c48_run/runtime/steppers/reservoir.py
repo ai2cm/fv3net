@@ -176,7 +176,7 @@ class _ReservoirStepper:
         self.initial_time = init_time
         self.timestep = reservoir_timestep
         self.model_timestep = model_timestep
-        self.diagnostic = diagnostic_only
+        self.is_diagnostic = diagnostic_only
         self.input_averager = input_averager
         self.warm_start = warm_start
         self.hydrostatic = hydrostatic
@@ -326,7 +326,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # +1 to align with the necessary increment before any prediction
         if (
             self._state_machine.completed_increments <= self.synchronize_steps
-            or self.diagnostic
+            or self.is_diagnostic
         ):
             output_state = {}
 

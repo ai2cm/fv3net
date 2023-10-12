@@ -581,11 +581,11 @@ class TimeLoop(
         # TODO: handle tendencies. Currently the returned tendencies
         # are only used for diagnostics and are not used in updating state
         if self._reservoir_predict_stepper is not None:
-            [
+            (
                 tendencies_from_state_prediction,
                 diags,
                 state_updates,
-            ] = self._reservoir_predict_stepper(self._state.time, self._state)
+            ) = self._reservoir_predict_stepper(self._state.time, self._state)
             (
                 stepper_diags,
                 net_moistening,
@@ -593,7 +593,7 @@ class TimeLoop(
                 self._state, tendencies_from_state_prediction
             )
             diags.update(stepper_diags)
-            if self._reservoir_predict_stepper.diagnostic is True:  # type: ignore
+            if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
                 rename_diagnostics(diags, label="reservoir_predictor")
 
             state_updates[TOTAL_PRECIP] = precipitation_sum(
