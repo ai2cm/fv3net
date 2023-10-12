@@ -17,7 +17,12 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST
+from runtime.names import SST, SPHUM, TEMP
+from runtime.tendency import add_tendency, tendencies_from_state_updates
+from runtime.diagnostics import (
+    enforce_heating_and_moistening_tendency_constraints,
+    compute_diagnostics,
+)
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, NameDict
 
@@ -43,6 +48,10 @@ class ReservoirConfig:
         warm_start: Whether to use the saved state from a pre-synced reservoir
         rename_mapping: mapping from field names used in the underlying
             reservoir model to names used in fv3gfs wrapper
+        hydrostatic (optional): whether simulation is hydrostatic.
+            For net heating diagnostic. Defaults to false.
+        mse_conserving_limiter (optional): whether to use MSE-conserving humidity
+            limiter. Defaults to false.
     """
 
     models: Mapping[int, str]
@@ -52,6 +61,8 @@ class ReservoirConfig:
     diagnostic_only: bool = False
     warm_start: bool = False
     rename_mapping: NameDict = dataclasses.field(default_factory=dict)
+    hydrostatic: bool = False
+    mse_conserving_limiter: bool = False
 
 
 class _FiniteStateMachine:
@@ -150,20 +161,26 @@ class _ReservoirStepper:
         model: ReservoirDatasetAdapter,
         init_time: cftime.DatetimeJulian,
         reservoir_timestep: timedelta,
+        model_timestep: float,
         synchronize_steps: int,
         state_machine: Optional[_FiniteStateMachine] = None,
         diagnostic_only: bool = False,
         input_averager: Optional[TimeAverageInputs] = None,
         rename_mapping: Optional[NameDict] = None,
         warm_start: bool = False,
+        hydrostatic: bool = False,
+        mse_conserving_limiter: bool = False,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
         self.initial_time = init_time
         self.timestep = reservoir_timestep
-        self.diagnostic = diagnostic_only
+        self.model_timestep = model_timestep
+        self.is_diagnostic = diagnostic_only
         self.input_averager = input_averager
         self.warm_start = warm_start
+        self.hydrostatic = hydrostatic
+        self.mse_conserving_limiter = mse_conserving_limiter
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -264,7 +281,6 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
-
             diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_rc_in" for k in inputs}
             )
@@ -290,6 +306,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
     """
 
     label = "reservoir_predictor"
+    DIAGS_OUTPUT_SUFFIX = "rc_out"
 
     def predict(self, inputs, state):
         """Called at the end of timeloop after time has ticked from t -> t+1"""
@@ -299,7 +316,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         output_state = rename_dataset_members(result, self.rename_mapping)
 
         diags = rename_dataset_members(
-            output_state, {k: f"{k}_rc_out" for k in output_state}
+            output_state, {k: f"{k}_{self.DIAGS_OUTPUT_SUFFIX}" for k in output_state}
         )
 
         for k, v in output_state.items():
@@ -309,7 +326,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # +1 to align with the necessary increment before any prediction
         if (
             self._state_machine.completed_increments <= self.synchronize_steps
-            or self.diagnostic
+            or self.is_diagnostic
         ):
             output_state = {}
 
@@ -347,15 +364,59 @@ class ReservoirPredictStepper(_ReservoirStepper):
             logger.info(f"Reservoir model predict at time {time}")
             if self.input_averager is not None:
                 inputs.update(self.input_averager.get_averages())
-            tendencies, diags, state = self.predict(inputs, state)
+
+            tendencies, diags, updated_state = self.predict(inputs, state)
+
             hybrid_diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_hyb_in" for k in inputs}
             )
             diags.update(hybrid_diags)
-        else:
-            tendencies, diags, state = {}, {}, {}
 
-        return tendencies, diags, state
+            # This check is done on the _rc_out diags since those are always available.
+            # This allows zero field diags to be returned on timesteps where the
+            # reservoir is not updating the state.
+            diags_Tq_vars = {f"{v}_{self.DIAGS_OUTPUT_SUFFIX}" for v in [TEMP, SPHUM]}
+
+            if diags_Tq_vars.issubset(list(diags.keys())):
+                # TODO: Currently the reservoir only predicts updated states and returns
+                # empty tendencies. If tendency predictions are implemented in the
+                # prognostic run, the limiter/conservation updates should be updated to
+                # take this option into account and use predicted tendencies directly.
+                tendencies_from_state_prediction = tendencies_from_state_updates(
+                    initial_state=state,
+                    updated_state=updated_state,
+                    dt=self.model_timestep,
+                )
+                (
+                    tendency_updates_from_constraints,
+                    diagnostics_updates_from_constraints,
+                ) = enforce_heating_and_moistening_tendency_constraints(
+                    state=state,
+                    tendency=tendencies_from_state_prediction,
+                    timestep=self.model_timestep,
+                    mse_conserving=self.mse_conserving_limiter,
+                    hydrostatic=self.hydrostatic,
+                    temperature_tendency_name="dQ1",
+                    humidity_tendency_name="dQ2",
+                    zero_fill_missing_tendencies=True,
+                )
+
+                diags.update(diagnostics_updates_from_constraints)
+                updated_state = add_tendency(
+                    state=state,
+                    tendencies=tendency_updates_from_constraints,
+                    dt=self.model_timestep,
+                )
+                tendencies.update(tendency_updates_from_constraints)
+
+        else:
+            tendencies, diags, updated_state = {}, {}, {}
+
+        return tendencies, diags, updated_state
+
+    def get_diagnostics(self, state, tendency):
+        diags = compute_diagnostics(state, tendency, self.label, self.hydrostatic)
+        return diags, diags[f"net_moistening_due_to_{self.label}"]
 
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:
@@ -379,7 +440,10 @@ def _get_time_averagers(model, do_time_average):
 
 
 def get_reservoir_steppers(
-    config: ReservoirConfig, rank: int, init_time: cftime.DatetimeJulian,
+    config: ReservoirConfig,
+    rank: int,
+    init_time: cftime.DatetimeJulian,
+    model_timestep: float,
 ):
     """
     Gets both steppers needed by the time loop to increment the state using
@@ -402,22 +466,26 @@ def get_reservoir_steppers(
     incrementer = ReservoirIncrementOnlyStepper(
         model,
         init_time,
-        rc_tdelta,
-        config.synchronize_steps,
+        reservoir_timestep=rc_tdelta,
+        synchronize_steps=config.synchronize_steps,
         state_machine=state_machine,
         input_averager=increment_averager,
         rename_mapping=config.rename_mapping,
         warm_start=config.warm_start,
+        model_timestep=model_timestep,
     )
     predictor = ReservoirPredictStepper(
         model,
         init_time,
-        rc_tdelta,
-        config.synchronize_steps,
+        reservoir_timestep=rc_tdelta,
+        synchronize_steps=config.synchronize_steps,
         state_machine=state_machine,
         diagnostic_only=config.diagnostic_only,
         input_averager=predict_averager,
         rename_mapping=config.rename_mapping,
         warm_start=config.warm_start,
+        model_timestep=model_timestep,
+        hydrostatic=config.hydrostatic,
+        mse_conserving_limiter=config.mse_conserving_limiter,
     )
     return incrementer, predictor
