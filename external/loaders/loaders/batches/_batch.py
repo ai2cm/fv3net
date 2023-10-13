@@ -271,7 +271,11 @@ def _add_dQ1_dQ2(ds):
 @curry
 def _open_dataset(fs: fsspec.AbstractFileSystem, variable_names, filename):
     ds = xr.open_dataset(fs.open(filename), engine="h5netcdf")[variable_names]
-    return _add_dQ1_dQ2(ds)
+    try:
+        ds = _add_dQ1_dQ2(ds)
+    except (AttributeError):
+        pass
+    return ds
 
 
 @batches_functions.register
