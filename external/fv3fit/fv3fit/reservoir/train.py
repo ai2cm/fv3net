@@ -268,7 +268,8 @@ def train_reservoir_model(
         )
         target_data = process_validation_batch_data_to_dataset(
             data, adapter_model.output_variables
-        ).isel(z=0)
+        ).squeeze()
+
         if "mask_field" in data:
             mask = data["mask_field"]
             mask = mask[0, ..., 0]
