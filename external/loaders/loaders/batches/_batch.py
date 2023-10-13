@@ -256,9 +256,22 @@ def _get_batch(mapper: Mapping[str, xr.Dataset], keys: Iterable[str],) -> xr.Dat
     return ds
 
 
+def _add_dQ1_dQ2(ds):
+    ds["dQ1"] = (
+        ds.air_temperature
+        - ds.air_temperature_before_interval_update_at_next_time_step.shift(time=1)
+    ) / 900.0
+    ds["dQ2"] = (
+        ds.specific_humidity
+        - ds.specific_humidity_before_interval_update_at_next_time_step.shift(time=1)
+    ) / 900.0
+    return ds
+
+
 @curry
 def _open_dataset(fs: fsspec.AbstractFileSystem, variable_names, filename):
-    return xr.open_dataset(fs.open(filename), engine="h5netcdf")[variable_names]
+    ds = xr.open_dataset(fs.open(filename), engine="h5netcdf")[variable_names]
+    return _add_dQ1_dQ2(ds)
 
 
 @batches_functions.register
