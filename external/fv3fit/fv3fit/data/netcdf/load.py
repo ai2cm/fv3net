@@ -188,7 +188,7 @@ class NCFileLoader(_BaseNCLoader):
 
 @register_tfdataset_loader
 @dataclass
-class NCDirLoader(TFDatasetLoader):
+class NCDirLoader(_BaseNCLoader):
     """Loads a folder of netCDF files at given path
 
     Each file must have identical CDL scheme returned by ``ncdump -h``.
