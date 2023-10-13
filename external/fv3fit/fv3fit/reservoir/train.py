@@ -1,16 +1,15 @@
 import logging
 from joblib import Parallel, delayed
 import fv3fit
-from fv3fit.reservoir.readout import (
-    BatchLinearRegressor,
-    combine_readouts_from_subdomain_regressors,
-)
 import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
 import wandb
 
-
+from fv3fit.reservoir.readout import (
+    BatchLinearRegressor,
+    combine_readouts_from_subdomain_regressors,
+)
 from .. import Predictor
 from .utils import (
     square_even_terms,
@@ -31,12 +30,9 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-<<<<<<< HEAD
 from .validation import validation_prediction, log_rmse_z_plots, log_rmse_scalar_metrics
-=======
 from .validation import validate_model
 
->>>>>>> 371382231 (Set state used to eliminate double synchronization, typing)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -296,19 +292,30 @@ def train_reservoir_model(
             logging.error("Error logging validation metrics to wandb", exc_info=e)
     
     if validation_batches is not None:
+        # TODO: add a measure of how many batches to load in
         data = next(iter(validation_batches))
         input_data = process_validation_batch_data_to_dataset(
             data, adapter_model.input_variables
         )
         target_data = process_validation_batch_data_to_dataset(
             data, adapter_model.output_variables
-        )
-        mask = data["mask_field"] if "mask_field" in data else None
+        ).isel(z=0)
+        if "mask_field" in data:
+            mask = data["mask_field"]
+            mask = mask[0, ..., 0]
+        else:
+            mask = None
+
         area = data["area"] if "area" in data else None
-        metrics, spatial_metrics = validate_model(
-            adapter_model, input_data, 100, target_data, mask=mask, area=area
+
+        validate_model(
+            adapter_model,
+            input_data,
+            hyperparameters.n_timesteps_synchronize,
+            target_data,
+            mask=mask,
+            area=area,
         )
-        print(metrics["combined_score"])
 
     return adapter_model
 
