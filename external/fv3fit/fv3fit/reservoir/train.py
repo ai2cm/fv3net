@@ -1,13 +1,14 @@
 import logging
 from joblib import Parallel, delayed
 import fv3fit
+import numpy as np
+import tensorflow as tf
+from typing import Optional, List, Union, cast, Mapping, Sequence
+
 from fv3fit.reservoir.readout import (
     BatchLinearRegressor,
     combine_readouts_from_subdomain_regressors,
 )
-import numpy as np
-import tensorflow as tf
-from typing import Optional, List, Union, cast, Mapping, Sequence
 from .. import Predictor
 from .utils import (
     square_even_terms,
@@ -260,19 +261,30 @@ def train_reservoir_model(
         )
 
     if validation_batches is not None:
+        # TODO: add a measure of how many batches to load in
         data = next(iter(validation_batches))
         input_data = process_validation_batch_data_to_dataset(
             data, adapter_model.input_variables
         )
         target_data = process_validation_batch_data_to_dataset(
             data, adapter_model.output_variables
-        )
-        mask = data["mask_field"] if "mask_field" in data else None
+        ).isel(z=0)
+        if "mask_field" in data:
+            mask = data["mask_field"]
+            mask = mask[0, ..., 0]
+        else:
+            mask = None
+
         area = data["area"] if "area" in data else None
-        metrics, spatial_metrics = validate_model(
-            adapter_model, input_data, 100, target_data, mask=mask, area=area
+
+        validate_model(
+            adapter_model,
+            input_data,
+            hyperparameters.n_timesteps_synchronize,
+            target_data,
+            mask=mask,
+            area=area,
         )
-        print(metrics["combined_score"])
 
     return adapter_model
 
