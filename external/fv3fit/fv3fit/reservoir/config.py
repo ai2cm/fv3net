@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set, Tuple
+from typing import Sequence, Optional, Set
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,9 +8,14 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Tuple[int, int]
+    layout: Sequence[int]
     overlap: int
     rank_dims: Sequence[str]
+
+    def __post_init__(self):
+        self.layout = tuple(self.layout)
+        if len(self.layout) != 2:
+            raise ValueError(f"layout must be a tuple of length 2, got {self.layout}")
 
 
 @dataclass
