@@ -1,0 +1,31 @@
+model_type: reservoir
+hyperparameters:
+  n_jobs: 1
+  seed: 0
+  mask_variable: mask_field
+  hybrid_variables:
+    - t2m_at_next_timestep
+    - u10_at_next_timestep
+    - v10_at_next_timestep
+  input_variables:
+    - sst
+  output_variables:
+    - sst
+  subdomain:
+    layout: [1,1]
+    overlap: 0
+    rank_dims:
+      - x
+      - y
+  reservoir_hyperparameters:
+    state_size: 3000
+    adjacency_matrix_sparsity: 0.999
+    spectral_radius: 0.99
+    seed: 0
+    input_coupling_sparsity: 0
+    input_coupling_scaling: 0.1
+  readout_hyperparameters:
+    l2: 30
+  n_timesteps_synchronize: 10
+  input_noise: 0.001
+  square_half_hidden_state: False
