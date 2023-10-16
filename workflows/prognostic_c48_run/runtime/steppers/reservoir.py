@@ -516,6 +516,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             diags["reservoir_precip_rate_res_interval_avg"],
             self.timestep.total_seconds(),
         )
+        return diags
 
     def get_diagnostics(self, state, tendency):
         diags = compute_diagnostics(state, tendency, self.label, self.hydrostatic)
