@@ -132,7 +132,10 @@ class TimeLoop(
             comm = MPI.COMM_WORLD
 
         self._wrapper = wrapper
-        self._state: DerivedFV3State = MergedState(DerivedFV3State(self._wrapper), {})
+        self._tracer_metadata = self._wrapper.get_tracer_metadata()
+        self._state: DerivedFV3State = MergedState(
+            DerivedFV3State(self._wrapper, self._tracer_metadata), {}
+        )
         self.comm = comm
         self._timer = pace.util.Timer()
         self.rank: int = comm.rank
@@ -174,7 +177,7 @@ class TimeLoop(
             self._reservior_increment_stepper,
             self._reservoir_predict_stepper,
         ] = self._get_reservoir_stepper(config, init_time)
-        self._log_info(self._wrapper.get_tracer_metadata())
+        self._log_info(self._tracer_metadata)
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     def _use_diagnostic_ml_prephysics(self, prephysics_config):
@@ -251,7 +254,7 @@ class TimeLoop(
         elif isinstance(base_stepper_config, NudgingConfig):
             self._log_info(f"Using NudgingStepper for step {step}")
             stepper = PureNudger(
-                self._wrapper,
+                self._tracer_metadata,
                 base_stepper_config,
                 self._get_communicator(),
                 hydrostatic,
@@ -326,7 +329,7 @@ class TimeLoop(
                 namelist,
                 self._timestep,
                 self._state["initialization_time"].item(),
-                self._wrapper.get_tracer_metadata(),
+                self._tracer_metadata,
                 radiation_input_generator,
             )
         else:
@@ -399,7 +402,7 @@ class TimeLoop(
 
     @property
     def _water_species(self) -> List[str]:
-        a = self._wrapper.get_tracer_metadata()
+        a = self._tracer_metadata
         return [name for name in a if a[name]["is_water"]]
 
     def _apply_physics(self) -> Diagnostics:
@@ -636,7 +639,7 @@ class TimeLoop(
             self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
-                    self._wrapper, self._state
+                    self._tracer_metadata, self._state
                 ),
                 self._increment_reservoir,
                 self.monitor("dynamics", self._step_dynamics),
