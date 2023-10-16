@@ -618,9 +618,7 @@ class TimeLoop(
                     "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
                         "cnvprcp"
                     ).data_array,
-                    TOTAL_PRECIP_RATE: precipitation_rate(
-                        self._state[TOTAL_PRECIP], self._timestep
-                    ),
+                    TOTAL_PRECIP_RATE: precip["total_precip_rate_res_interval_avg"],
                 }
             )
 
