@@ -16,7 +16,6 @@ from typing import (
 )
 import cftime
 import pace.util
-import fv3gfs.wrapper
 import numpy as np
 import vcm
 import xarray as xr
@@ -127,9 +126,7 @@ class TimeLoop(
     ``TimeLoop`` controls when and how to apply these updates to the FV3 state.
     """
 
-    def __init__(
-        self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
-    ) -> None:
+    def __init__(self, config: UserConfig, wrapper: Any, comm: Any = None,) -> None:
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -254,7 +251,7 @@ class TimeLoop(
         elif isinstance(base_stepper_config, NudgingConfig):
             self._log_info(f"Using NudgingStepper for step {step}")
             stepper = PureNudger(
-                base_stepper_config, self._get_communicator(), hydrostatic
+                self._fv3gfs, base_stepper_config, self._get_communicator(), hydrostatic
             )
         else:
             self._log_info(
@@ -532,7 +529,9 @@ class TimeLoop(
                 (
                     filled_tendencies,
                     tendencies_filled_frac,
-                ) = prepare_tendencies_for_dynamical_core(self._tendencies)
+                ) = prepare_tendencies_for_dynamical_core(
+                    self._fv3gfs, self._tendencies
+                )
                 updated_state_from_tendency = add_tendency(
                     self._state, filled_tendencies, dt=self._timestep
                 )
@@ -634,7 +633,7 @@ class TimeLoop(
             self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
-                    self._state
+                    self._fv3gfs, self._state
                 ),
                 self._increment_reservoir,
                 self.monitor("dynamics", self._step_dynamics),

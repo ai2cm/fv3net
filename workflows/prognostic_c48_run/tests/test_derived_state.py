@@ -8,9 +8,31 @@ import xarray as xr
 from runtime.derived_state import DerivedFV3State, FV3StateMapper, MergedState
 
 
+class MockProperties:
+    def __init__(self):
+        self.DYNAMICS_PROPERTIES = []
+        self.PHYSICS_PROPERTIES = [
+            {
+                "name": "latitude",
+                "fortran_name": "xlat",
+                "units": "radians",
+                "container": "Grid",
+                "dims": ["y", "x"],
+            },
+            {
+                "name": "longitude",
+                "fortran_name": "xlon",
+                "units": "radians",
+                "container": "Grid",
+                "dims": ["y", "x"],
+            },
+        ]
+
+
 class MockFV3GFS:
     def __init__(self):
         self.set_state_called = False
+        self._properties = MockProperties()
         np.random.seed(0)
 
         nx, ny = 10, 10
