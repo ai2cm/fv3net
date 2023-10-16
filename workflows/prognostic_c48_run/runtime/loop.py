@@ -586,19 +586,28 @@ class TimeLoop(
                 diags,
                 state_updates,
             ) = self._reservoir_predict_stepper(self._state.time, self._state)
+
+            logger.info(f"Reservoir stepper diagnostics: {list(diags.keys())}")
+            logger.info(
+                f"Reservoir stepper state updates: {list(state_updates.keys())}"
+            )
+
+            if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
+                rename_diagnostics(diags, label="reservoir_predictor")
+
             (
-                stepper_diags,
+                diags_from_tendencies,
                 net_moistening,
             ) = self._reservoir_predict_stepper.get_diagnostics(
                 self._state, tendencies_from_state_prediction
             )
-            diags.update(stepper_diags)
-            if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
-                rename_diagnostics(diags, label="reservoir_predictor")
+            diags.update(diags_from_tendencies)
 
-            state_updates[TOTAL_PRECIP] = precipitation_sum(
-                self._state[TOTAL_PRECIP], net_moistening, self._timestep,
+            precip = self._reservoir_predict_stepper.update_precip(  # type: ignore
+                self._state[TOTAL_PRECIP], net_moistening
             )
+            diags.update(precip)
+            state_updates[TOTAL_PRECIP] = precip[TOTAL_PRECIP]
 
             self._state.update_mass_conserving(state_updates)
 

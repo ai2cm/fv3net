@@ -17,8 +17,8 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST, SPHUM, TEMP
-from runtime.tendency import add_tendency, tendencies_from_state_updates
+from runtime.names import SST, SPHUM, TEMP, PHYSICS_PRECIP_RATE, TOTAL_PRECIP
+from runtime.tendency import add_tendency
 from runtime.diagnostics import (
     enforce_heating_and_moistening_tendency_constraints,
     compute_diagnostics,
@@ -63,6 +63,7 @@ class ReservoirConfig:
     rename_mapping: NameDict = dataclasses.field(default_factory=dict)
     hydrostatic: bool = False
     mse_conserving_limiter: bool = False
+    interval_average_precipitation: bool = False
 
 
 class _FiniteStateMachine:
@@ -102,6 +103,75 @@ class _FiniteStateMachine:
             raise ValueError(
                 f"Unknown state provided to _ReservoirStepperState {state}"
             )
+
+
+class TendencyPrecipTracker:
+    def __init__(self, reservoir_timestep_seconds: float):
+        self.reservoir_timestep_seconds = reservoir_timestep_seconds
+        self.physics_precip_averager = TimeAverageInputs([PHYSICS_PRECIP_RATE])
+        self._air_temperature_at_previous_interval = None
+        self._specific_humidity_at_previous_interval = None
+
+    def increment_physics_precip_rate(self, physics_precip_rate):
+        self.physics_precip_averager.increment_running_average(
+            {PHYSICS_PRECIP_RATE: physics_precip_rate}
+        )
+
+    def average_physics_precip_rate(self):
+        return self.physics_precip_average.get_averages()[PHYSICS_PRECIP_RATE]
+
+    def update_tracked_state(self, air_temperature, specific_humidity):
+        self._air_temperature_at_previous_interval = air_temperature
+        self._specific_humidity_at_previous_interval = specific_humidity
+
+    def calculate_tendencies(self, air_temperature, specific_humidity):
+        if (
+            self._specific_humidity_at_previous_interval is None
+            or self._air_temperature_at_previous_interval is None
+        ):
+            logger.info(
+                "Previous reservoir prediction of specific_humidity and "
+                "air_temperature not saved. Returning zero tendencies"
+            )
+            dQ1, dQ2 = xr.zeros_like(air_temperature), xr.zeros_like(air_temperature)
+        else:
+            dQ1 = (
+                air_temperature - self._air_temperature_at_previous_interval
+            ) / self.reservoir_timestep_seconds
+            dQ2 = (
+                specific_humidity - self._specific_humidity_at_previous_interval
+            ) / self.reservoir_timestep_seconds
+        return {"dQ1": dQ1, "dQ2": dQ2}
+
+    def interval_avg_precip_rates(self, net_moistening):
+        physics_precip_rate = self.physics_precip_averager.get_averages()[
+            PHYSICS_PRECIP_RATE
+        ]
+        total_precip_rate = physics_precip_rate - net_moistening
+        total_precip_rate = total_precip_rate.where(total_precip_rate >= 0, 0)
+        reservoir_precip_rate = total_precip_rate - physics_precip_rate
+        return {
+            "total_precip_rate_res_interval_avg": total_precip_rate,
+            "physics_precip_rate_res_interval_avg": physics_precip_rate,
+            "reservoir_precip_rate_res_interval_avg": reservoir_precip_rate,
+        }
+
+    def accumulated_precip_update(
+        self,
+        physics_precip_total_over_model_timestep,
+        reservoir_precip_rate_over_res_interval,
+        reservoir_timestep,
+    ):
+        # Since the reservoir correction is only applied every reservoir_timestep,
+        # all of the precip due to the reservoir is put into the accumulated precip
+        # in the model timestep at update time.
+        m_per_mm = 1 / 1000
+        reservoir_total_precip = (
+            reservoir_precip_rate_over_res_interval * reservoir_timestep * m_per_mm
+        )
+        total_precip = physics_precip_total_over_model_timestep + reservoir_total_precip
+        total_precip.attrs["units"] = "m"
+        return total_precip
 
 
 class TimeAverageInputs:
@@ -170,6 +240,7 @@ class _ReservoirStepper:
         warm_start: bool = False,
         hydrostatic: bool = False,
         mse_conserving_limiter: bool = False,
+        tendency_precip_tracker: Optional[TendencyPrecipTracker] = None,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -181,6 +252,7 @@ class _ReservoirStepper:
         self.warm_start = warm_start
         self.hydrostatic = hydrostatic
         self.mse_conserving_limiter = mse_conserving_limiter
+        self.tendency_precip_tracker = tendency_precip_tracker
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -313,6 +385,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         self._state_machine(self._state_machine.PREDICT)
         result = self.model.predict(inputs)
+
         output_state = rename_dataset_members(result, self.rename_mapping)
 
         diags = rename_dataset_members(
@@ -324,11 +397,26 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
+        tendencies_over_res_timestep = {}
         if (
             self._state_machine.completed_increments <= self.synchronize_steps
             or self.is_diagnostic
         ):
             output_state = {}
+            if self.tendency_precip_tracker is not None:
+                self.tendency_precip_tracker.update_tracked_state(
+                    state[TEMP], state[SPHUM]
+                )
+        else:
+            if self.tendency_precip_tracker is not None:
+                tendencies_over_res_timestep.update(
+                    self.tendency_precip_tracker.calculate_tendencies(
+                        result[TEMP], result[SPHUM]
+                    )
+                )
+                self.tendency_precip_tracker.update_tracked_state(
+                    result[TEMP], result[SPHUM]
+                )
 
         if SST in output_state:
             sst_updates = sst_update_from_reference(
@@ -336,7 +424,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             )
             output_state.update(sst_updates)
 
-        return {}, diags, output_state
+        return tendencies_over_res_timestep, diags, output_state
 
     def __call__(self, time, state):
 
@@ -360,12 +448,21 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self.input_averager is not None:
             self.input_averager.increment_running_average(inputs)
 
+        if self.tendency_precip_tracker is not None:
+            self.tendency_precip_tracker.increment_physics_precip_rate(
+                state[PHYSICS_PRECIP_RATE]
+            )
+
+        tendencies, diags, updated_state = {}, {}, {}
+
         if self._is_rc_update_step(time):
             logger.info(f"Reservoir model predict at time {time}")
             if self.input_averager is not None:
                 inputs.update(self.input_averager.get_averages())
 
-            tendencies, diags, updated_state = self.predict(inputs, state)
+            tendencies_over_res_timestep, diags, updated_state = self.predict(
+                inputs, state
+            )
 
             hybrid_diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_hyb_in" for k in inputs}
@@ -375,25 +472,17 @@ class ReservoirPredictStepper(_ReservoirStepper):
             # This check is done on the _rc_out diags since those are always available.
             # This allows zero field diags to be returned on timesteps where the
             # reservoir is not updating the state.
-            diags_Tq_vars = {f"{v}_{self.DIAGS_OUTPUT_SUFFIX}" for v in [TEMP, SPHUM]}
+            # diags_Tq_vars = {f"{v}_{self.DIAGS_OUTPUT_SUFFIX}" for v in [TEMP, SPHUM]}
+            # if diags_Tq_vars.issubset(list(diags.keys())):
 
-            if diags_Tq_vars.issubset(list(diags.keys())):
-                # TODO: Currently the reservoir only predicts updated states and returns
-                # empty tendencies. If tendency predictions are implemented in the
-                # prognostic run, the limiter/conservation updates should be updated to
-                # take this option into account and use predicted tendencies directly.
-                tendencies_from_state_prediction = tendencies_from_state_updates(
-                    initial_state=state,
-                    updated_state=updated_state,
-                    dt=self.model_timestep,
-                )
+            if self.tendency_precip_tracker is not None:
                 (
                     tendency_updates_from_constraints,
                     diagnostics_updates_from_constraints,
                 ) = enforce_heating_and_moistening_tendency_constraints(
                     state=state,
-                    tendency=tendencies_from_state_prediction,
-                    timestep=self.model_timestep,
+                    tendency=tendencies_over_res_timestep,
+                    timestep=self.timestep.total_seconds(),
                     mse_conserving=self.mse_conserving_limiter,
                     hydrostatic=self.hydrostatic,
                     temperature_tendency_name="dQ1",
@@ -405,14 +494,28 @@ class ReservoirPredictStepper(_ReservoirStepper):
                 updated_state = add_tendency(
                     state=state,
                     tendencies=tendency_updates_from_constraints,
-                    dt=self.model_timestep,
+                    dt=self.timestep.total_seconds(),
                 )
-                tendencies.update(tendency_updates_from_constraints)
-
-        else:
-            tendencies, diags, updated_state = {}, {}, {}
+                tendencies = tendency_updates_from_constraints
 
         return tendencies, diags, updated_state
+
+    def update_precip(
+        self, physics_precip, net_moistening_due_to_reservoir,
+    ):
+        diags = {}
+
+        # running average gets reset in this call
+        precip_rates = self.tendency_precip_tracker.interval_avg_precip_rates(
+            net_moistening_due_to_reservoir
+        )
+        diags.update(precip_rates)
+
+        diags[TOTAL_PRECIP] = self.tendency_precip_tracker.accumulated_precip_update(
+            physics_precip,
+            diags["reservoir_precip_rate_res_interval_avg"],
+            self.timestep.total_seconds(),
+        )
 
     def get_diagnostics(self, state, tendency):
         diags = compute_diagnostics(state, tendency, self.label, self.hydrostatic)
@@ -463,6 +566,12 @@ def get_reservoir_steppers(
         model, config.time_average_inputs
     )
 
+    _precip_tracker_kwargs = {}
+    if config.interval_average_precipitation:
+        _precip_tracker_kwargs["tendency_precip_tracker"] = TendencyPrecipTracker(
+            reservoir_timestep_seconds=rc_tdelta.total_seconds(),
+        )
+
     incrementer = ReservoirIncrementOnlyStepper(
         model,
         init_time,
@@ -487,5 +596,6 @@ def get_reservoir_steppers(
         model_timestep=model_timestep,
         hydrostatic=config.hydrostatic,
         mse_conserving_limiter=config.mse_conserving_limiter,
+        **_precip_tracker_kwargs,
     )
     return incrementer, predictor
