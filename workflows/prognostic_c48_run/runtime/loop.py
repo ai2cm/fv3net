@@ -16,7 +16,6 @@ from typing import (
 )
 import cftime
 import pace.util
-import fv3gfs.wrapper
 import numpy as np
 import vcm
 import xarray as xr
@@ -128,7 +127,7 @@ class TimeLoop(
     """
 
     def __init__(
-        self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
+        self, config: UserConfig, comm: Any = None, wrapper: Any = None,
     ) -> None:
 
         if comm is None:
@@ -254,7 +253,7 @@ class TimeLoop(
         elif isinstance(base_stepper_config, NudgingConfig):
             self._log_info(f"Using NudgingStepper for step {step}")
             stepper = PureNudger(
-                base_stepper_config, self._get_communicator(), hydrostatic
+                self._fv3gfs, base_stepper_config, self._get_communicator(), hydrostatic
             )
         else:
             self._log_info(
@@ -406,19 +405,19 @@ class TimeLoop(
         self._log_debug(f"Physics Step (apply)")
         self._fv3gfs.apply_physics()
 
-        micro = self._fv3gfs.get_diagnostic_by_name(
-            "tendency_of_specific_humidity_due_to_microphysics"
-        ).data_array
-        delp = self._state[DELP]
+        # micro = self._fv3gfs.get_diagnostic_by_name(
+        #     "tendency_of_specific_humidity_due_to_microphysics"
+        # ).data_array
+        # delp = self._state[DELP]
         return {
-            "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
-                micro, delp, "z"
-            ),
-            "evaporation": self._state["evaporation"],
-            "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            "total_precip_after_physics": self._state[TOTAL_PRECIP],
+            # "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
+            #     micro, delp, "z"
+            # ),
+            # "evaporation": self._state["evaporation"],
+            # "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
+            #     "cnvprcp"
+            # ).data_array,
+            # "total_precip_after_physics": self._state[TOTAL_PRECIP],
         }
 
     def _print_timings(self, reduced):
@@ -532,7 +531,7 @@ class TimeLoop(
                 (
                     filled_tendencies,
                     tendencies_filled_frac,
-                ) = prepare_tendencies_for_dynamical_core(self._tendencies)
+                ) = prepare_tendencies_for_dynamical_core(self._fv3gfs, self._tendencies)
                 updated_state_from_tendency = add_tendency(
                     self._state, filled_tendencies, dt=self._timestep
                 )
@@ -558,12 +557,12 @@ class TimeLoop(
         diagnostics.update(
             {
                 "area": self._state[AREA],
-                "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
-                    "cnvprcp"
-                ).data_array,
-                TOTAL_PRECIP_RATE: precipitation_rate(
-                    self._state[TOTAL_PRECIP], self._timestep
-                ),
+                # "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                #     "cnvprcp"
+                # ).data_array,
+                # TOTAL_PRECIP_RATE: precipitation_rate(
+                #     self._state[TOTAL_PRECIP], self._timestep
+                # ),
             }
         )
         return diagnostics
@@ -634,7 +633,7 @@ class TimeLoop(
             self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
-                    self._state
+                    self._fv3gfs, self._state
                 ),
                 self._increment_reservoir,
                 self.monitor("dynamics", self._step_dynamics),
@@ -642,12 +641,13 @@ class TimeLoop(
                 self._step_pre_radiation_physics,
                 self._step_radiation_physics,
                 self._step_post_radiation_physics,
-                self.monitor(
-                    "applied_physics",
-                    self.emulate_or_prescribe_tendency(
-                        self.monitor("fv3_physics", self._apply_physics)
-                    ),
-                ),
+                self.monitor("fv3_physics", self._apply_physics),
+                # self.monitor(
+                #     "applied_physics",
+                #     self.emulate_or_prescribe_tendency(
+                #         self.monitor("fv3_physics", self._apply_physics)
+                #     ),
+                # ),
                 self._compute_postphysics,
                 self.monitor("python", self._apply_postphysics_to_dycore_state),
                 self._apply_reservoir_update_to_state,

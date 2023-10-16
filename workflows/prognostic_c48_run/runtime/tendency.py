@@ -1,6 +1,5 @@
 from typing import Any, Tuple
 import pace.util
-import fv3gfs.wrapper
 import numpy as np
 import xarray as xr
 from runtime.names import (
@@ -52,7 +51,7 @@ def state_updates_from_tendency(tendency_updates):
 
 
 def transform_from_agrid_to_dgrid(
-    u: xr.DataArray, v: xr.DataArray
+    wrapper, u: xr.DataArray, v: xr.DataArray
 ) -> Tuple[xr.DataArray, xr.DataArray]:
     """Transform a vector field on the A-grid in latitude-longitude coordinates
     to the D-grid in cubed-sphere coordinates.
@@ -64,7 +63,7 @@ def transform_from_agrid_to_dgrid(
     (
         x_wind_quantity,
         y_wind_quantity,
-    ) = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(u_quantity, v_quantity)
+    ) = wrapper.transform_agrid_winds_to_dgrid_winds(u_quantity, v_quantity)
     return x_wind_quantity.data_array, y_wind_quantity.data_array
 
 
@@ -142,7 +141,7 @@ def prepare_agrid_wind_tendencies(
     return dQu, dQv
 
 
-def transform_agrid_wind_tendencies(tendencies: State) -> State:
+def transform_agrid_wind_tendencies(wrapper, tendencies: State) -> State:
     """Transforms available A-grid wind tendencies to the D-grid.
 
     Currently this does not support the case that both A-grid and D-grid
@@ -156,7 +155,7 @@ def transform_agrid_wind_tendencies(tendencies: State) -> State:
         )
 
     dQu, dQv = prepare_agrid_wind_tendencies(tendencies)
-    dQx_wind, dQy_wind = transform_from_agrid_to_dgrid(dQu, dQv)
+    dQx_wind, dQy_wind = transform_from_agrid_to_dgrid(wrapper, dQu, dQv)
     tendencies[X_WIND_TENDENCY] = dQx_wind
     tendencies[Y_WIND_TENDENCY] = dQy_wind
     return dissoc(tendencies, *A_GRID_WIND_TENDENCIES)

@@ -67,6 +67,10 @@ endif
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=$(REGISTRY)/prognostic_run_base:$(PROGNOSTIC_BASE_VERSION) .
 
+build_image_prognostic_run_shield:
+	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_shield:$(CACHE_TAG) \
+                -f docker/prognostic_run_shield/Dockerfile -t $(REGISTRY)/prognostic_run_shield:$(VERSION) .
+
 build_image_prognostic_run_base_gpu:
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_base_gpu:$(CACHE_TAG) \
 		-f docker/prognostic_run/base.Dockerfile -t $(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) \

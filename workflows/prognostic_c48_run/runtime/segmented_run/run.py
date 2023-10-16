@@ -62,12 +62,16 @@ def run_segment(config: dict, rundir: str, mpi_launcher: str):
 
         with open("logs.txt", "w") as f:
             process = subprocess.Popen(
-                command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
             )
             # need this assertion so that mypy knows that stdout is not None
             assert process.stdout, "stdout should not be None"
             for line in handle_fv3_log(process.stdout):
                 for out_file in [sys.stdout, f]:
+                    print(line.strip(), file=out_file)
+
+            for line in handle_fv3_log(process.stderr):
+                for out_file in [sys.stderr, f]:
                     print(line.strip(), file=out_file)
 
         return process.wait()

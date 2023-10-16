@@ -17,6 +17,7 @@ BASE_FV3CONFIG_BY_VERSION = {
     "v0.5": os.path.join(PWD, "base_yamls/v0.5/fv3config.yml"),
     "v0.6": os.path.join(PWD, "base_yamls/v0.6/fv3config.yml"),
     "v0.7": os.path.join(PWD, "base_yamls/v0.7/fv3config.yml"),
+    "SHiELD-v0.1": os.path.join(PWD, "base_yamls/SHiELD-v0.1/fv3config.yml"),
 }
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
 

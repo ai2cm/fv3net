@@ -2,8 +2,6 @@ from typing import Hashable, Mapping, MutableMapping, Set
 
 import cftime
 import pace.util
-import fv3gfs.wrapper
-import fv3gfs.wrapper._properties
 import numpy as np
 import xarray as xr
 from runtime.names import DELP, PHYSICS_PRECIP_RATE, TIME_KEYS
@@ -63,10 +61,10 @@ class FV3StateMapper(Mapping):
 
     def keys(self):
         dynamics_names = set(
-            v["name"] for v in fv3gfs.wrapper._properties.DYNAMICS_PROPERTIES
+            v["name"] for v in self._getter._properties.DYNAMICS_PROPERTIES
         )
         physics_names = set(
-            v["name"] for v in fv3gfs.wrapper._properties.PHYSICS_PROPERTIES
+            v["name"] for v in self._getter._properties.PHYSICS_PROPERTIES
         )
         tracer_names = set(v for v in self._getter.get_tracer_metadata())
         # see __getitem__

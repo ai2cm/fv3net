@@ -2,7 +2,7 @@ import gc
 import logging
 from mpi4py import MPI
 
-import fv3gfs.wrapper as wrapper
+import shield.wrapper as wrapper
 
 # To avoid very strange NaN errors this needs to happen before runtime import
 # with openmpi
@@ -16,14 +16,14 @@ import runtime
 STATISTICS_LOG_NAME = "statistics"
 PROFILES_LOG_NAME = "profiles"
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 logging.getLogger("pace.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
 
 # Fortran logs are output as python DEBUG level
-runtime.capture_fv3gfs_funcs()
+runtime.capture_fv3gfs_funcs(wrapper)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def main():
     for name in [STATISTICS_LOG_NAME, PROFILES_LOG_NAME]:
         runtime.setup_file_logger(name)
 
-    loop = TimeLoop(config, comm=comm)
+    loop = TimeLoop(config, comm=comm, wrapper=wrapper)
 
     diag_files = runtime.get_diagnostic_files(
         config.diagnostics, partitioner, comm, initial_time=loop.time

@@ -151,7 +151,8 @@ def file_configs_to_namelist_settings(
         one_hour_duration = datetime.timedelta(hours=1)
         return {
             "namelist": {
-                "atmos_model_nml": {"fhout": physics_frequency / one_hour_duration},
+                # "atmos_model_nml": {"fhout": physics_frequency / one_hour_duration},
+                "atmos_model_nml": {"fdiag": physics_frequency / one_hour_duration},
                 "gfs_physics_nml": {"fhzero": physics_frequency / one_hour_duration},
             }
         }
