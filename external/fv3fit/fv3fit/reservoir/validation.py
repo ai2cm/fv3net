@@ -6,6 +6,7 @@ import wandb
 import matplotlib.pyplot as plt
 from toolz import curry
 from io import BytesIO
+from PIL import Image
 
 from fv3fit.reservoir.adapters import ReservoirAdapterType
 
@@ -49,7 +50,7 @@ def plot_to_image(figure):
     figure.savefig(buf, format="png", bbox_inches="tight")
     buf.seek(0)
 
-    return buf
+    return Image.open(buf)
 
 
 def log_metrics(metrics: Mapping[Hashable, xr.Dataset]) -> None:
@@ -64,7 +65,11 @@ def log_metric_plots(plottable_metrics: Mapping[Hashable, xr.Dataset]) -> None:
     for name, metric in plottable_metrics.items():
         for field, value in metric.items():
             fig = plt.figure(dpi=120)
-            value.plot()
+            if "skill" in str(name):
+                kwargs = {"vmin": -1, "vmax": 1, "cmap": "RdBu_r"}
+            else:
+                kwargs = {}
+            value.plot(**kwargs)
             wandb.log({f"{name}/{field}": wandb.Image(plot_to_image(fig))})
             plt.close(fig)
 
@@ -373,8 +378,8 @@ def validate_model(
         )
 
     if wandb.run is not None:
-        if metrics["combined_score"] > 10.0:
-            wandb.run.tags = wandb.run.tags + ["blowup"]
+        if metrics["combined_score"] > 15.0:
+            wandb.run.tags = list(wandb.run.tags) + ["blowup"]
 
         log_metrics(metrics)
         log_metric_plots(spatial_metrics)
