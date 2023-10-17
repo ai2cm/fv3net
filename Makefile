@@ -32,7 +32,7 @@ endif
 
 PROGNOSTIC_RUN_WORKDIR ?= /fv3net/workflows/prognostic_c48_run
 
-IMAGES = fv3net post_process_run prognostic_run
+IMAGES = fv3net post_process_run prognostic_run prognostic_run_shield
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
 ############################################################
@@ -51,6 +51,9 @@ push_images: $(addprefix push_image_, $(IMAGES))
 build_image_fv3fit: docker/fv3fit/requirements.txt
 build_image_fv3fit_torch: docker/fv3fit_torch/requirements.txt
 build_image_artifacts: docker/artifacts/requirements.txt
+
+# Use the identical Python requirements to the FV3GFS prognostic run
+build_image_prognostic_run_shield: docker/prognostic_run/requirements.txt
 
 build_image_prognostic_run_base:
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_run_base:$(CACHE_TAG) \

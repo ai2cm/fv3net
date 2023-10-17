@@ -134,6 +134,7 @@ initial_conditions:
   source_name: fv_core.res.nc
   target_location: INPUT
   target_name: fv_core.res.nc
+model: fv3gfs
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi

@@ -1,5 +1,6 @@
-from typing import List, Optional, Union, Iterable
+from typing import List, Literal, Optional, Union, Iterable
 import dataclasses
+import importlib
 import yaml
 import f90nml
 
@@ -56,6 +57,8 @@ class UserConfig:
             from a dataset.
         reservoir_corrector: configuration for using a reservoir computing model to
             correct the final model state
+        model: model used for the simulation (default "fv3gfs"; options are "fv3gfs"
+            or "shield")
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -73,6 +76,7 @@ class UserConfig:
     radiation_scheme: Optional[RadiationStepperConfig] = None
     bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
     reservoir_corrector: Optional[ReservoirConfig] = None
+    model: Literal["fv3gfs", "shield"] = "fv3gfs"
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
@@ -123,3 +127,14 @@ def get_model_urls(config_dict: dict) -> List[str]:
         for entry in prephysics_config:
             urls += entry.get("model", [])
     return urls
+
+
+def get_wrapper(config: UserConfig):
+    module = f"{config.model}.wrapper"
+    try:
+        return importlib.import_module(module)
+    except ModuleNotFoundError:
+        raise ImportError(
+            f"{module}, required for running {config.model}, is "
+            f"not installed in the environment"
+        )

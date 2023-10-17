@@ -15,7 +15,9 @@ import tensorflow as tf
 import vcm.testing
 import xarray as xr
 import yaml
-from machine_learning_mocks import get_mock_predictor
+from .machine_learning_mocks import get_mock_predictor
+
+from . import requires_fv3gfs_wrapper, requires_shield_wrapper
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -33,6 +35,31 @@ class ConfigEnum:
     nudging = "nudging"
     predictor = "predictor"
     microphys_emulation = "microphys_emulation"
+
+
+default_fv3config_shield_path = (
+    Path(__file__).parent.parent.parent.parent
+    / "external"
+    / "SHiELD-wrapper"
+    / "wrapper"
+    / "tests"
+    / "pytest"
+    / "config"
+    / "restart-PIRE-like.yml"
+)
+with open(default_fv3config_shield_path, "r") as file:
+    default_fv3config_shield = fv3config.load(file)
+default_fv3config_shield["model"] = "shield"
+default_fv3config_shield["diag_table"] = "no_output"
+default_fv3config_shield["namelist"]["coupler_nml"]["current_date"] = [
+    2016,
+    8,
+    1,
+    0,
+    0,
+    0,
+]
+default_fv3config_shield["namelist"]["coupler_nml"]["force_date_from_namelist"] = True
 
 
 default_fv3config = rf"""
@@ -353,6 +380,15 @@ def run_native(config, rundir):
         subprocess.check_call([fv3_script, "append", rundir])
 
 
+def get_default_config(fortran_model):
+    if fortran_model == "fv3gfs":
+        return yaml.safe_load(default_fv3config)
+    elif fortran_model == "shield":
+        return default_fv3config_shield
+    else:
+        raise ValueError(f"No default config defined for model {fortran_model!r}")
+
+
 def assets_from_initial_condition_dir(dir_: str):
     start = datetime.datetime(*START_TIME)  # type: ignore
     delta_t = datetime.timedelta(minutes=TIMESTEP_MINUTES)
@@ -379,8 +415,8 @@ def assets_from_initial_condition_dir(dir_: str):
     return assets
 
 
-def _get_nudging_config(config_yaml: str, timestamp_dir: str):
-    config = yaml.safe_load(config_yaml)
+def _get_nudging_config(fortran_model, timestamp_dir: str):
+    config = get_default_config(fortran_model)
     coupler_nml = config["namelist"]["coupler_nml"]
     coupler_nml["current_date"] = START_TIME
     coupler_nml.update(RUNTIME)
@@ -402,8 +438,8 @@ def _get_nudging_config(config_yaml: str, timestamp_dir: str):
     return config
 
 
-def get_nudging_config(tendencies_path: str):
-    config = _get_nudging_config(default_fv3config, "gs://" + IC_PATH.as_posix())
+def get_nudging_config(fortran_model, tendencies_path: str):
+    config = _get_nudging_config(fortran_model, "gs://" + IC_PATH.as_posix())
     config["tendency_prescriber"] = {
         "mapper_config": {
             "function": "open_zarr",
@@ -411,100 +447,120 @@ def get_nudging_config(tendencies_path: str):
         },
         "variables": {"air_temperature": "Q1"},
     }
+    if fortran_model == "fv3gfs":
+        microphysics_diagnostics = [
+            "storage_of_specific_humidity_path_due_to_microphysics"
+        ]
+    elif fortran_model == "shield":
+        microphysics_diagnostics = []
+    else:
+        raise ValueError(f"fortran_model {fortran_model!r} not supported")
     config["diagnostics"] = [
         {
             "name": "diags.zarr",
             "times": {"kind": "interval", "frequency": 900, "times": None},
-            "variables": [
-                "air_temperature_reference",
-                "air_temperature_tendency_due_to_nudging",
-                "area",
-                "cnvprcp_after_physics",
-                "cnvprcp_after_python",
-                "evaporation",
-                "column_heating_due_to_nudging",
-                "net_moistening_due_to_nudging",
-                "physics_precip",
-                "specific_humidity_reference",
-                "specific_humidity_tendency_due_to_nudging",
-                "storage_of_mass_due_to_fv3_physics",
-                "storage_of_mass_due_to_python",
-                "storage_of_specific_humidity_path_due_to_fv3_physics",
-                "storage_of_specific_humidity_path_due_to_microphysics",
-                "storage_of_specific_humidity_path_due_to_python",
-                "storage_of_total_water_path_due_to_fv3_physics",
-                "storage_of_total_water_path_due_to_python",
-                "storage_of_internal_energy_path_due_to_python",
-                "surface_temperature_reference",
-                "tendency_of_air_temperature_due_to_fv3_physics",
-                "tendency_of_air_temperature_due_to_python",
-                "tendency_of_air_temperature_due_to_tendency_prescriber",
-                "tendency_of_eastward_wind_due_to_fv3_physics",
-                "tendency_of_eastward_wind_due_to_python",
-                "tendency_of_northward_wind_due_to_fv3_physics",
-                "tendency_of_northward_wind_due_to_python",
-                "tendency_of_specific_humidity_due_to_fv3_physics",
-                "tendency_of_specific_humidity_due_to_python",
-                "tendency_of_internal_energy_due_to_python",
-                "total_precip_after_physics",
-                "total_precipitation_rate",
-                "water_vapor_path",
-            ],
+            "variables": sorted(
+                [
+                    "air_temperature_reference",
+                    "air_temperature_tendency_due_to_nudging",
+                    "area",
+                    "cnvprcp_after_physics",
+                    "cnvprcp_after_python",
+                    "evaporation",
+                    "column_heating_due_to_nudging",
+                    "net_moistening_due_to_nudging",
+                    "physics_precip",
+                    "specific_humidity_reference",
+                    "specific_humidity_tendency_due_to_nudging",
+                    "storage_of_mass_due_to_fv3_physics",
+                    "storage_of_mass_due_to_python",
+                    "storage_of_specific_humidity_path_due_to_fv3_physics",
+                    "storage_of_specific_humidity_path_due_to_python",
+                    "storage_of_total_water_path_due_to_fv3_physics",
+                    "storage_of_total_water_path_due_to_python",
+                    "storage_of_internal_energy_path_due_to_python",
+                    "surface_temperature_reference",
+                    "tendency_of_air_temperature_due_to_fv3_physics",
+                    "tendency_of_air_temperature_due_to_python",
+                    "tendency_of_air_temperature_due_to_tendency_prescriber",
+                    "tendency_of_eastward_wind_due_to_fv3_physics",
+                    "tendency_of_eastward_wind_due_to_python",
+                    "tendency_of_northward_wind_due_to_fv3_physics",
+                    "tendency_of_northward_wind_due_to_python",
+                    "tendency_of_specific_humidity_due_to_fv3_physics",
+                    "tendency_of_specific_humidity_due_to_python",
+                    "tendency_of_internal_energy_due_to_python",
+                    "total_precip_after_physics",
+                    "total_precipitation_rate",
+                    "water_vapor_path",
+                ]
+                + microphysics_diagnostics
+            ),
         }
     ]
     config["fortran_diagnostics"] = []
     return config
 
 
-def get_ml_config(model_path):
-    config = yaml.safe_load(default_fv3config)
+def get_ml_config(fortran_model, model_path):
+    config = get_default_config(fortran_model)
+    if fortran_model == "fv3gfs":
+        microphysics_diagnostics = [
+            "storage_of_specific_humidity_path_due_to_microphysics"
+        ]
+    elif fortran_model == "shield":
+        microphysics_diagnostics = []
+    else:
+        raise ValueError(f"fortran_model {fortran_model!r} not supported")
     config["diagnostics"] = [
         {
             "name": "diags.zarr",
             "times": {"kind": "interval", "frequency": 900, "times": None},
-            "variables": [
-                "air_temperature",
-                "area",
-                "cnvprcp_after_physics",
-                "cnvprcp_after_python",
-                "column_integrated_dQ1_change_non_neg_sphum_constraint",
-                "column_integrated_dQ2_change_non_neg_sphum_constraint",
-                "column_integrated_dQu_stress",
-                "column_integrated_dQv_stress",
-                "dQ1",
-                "dQ2",
-                "dQu",
-                "dQv",
-                "evaporation",
-                "column_heating_due_to_machine_learning",
-                "net_moistening_due_to_machine_learning",
-                "physics_precip",
-                "pressure_thickness_of_atmospheric_layer",
-                "specific_humidity",
-                "specific_humidity_limiter_active",
-                "storage_of_mass_due_to_fv3_physics",
-                "storage_of_mass_due_to_python",
-                "storage_of_specific_humidity_path_due_to_fv3_physics",
-                "storage_of_specific_humidity_path_due_to_microphysics",
-                "storage_of_specific_humidity_path_due_to_python",
-                "storage_of_total_water_path_due_to_fv3_physics",
-                "storage_of_total_water_path_due_to_python",
-                "storage_of_internal_energy_path_due_to_fv3_physics",
-                "tendency_of_air_temperature_due_to_fv3_physics",
-                "tendency_of_air_temperature_due_to_python",
-                "tendency_of_eastward_wind_due_to_fv3_physics",
-                "tendency_of_eastward_wind_due_to_python",
-                "tendency_of_northward_wind_due_to_fv3_physics",
-                "tendency_of_northward_wind_due_to_python",
-                "tendency_of_specific_humidity_due_to_fv3_physics",
-                "tendency_of_specific_humidity_due_to_python",
-                "tendency_of_internal_energy_due_to_fv3_physics",
-                "tendency_of_x_wind_due_to_python",
-                "tendency_of_y_wind_due_to_python",
-                "total_precip_after_physics",
-                "total_precipitation_rate",
-                "water_vapor_path",
-            ],
+            "variables": sorted(
+                [
+                    "air_temperature",
+                    "area",
+                    "cnvprcp_after_physics",
+                    "cnvprcp_after_python",
+                    "column_integrated_dQ1_change_non_neg_sphum_constraint",
+                    "column_integrated_dQ2_change_non_neg_sphum_constraint",
+                    "column_integrated_dQu_stress",
+                    "column_integrated_dQv_stress",
+                    "dQ1",
+                    "dQ2",
+                    "dQu",
+                    "dQv",
+                    "evaporation",
+                    "column_heating_due_to_machine_learning",
+                    "net_moistening_due_to_machine_learning",
+                    "physics_precip",
+                    "pressure_thickness_of_atmospheric_layer",
+                    "specific_humidity",
+                    "specific_humidity_limiter_active",
+                    "storage_of_mass_due_to_fv3_physics",
+                    "storage_of_mass_due_to_python",
+                    "storage_of_specific_humidity_path_due_to_fv3_physics",
+                    "storage_of_specific_humidity_path_due_to_python",
+                    "storage_of_total_water_path_due_to_fv3_physics",
+                    "storage_of_total_water_path_due_to_python",
+                    "storage_of_internal_energy_path_due_to_fv3_physics",
+                    "tendency_of_air_temperature_due_to_fv3_physics",
+                    "tendency_of_air_temperature_due_to_python",
+                    "tendency_of_eastward_wind_due_to_fv3_physics",
+                    "tendency_of_eastward_wind_due_to_python",
+                    "tendency_of_northward_wind_due_to_fv3_physics",
+                    "tendency_of_northward_wind_due_to_python",
+                    "tendency_of_specific_humidity_due_to_fv3_physics",
+                    "tendency_of_specific_humidity_due_to_python",
+                    "tendency_of_internal_energy_due_to_fv3_physics",
+                    "tendency_of_x_wind_due_to_python",
+                    "tendency_of_y_wind_due_to_python",
+                    "total_precip_after_physics",
+                    "total_precipitation_rate",
+                    "water_vapor_path",
+                ]
+                + microphysics_diagnostics
+            ),
         }
     ]
     config["fortran_diagnostics"] = []
@@ -515,8 +571,8 @@ def get_ml_config(model_path):
     return config
 
 
-def get_emulation_config(model_path: str):
-    config = yaml.safe_load(default_fv3config)
+def get_emulation_config(fortran_model, model_path: str):
+    config = get_default_config(fortran_model)
 
     config["zhao_carr_emulation"] = {
         "storage": {"save_nc": True, "save_zarr": True, "output_freq_sec": 900},
@@ -587,6 +643,17 @@ def configuration(request):
     return request.param
 
 
+@pytest.fixture(
+    scope="module",
+    params=[
+        pytest.param("fv3gfs", marks=requires_fv3gfs_wrapper),
+        pytest.param("shield", marks=requires_shield_wrapper),
+    ],
+)
+def fortran_model(request):
+    return request.param
+
+
 def create_emulation_model():
     in_ = tf.keras.layers.Input(shape=(63,), name="air_temperature_input")
     out_ = tf.keras.layers.Lambda(lambda x: x + 1, name="air_temperature_dummy")(in_)
@@ -595,7 +662,7 @@ def create_emulation_model():
 
 
 @pytest.fixture(scope="module")
-def completed_rundir(configuration, tmpdir_factory):
+def completed_rundir(fortran_model, configuration, tmpdir_factory):
 
     tendency_dataset_path = tmpdir_factory.mktemp("tendencies")
 
@@ -603,18 +670,22 @@ def completed_rundir(configuration, tmpdir_factory):
         model = get_mock_predictor()
         model_path = str(tmpdir_factory.mktemp("model"))
         fv3fit.dump(model, str(model_path))
-        config = get_ml_config(model_path)
+        config = get_ml_config(fortran_model, model_path)
     elif configuration == ConfigEnum.nudging:
         tendencies = _tendency_dataset()
         tendencies.to_zarr(
             str(tendency_dataset_path.join("ds.zarr")), consolidated=True
         )
-        config = get_nudging_config(str(tendency_dataset_path.join("ds.zarr")))
+        config = get_nudging_config(
+            fortran_model, str(tendency_dataset_path.join("ds.zarr"))
+        )
     elif configuration == ConfigEnum.microphys_emulation:
+        if fortran_model == "shield":
+            pytest.skip("shield.wrapper does not support emulation")
         model_path = str(tmpdir_factory.mktemp("model").join("model.tf"))
         model = create_emulation_model()
         model.save(model_path)
-        config = get_emulation_config(model_path)
+        config = get_emulation_config(fortran_model, model_path)
     else:
         raise NotImplementedError()
 
@@ -663,7 +734,7 @@ def test_fv3run_diagnostic_outputs_schema(regtest, completed_rundir):
     diagnostics.info(regtest)
 
 
-def test_metrics_valid(completed_segment, configuration):
+def test_metrics_valid(fortran_model, completed_segment, configuration):
     if configuration == ConfigEnum.nudging:
         pytest.skip()
 

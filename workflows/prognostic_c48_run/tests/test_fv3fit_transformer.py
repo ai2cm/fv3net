@@ -6,7 +6,7 @@ import xarray as xr
 import pytest
 from runtime.transformers.fv3fit import Config, Adapter
 from runtime.transformers.core import StepTransformer
-from machine_learning_mocks import get_mock_predictor
+from .machine_learning_mocks import get_mock_predictor
 
 
 class MockDerivedState:

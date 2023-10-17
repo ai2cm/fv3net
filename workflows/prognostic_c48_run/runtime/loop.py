@@ -178,6 +178,7 @@ class TimeLoop(
             self._reservoir_predict_stepper,
         ] = self._get_reservoir_stepper(config, init_time)
         self._log_info(self._tracer_metadata)
+        self._fortran_model = config.model
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     def _use_diagnostic_ml_prephysics(self, prephysics_config):
@@ -409,20 +410,31 @@ class TimeLoop(
         self._log_debug(f"Physics Step (apply)")
         self._wrapper.apply_physics()
 
-        micro = self._wrapper.get_diagnostic_by_name(
-            "tendency_of_specific_humidity_due_to_microphysics"
-        ).data_array
-        delp = self._state[DELP]
-        return {
-            "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(
-                micro, delp, "z"
-            ),
-            "evaporation": self._state["evaporation"],
-            "cnvprcp_after_physics": self._wrapper.get_diagnostic_by_name(
-                "cnvprcp"
-            ).data_array,
-            "total_precip_after_physics": self._state[TOTAL_PRECIP],
-        }
+        if self._fortran_model == "fv3gfs":
+            micro = self._wrapper.get_diagnostic_by_name(
+                "tendency_of_specific_humidity_due_to_microphysics"
+            ).data_array
+            delp = self._state[DELP]
+            return {
+                "storage_of_specific_humidity_path_due_to_microphysics": vcm.mass_integrate(  # noqa: E501
+                    micro, delp, "z"
+                ),
+                "evaporation": self._state["evaporation"],
+                "cnvprcp_after_physics": self._wrapper.get_diagnostic_by_name(
+                    "cnvprcp"
+                ).data_array,
+                "total_precip_after_physics": self._state[TOTAL_PRECIP],
+            }
+        elif self._fortran_model == "shield":
+            return {
+                "evaporation": self._state["evaporation"],
+                "cnvprcp_after_physics": self._wrapper.get_diagnostic_by_name(
+                    "cnvprcp"
+                ).data_array,
+                "total_precip_after_physics": self._state[TOTAL_PRECIP],
+            }
+        else:
+            raise ValueError
 
     def _print_timings(self, reduced):
         self._print("-----------------------------------------------------------------")
