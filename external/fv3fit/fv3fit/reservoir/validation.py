@@ -5,9 +5,14 @@ import tensorflow as tf
 import wandb
 import matplotlib.pyplot as plt
 from toolz import curry
+from io import BytesIO
 
 from fv3fit.reservoir.adapters import ReservoirAdapterType
-from fv3fit.tensorboard import plot_to_image
+
+
+UNITS = {
+    "sst": "K",
+}
 
 
 def _run_one_step_predictions(synced_model, inputs):
@@ -16,6 +21,7 @@ def _run_one_step_predictions(synced_model, inputs):
     predictions = []
     for i in range(len(inputs.time)):
         current_input = inputs.isel(time=i)
+        synced_model.increment_state(current_input)
         predictions.append(synced_model.predict(current_input))
 
     return predictions
@@ -28,11 +34,22 @@ def _run_rollout_predictions(synced_model, inputs):
     previous_state = xr.Dataset()
     for i in range(len(inputs.time)):
         current_input = inputs.isel(time=i)
-        current_input.update(previous_state)
+        current_input = xr.Dataset({**current_input, **previous_state})
+        synced_model.increment_state(current_input)
         previous_state = synced_model.predict(current_input)
         predictions.append(previous_state)
 
     return predictions
+
+
+def plot_to_image(figure):
+    """Converts a matplotlib figure object to an image for use with wandb.Image"""
+    # Save the figure to a bytes buffer
+    buf = BytesIO()
+    figure.savefig(buf, format="png", bbox_inches="tight")
+    buf.seek(0)
+
+    return buf
 
 
 def log_metrics(metrics: Mapping[Hashable, xr.Dataset]) -> None:
@@ -58,6 +75,8 @@ def log_tile_time_avgs(time_avg_fields: Mapping[Hashable, xr.Dataset]) -> None:
         ax = plt.gca()
         for timeseries_source, values in field.items():
             values.plot(ax=ax, label=timeseries_source)
+        plt.legend()
+        plt.ylabel(f"{name} [{UNITS.get(str(name), 'unknown')}]")
         wandb.log({f"timeseries/{name}": wandb.Image(plot_to_image(fig))})
         plt.close(fig)
 
@@ -353,9 +372,10 @@ def validate_model(
             }
         )
 
-    print(field_tile_avgs)
-
     if wandb.run is not None:
+        if metrics["combined_score"] > 10.0:
+            wandb.run.tags = wandb.run.tags + ["blowup"]
+
         log_metrics(metrics)
         log_metric_plots(spatial_metrics)
         log_tile_time_avgs(field_tile_avgs)
