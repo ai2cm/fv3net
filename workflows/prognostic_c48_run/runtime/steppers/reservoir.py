@@ -18,7 +18,7 @@ import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 from runtime.names import SST, SPHUM, TEMP, PHYSICS_PRECIP_RATE, TOTAL_PRECIP
-from runtime.tendency import add_tendency
+from runtime.tendency import add_tendency, tendencies_from_state_updates
 from runtime.diagnostics import (
     enforce_heating_and_moistening_tendency_constraints,
     compute_diagnostics,
@@ -403,20 +403,6 @@ class ReservoirPredictStepper(_ReservoirStepper):
             or self.is_diagnostic
         ):
             output_state = {}
-            if self.tendency_precip_tracker is not None:
-                self.tendency_precip_tracker.update_tracked_state(
-                    state[TEMP], state[SPHUM]
-                )
-        else:
-            if self.tendency_precip_tracker is not None:
-                tendencies_over_res_timestep.update(
-                    self.tendency_precip_tracker.calculate_tendencies(
-                        result[TEMP], result[SPHUM]
-                    )
-                )
-                self.tendency_precip_tracker.update_tracked_state(
-                    result[TEMP], result[SPHUM]
-                )
 
         if SST in output_state:
             sst_updates = sst_update_from_reference(
@@ -476,13 +462,18 @@ class ReservoirPredictStepper(_ReservoirStepper):
             # if diags_Tq_vars.issubset(list(diags.keys())):
 
             if self.tendency_precip_tracker is not None:
+                tendencies_over_model_timestep = tendencies_from_state_updates(
+                    initial_state=state,
+                    updated_state=updated_state,
+                    dt=self.model_timestep,
+                )
                 (
                     tendency_updates_from_constraints,
                     diagnostics_updates_from_constraints,
                 ) = enforce_heating_and_moistening_tendency_constraints(
                     state=state,
-                    tendency=tendencies_over_res_timestep,
-                    timestep=self.timestep.total_seconds(),
+                    tendency=tendencies_over_model_timestep,
+                    timestep=self.model_timestep,
                     mse_conserving=self.mse_conserving_limiter,
                     hydrostatic=self.hydrostatic,
                     temperature_tendency_name="dQ1",
@@ -494,9 +485,21 @@ class ReservoirPredictStepper(_ReservoirStepper):
                 updated_state = add_tendency(
                     state=state,
                     tendencies=tendency_updates_from_constraints,
-                    dt=self.timestep.total_seconds(),
+                    dt=self.model_timestep,
                 )
-                tendencies = tendency_updates_from_constraints
+                # Remove the tendencies over model timesteps- they are only
+                # used in the limiter and constraint adjustments
+                tendency_updates_from_constraints.pop("dQ1")
+                tendency_updates_from_constraints.pop("dQ2")
+
+                tendencies = self.tendency_precip_tracker.calculate_tendencies(
+                    updated_state[TEMP], updated_state[SPHUM]
+                )
+                self.tendency_precip_tracker.update_tracked_state(
+                    updated_state.get(TEMP, state[TEMP]),
+                    updated_state.get(SPHUM, state[SPHUM]),
+                )
+                diags.update(tendencies)
 
         return tendencies, diags, updated_state
 
