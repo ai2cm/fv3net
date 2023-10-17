@@ -16,7 +16,6 @@ from typing import (
 )
 import cftime
 import pace.util
-import fv3gfs.wrapper
 import numpy as np
 import vcm
 import xarray as xr
@@ -127,15 +126,16 @@ class TimeLoop(
     ``TimeLoop`` controls when and how to apply these updates to the FV3 state.
     """
 
-    def __init__(
-        self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
-    ) -> None:
+    def __init__(self, config: UserConfig, wrapper: Any, comm: Any = None,) -> None:
 
         if comm is None:
             comm = MPI.COMM_WORLD
 
-        self._fv3gfs = wrapper
-        self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
+        self._wrapper = wrapper
+        self._tracer_metadata = self._wrapper.get_tracer_metadata()
+        self._state: DerivedFV3State = MergedState(
+            DerivedFV3State(self._wrapper, self._tracer_metadata), {}
+        )
         self.comm = comm
         self._timer = pace.util.Timer()
         self.rank: int = comm.rank
@@ -177,7 +177,7 @@ class TimeLoop(
             self._reservior_increment_stepper,
             self._reservoir_predict_stepper,
         ] = self._get_reservoir_stepper(config, init_time)
-        self._log_info(self._fv3gfs.get_tracer_metadata())
+        self._log_info(self._tracer_metadata)
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     def _use_diagnostic_ml_prephysics(self, prephysics_config):
@@ -254,7 +254,10 @@ class TimeLoop(
         elif isinstance(base_stepper_config, NudgingConfig):
             self._log_info(f"Using NudgingStepper for step {step}")
             stepper = PureNudger(
-                base_stepper_config, self._get_communicator(), hydrostatic
+                self._tracer_metadata,
+                base_stepper_config,
+                self._get_communicator(),
+                hydrostatic,
             )
         else:
             self._log_info(
@@ -326,7 +329,7 @@ class TimeLoop(
                 namelist,
                 self._timestep,
                 self._state["initialization_time"].item(),
-                self._fv3gfs.get_tracer_metadata(),
+                self._tracer_metadata,
                 radiation_input_generator,
             )
         else:
@@ -371,13 +374,13 @@ class TimeLoop(
 
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
-        self._fv3gfs.step_dynamics()
+        self._wrapper.step_dynamics()
         # no diagnostics are computed by default
         return {}
 
     def _step_pre_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Pre-radiation Physics Step")
-        self._fv3gfs.step_pre_radiation()
+        self._wrapper.step_pre_radiation()
         return {
             f"{name}_pre_radiation": self._state[name]
             for name in self._states_to_output
@@ -389,24 +392,24 @@ class TimeLoop(
             _, diagnostics, _ = self._radiation_stepper(self.time, self._state,)
         else:
             diagnostics = {}
-        self._fv3gfs.step_radiation()
+        self._wrapper.step_radiation()
         return diagnostics
 
     def _step_post_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Post-radiation Physics Step")
-        self._fv3gfs.step_post_radiation_physics()
+        self._wrapper.step_post_radiation_physics()
         return {}
 
     @property
     def _water_species(self) -> List[str]:
-        a = self._fv3gfs.get_tracer_metadata()
+        a = self._tracer_metadata
         return [name for name in a if a[name]["is_water"]]
 
     def _apply_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (apply)")
-        self._fv3gfs.apply_physics()
+        self._wrapper.apply_physics()
 
-        micro = self._fv3gfs.get_diagnostic_by_name(
+        micro = self._wrapper.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
@@ -415,7 +418,7 @@ class TimeLoop(
                 micro, delp, "z"
             ),
             "evaporation": self._state["evaporation"],
-            "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
+            "cnvprcp_after_physics": self._wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
@@ -477,7 +480,7 @@ class TimeLoop(
             k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
         _check_surface_flux_overrides_exist(
-            self._fv3gfs.flags.override_surface_radiative_fluxes,
+            self._wrapper.flags.override_surface_radiative_fluxes,
             list(state_updates.keys()),
         )
         self._state_updates = dissoc(self._state_updates, *PREPHYSICS_OVERRIDES)
@@ -532,7 +535,9 @@ class TimeLoop(
                 (
                     filled_tendencies,
                     tendencies_filled_frac,
-                ) = prepare_tendencies_for_dynamical_core(self._tendencies)
+                ) = prepare_tendencies_for_dynamical_core(
+                    self._wrapper, self._tendencies
+                )
                 updated_state_from_tendency = add_tendency(
                     self._state, filled_tendencies, dt=self._timestep
                 )
@@ -558,7 +563,7 @@ class TimeLoop(
         diagnostics.update(
             {
                 "area": self._state[AREA],
-                "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
                     "cnvprcp"
                 ).data_array,
                 TOTAL_PRECIP_RATE: precipitation_rate(
@@ -606,7 +611,7 @@ class TimeLoop(
             diags.update(
                 {
                     "area": self._state[AREA],
-                    "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                    "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
                         "cnvprcp"
                     ).data_array,
                     TOTAL_PRECIP_RATE: precipitation_rate(
@@ -621,20 +626,20 @@ class TimeLoop(
 
     def _intermediate_restarts(self) -> Diagnostics:
         self._log_info("Saving intermediate restarts if enabled.")
-        self._fv3gfs.save_intermediate_restart_if_enabled()
+        self._wrapper.save_intermediate_restart_if_enabled()
         return {}
 
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
 
-        for i in range(self._fv3gfs.get_step_count()):
+        for i in range(self._wrapper.get_step_count()):
             diagnostics: Diagnostics = {}
             # clear the state updates in case some updates are on intervals
             self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
-                    self._state
+                    self._tracer_metadata, self._state
                 ),
                 self._increment_reservoir,
                 self.monitor("dynamics", self._step_dynamics),

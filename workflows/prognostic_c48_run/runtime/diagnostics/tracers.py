@@ -1,15 +1,16 @@
-from typing import Mapping
+from typing import Any, Mapping
 
-import fv3gfs.wrapper
 import vcm
 import xarray
 from runtime.names import DELP
 
 
-def compute_column_integrated_tracers(state: Mapping[str, xarray.DataArray]) -> dict:
+def compute_column_integrated_tracers(
+    tracer_metadata: Mapping[str, Mapping[str, Any]],
+    state: Mapping[str, xarray.DataArray],
+) -> dict:
     out = {}
-    tracers = fv3gfs.wrapper.get_tracer_metadata()
-    for tracer in tracers:
+    for tracer in tracer_metadata:
         path = vcm.mass_integrate(state[tracer], state[DELP], dim="z").assign_attrs(
             description=f"column integrated {tracer}"
         )
