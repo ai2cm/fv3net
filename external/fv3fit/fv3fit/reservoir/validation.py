@@ -426,8 +426,6 @@ def validate_model(
         )
 
     if wandb.run is not None:
-        if metrics["combined_score"] > 15.0:
-            wandb.run.tags = list(wandb.run.tags) + ["blowup"]
 
         log_metrics(metrics)
         log_metric_plots(spatial_metrics)
