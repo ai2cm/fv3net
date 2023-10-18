@@ -26,6 +26,7 @@ hyperparameters:
     input_coupling_scaling: 0.1
   readout_hyperparameters:
     l2: 30
-  n_timesteps_synchronize: 10
+  n_timesteps_synchronize: 50
   input_noise: 0.001
   square_half_hidden_state: False
+  validate_sst_only: True
