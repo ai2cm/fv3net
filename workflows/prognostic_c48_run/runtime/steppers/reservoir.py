@@ -143,11 +143,11 @@ class TendencyPrecipTracker:
             ) / self.reservoir_timestep_seconds
         return {"dQ1": dQ1, "dQ2": dQ2}
 
-    def interval_avg_precip_rates(self, net_moistening):
+    def interval_avg_precip_rates(self, net_moistening_due_to_reservoir):
         physics_precip_rate = self.physics_precip_averager.get_averages()[
             PHYSICS_PRECIP_RATE
         ]
-        total_precip_rate = physics_precip_rate - net_moistening
+        total_precip_rate = physics_precip_rate - net_moistening_due_to_reservoir
         total_precip_rate = total_precip_rate.where(total_precip_rate >= 0, 0)
         reservoir_precip_rate = total_precip_rate - physics_precip_rate
         return {
@@ -397,7 +397,6 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         # no halo necessary for potential hybrid inputs
         # +1 to align with the necessary increment before any prediction
-        tendencies_over_res_timestep = {}
         if (
             self._state_machine.completed_increments <= self.synchronize_steps
             or self.is_diagnostic
@@ -410,7 +409,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             )
             output_state.update(sst_updates)
 
-        return tendencies_over_res_timestep, diags, output_state
+        return {}, diags, output_state
 
     def __call__(self, time, state):
 
@@ -446,9 +445,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
             if self.input_averager is not None:
                 inputs.update(self.input_averager.get_averages())
 
-            tendencies_over_res_timestep, diags, updated_state = self.predict(
-                inputs, state
-            )
+            _, diags, updated_state = self.predict(inputs, state)
 
             hybrid_diags = rename_dataset_members(
                 inputs, {k: f"{self.rename_mapping.get(k, k)}_hyb_in" for k in inputs}
@@ -481,20 +478,37 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     zero_fill_missing_tendencies=True,
                 )
 
+                # net moistening from reservoir update is calculated using the
+                # difference from the  last model timestep, but is interpreted
+                # as an update over the reservoir timestep
+                # Tendencies over model timesteps are popped- they are only
+                # used in the limiter and constraint adjustments
+                _, net_moistening_due_to_reservoir = self.get_diagnostics(
+                    state,
+                    {
+                        "dQ1": tendency_updates_from_constraints.pop("dQ1"),
+                        "dQ2": tendency_updates_from_constraints.pop("dQ2"),
+                    },
+                )
+                net_moistening_res = net_moistening_due_to_reservoir * (
+                    self.model_timestep / self.timestep.total_seconds()
+                )
+                diags.update(
+                    {"net_moistening_due_to_reservoir_adjustment": net_moistening_res}
+                )
                 diags.update(diagnostics_updates_from_constraints)
+
                 updated_state = add_tendency(
                     state=state,
                     tendencies=tendency_updates_from_constraints,
                     dt=self.model_timestep,
                 )
-                # Remove the tendencies over model timesteps- they are only
-                # used in the limiter and constraint adjustments
-                tendency_updates_from_constraints.pop("dQ1")
-                tendency_updates_from_constraints.pop("dQ2")
 
                 tendencies = self.tendency_precip_tracker.calculate_tendencies(
-                    updated_state[TEMP], updated_state[SPHUM]
+                    updated_state.get(TEMP, state[TEMP]),
+                    updated_state.get(SPHUM, state[SPHUM]),
                 )
+
                 self.tendency_precip_tracker.update_tracked_state(
                     updated_state.get(TEMP, state[TEMP]),
                     updated_state.get(SPHUM, state[SPHUM]),

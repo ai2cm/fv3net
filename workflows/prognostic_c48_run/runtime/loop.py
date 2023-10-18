@@ -597,14 +597,18 @@ class TimeLoop(
 
             (
                 diags_from_tendencies,
-                net_moistening,
+                _,
             ) = self._reservoir_predict_stepper.get_diagnostics(
                 self._state, tendencies_from_state_prediction
             )
             diags.update(diags_from_tendencies)
 
+            net_moistening_due_to_reservoir_adjustment = diags.get(
+                "net_moistening_due_to_reservoir_adjustment",
+                xr.zeros_like(self._state[TOTAL_PRECIP]),
+            )
             precip = self._reservoir_predict_stepper.update_precip(  # type: ignore
-                self._state[TOTAL_PRECIP], net_moistening
+                self._state[TOTAL_PRECIP], net_moistening_due_to_reservoir_adjustment,
             )
             diags.update(precip)
             state_updates[TOTAL_PRECIP] = precip[TOTAL_PRECIP]
