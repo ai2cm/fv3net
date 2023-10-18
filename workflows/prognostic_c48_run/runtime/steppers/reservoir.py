@@ -117,32 +117,6 @@ class TendencyPrecipTracker:
             {PHYSICS_PRECIP_RATE: physics_precip_rate}
         )
 
-    def average_physics_precip_rate(self):
-        return self.physics_precip_average.get_averages()[PHYSICS_PRECIP_RATE]
-
-    def update_tracked_state(self, air_temperature, specific_humidity):
-        self._air_temperature_at_previous_interval = air_temperature
-        self._specific_humidity_at_previous_interval = specific_humidity
-
-    def calculate_tendencies(self, air_temperature, specific_humidity):
-        if (
-            self._specific_humidity_at_previous_interval is None
-            or self._air_temperature_at_previous_interval is None
-        ):
-            logger.info(
-                "Previous reservoir prediction of specific_humidity and "
-                "air_temperature not saved. Returning zero tendencies"
-            )
-            dQ1, dQ2 = xr.zeros_like(air_temperature), xr.zeros_like(air_temperature)
-        else:
-            dQ1 = (
-                air_temperature - self._air_temperature_at_previous_interval
-            ) / self.reservoir_timestep_seconds
-            dQ2 = (
-                specific_humidity - self._specific_humidity_at_previous_interval
-            ) / self.reservoir_timestep_seconds
-        return {"dQ1": dQ1, "dQ2": dQ2}
-
     def interval_avg_precip_rates(self, net_moistening_due_to_reservoir):
         physics_precip_rate = self.physics_precip_averager.get_averages()[
             PHYSICS_PRECIP_RATE
