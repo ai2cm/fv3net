@@ -47,6 +47,10 @@ def get_reservoir_computing_model(
     )
     transformers = TransformerGroup(input=encoder, output=encoder, hybrid=encoder)
     if hybrid:
+        no_overlap_divider = divider.get_no_overlap_rank_divider()
+        input_mask = np.ones(
+            (no_overlap_divider.n_subdomains, no_overlap_divider.flat_subdomain_len)
+        )
         predictor = HybridReservoirComputingModel(
             input_variables=variables,
             output_variables=variables,
@@ -55,6 +59,7 @@ def get_reservoir_computing_model(
             readout=readout,
             rank_divider=divider,
             transformers=transformers,
+            hybrid_input_mask=input_mask,
         )
     else:
         predictor = ReservoirComputingModel(
@@ -66,7 +71,5 @@ def get_reservoir_computing_model(
             transformers=transformers,
         )
     predictor.reset_state()
-
-    return predictor
 
     return predictor
