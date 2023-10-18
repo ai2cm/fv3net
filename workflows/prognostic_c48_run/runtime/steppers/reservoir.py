@@ -17,7 +17,7 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST, SPHUM, TEMP
+from runtime.names import SST, SPHUM, TEMP, PHYSICS_PRECIP_RATE, TOTAL_PRECIP, DELP
 from runtime.tendency import add_tendency, tendencies_from_state_updates
 from runtime.diagnostics import (
     enforce_heating_and_moistening_tendency_constraints,
@@ -26,6 +26,7 @@ from runtime.diagnostics import (
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, NameDict
 
+import vcm
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class ReservoirConfig:
     rename_mapping: NameDict = dataclasses.field(default_factory=dict)
     hydrostatic: bool = False
     mse_conserving_limiter: bool = False
-
+    interval_average_precipitation: bool = False
 
 class _FiniteStateMachine:
     """
@@ -103,6 +104,75 @@ class _FiniteStateMachine:
                 f"Unknown state provided to _ReservoirStepperState {state}"
             )
 
+
+class TendencyPrecipTracker:
+    def __init__(self, reservoir_timestep_seconds: float):
+        self.reservoir_timestep_seconds = reservoir_timestep_seconds
+        self.physics_precip_averager = TimeAverageInputs([PHYSICS_PRECIP_RATE])
+        self._air_temperature_at_previous_interval = None
+        self._specific_humidity_at_previous_interval = None
+
+    def increment_physics_precip_rate(self, physics_precip_rate):
+        self.physics_precip_averager.increment_running_average(
+            {PHYSICS_PRECIP_RATE: physics_precip_rate}
+        )
+
+    def average_physics_precip_rate(self):
+        return self.physics_precip_average.get_averages()[PHYSICS_PRECIP_RATE]
+
+    def update_tracked_state(self, air_temperature, specific_humidity):
+        self._air_temperature_at_previous_interval = air_temperature
+        self._specific_humidity_at_previous_interval = specific_humidity
+
+    def calculate_tendencies(self, air_temperature, specific_humidity):
+        if (
+            self._specific_humidity_at_previous_interval is None
+            or self._air_temperature_at_previous_interval is None
+        ):
+            logger.info(
+                "Previous reservoir prediction of specific_humidity and "
+                "air_temperature not saved. Returning zero tendencies"
+            )
+            dQ1, dQ2 = xr.zeros_like(air_temperature), xr.zeros_like(air_temperature)
+        else:
+            dQ1 = (
+                air_temperature - self._air_temperature_at_previous_interval
+            ) / self.reservoir_timestep_seconds
+            dQ2 = (
+                specific_humidity - self._specific_humidity_at_previous_interval
+            ) / self.reservoir_timestep_seconds
+        return {"dQ1": dQ1, "dQ2": dQ2}
+
+    def interval_avg_precip_rates(self, net_moistening_due_to_reservoir):
+        physics_precip_rate = self.physics_precip_averager.get_averages()[
+            PHYSICS_PRECIP_RATE
+        ]
+        total_precip_rate = physics_precip_rate - net_moistening_due_to_reservoir
+        total_precip_rate = total_precip_rate.where(total_precip_rate >= 0, 0)
+        reservoir_precip_rate = total_precip_rate - physics_precip_rate
+        return {
+            "total_precip_rate_res_interval_avg": total_precip_rate,
+            "physics_precip_rate_res_interval_avg": physics_precip_rate,
+            "reservoir_precip_rate_res_interval_avg": reservoir_precip_rate,
+        }
+
+    def accumulated_precip_update(
+        self,
+        physics_precip_total_over_model_timestep,
+        reservoir_precip_rate_over_res_interval,
+        reservoir_timestep,
+    ):
+        # Since the reservoir correction is only applied every reservoir_timestep,
+        # all of the precip due to the reservoir is put into the accumulated precip
+        # in the model timestep at update time.
+        m_per_mm = 1 / 1000
+        reservoir_total_precip = (
+            reservoir_precip_rate_over_res_interval * reservoir_timestep * m_per_mm
+        )
+        total_precip = physics_precip_total_over_model_timestep + reservoir_total_precip
+        total_precip.attrs["units"] = "m"
+        return total_precip
+    
 
 class TimeAverageInputs:
     """
@@ -170,6 +240,7 @@ class _ReservoirStepper:
         warm_start: bool = False,
         hydrostatic: bool = False,
         mse_conserving_limiter: bool = False,
+        tendency_precip_tracker: Optional[TendencyPrecipTracker] = None,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -181,6 +252,7 @@ class _ReservoirStepper:
         self.warm_start = warm_start
         self.hydrostatic = hydrostatic
         self.mse_conserving_limiter = mse_conserving_limiter
+        self.tendency_precip_tracker = tendency_precip_tracker
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -360,6 +432,11 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self.input_averager is not None:
             self.input_averager.increment_running_average(inputs)
 
+        if self.tendency_precip_tracker is not None:
+            self.tendency_precip_tracker.increment_physics_precip_rate(
+                state[PHYSICS_PRECIP_RATE]
+            )
+
         if self._is_rc_update_step(time):
             logger.info(f"Reservoir model predict at time {time}")
             if self.input_averager is not None:
@@ -406,6 +483,19 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     state=state,
                     tendencies=tendency_updates_from_constraints,
                     dt=self.model_timestep,
+                )
+
+                tendency_updates_from_constraints.pop("dQ1")
+                net_moistening_res = vcm.mass_integrate(
+                    tendency_updates_from_constraints.pop("dQ2"), 
+                    state[DELP], 
+                    dim="z"
+                ).assign_attrs(
+                    units="kg/m^2/s",
+                    description=(
+                        "column integrated moisture tendency due to reservoir "
+                        "correction tendency over model timestep"
+                    ),
                 )
                 tendencies.update(tendency_updates_from_constraints)
 
@@ -462,7 +552,11 @@ def get_reservoir_steppers(
     increment_averager, predict_averager = _get_time_averagers(
         model, config.time_average_inputs
     )
-
+    _precip_tracker_kwargs = {}
+    if config.interval_average_precipitation:
+        _precip_tracker_kwargs["tendency_precip_tracker"] = TendencyPrecipTracker(
+            reservoir_timestep_seconds=rc_tdelta.total_seconds(),
+        )
     incrementer = ReservoirIncrementOnlyStepper(
         model,
         init_time,
@@ -487,5 +581,6 @@ def get_reservoir_steppers(
         model_timestep=model_timestep,
         hydrostatic=config.hydrostatic,
         mse_conserving_limiter=config.mse_conserving_limiter,
+        **_precip_tracker_kwargs
     )
     return incrementer, predictor
