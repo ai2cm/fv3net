@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set
+from typing import Sequence, Tuple, Optional, Set
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,14 +8,9 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Sequence[int]
+    layout: Tuple[int, int]
     overlap: int
     rank_dims: Sequence[str]
-
-    def __post_init__(self):
-        self.layout = tuple(self.layout)
-        if len(self.layout) != 2:
-            raise ValueError(f"layout must be a tuple of length 2, got {self.layout}")
 
 
 @dataclass
@@ -111,6 +106,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     square_half_hidden_state: bool = False
     hybrid_variables: Optional[Sequence[str]] = None
     mask_variable: Optional[str] = None
+    validate_sst_only: bool = False
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):

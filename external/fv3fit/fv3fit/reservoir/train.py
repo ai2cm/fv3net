@@ -279,44 +279,44 @@ def train_reservoir_model(
             output_variables=model.output_variables,
         )
 
-    if validation_batches is not None and wandb.run is not None:
-        try:
-            ds_val = validation_prediction(
-                model,
-                val_batches=validation_batches,
-                n_synchronize=hyperparameters.n_timesteps_synchronize,
-            )
-            log_rmse_z_plots(ds_val, model.output_variables)
-            log_rmse_scalar_metrics(ds_val, model.output_variables)
-        except Exception as e:
-            logging.error("Error logging validation metrics to wandb", exc_info=e)
-    
-    if validation_batches is not None:
-        # TODO: add a measure of how many batches to load in
-        data = next(iter(validation_batches))
-        input_data = process_validation_batch_data_to_dataset(
-            data, adapter_model.input_variables
-        )
-        target_data = process_validation_batch_data_to_dataset(
-            data, adapter_model.output_variables
-        ).squeeze()
-
-        if "mask_field" in data:
-            mask = data["mask_field"]
-            mask = mask[0, ..., 0]
+    if wandb.run is not None and validation_batches is not None:
+        if not hyperparameters.validate_sst_only:
+            try:
+                ds_val = validation_prediction(
+                    model,
+                    val_batches=validation_batches,
+                    n_synchronize=hyperparameters.n_timesteps_synchronize,
+                )
+                log_rmse_z_plots(ds_val, model.output_variables)
+                log_rmse_scalar_metrics(ds_val, model.output_variables)
+            except Exception as e:
+                logging.error("Error logging validation metrics to wandb", exc_info=e)
         else:
-            mask = None
+            # TODO: add a measure of how many batches to load in
+            data = next(iter(validation_batches))
+            input_data = process_validation_batch_data_to_dataset(
+                data, adapter_model.input_variables
+            )
+            target_data = process_validation_batch_data_to_dataset(
+                data, adapter_model.output_variables
+            ).squeeze()
 
-        area = data["area"] if "area" in data else None
+            if "mask_field" in data:
+                mask = data["mask_field"]
+                mask = mask[0, ..., 0]
+            else:
+                mask = None
 
-        validate_model(
-            adapter_model,
-            input_data,
-            hyperparameters.n_timesteps_synchronize,
-            target_data,
-            mask=mask,
-            area=area,
-        )
+            area = data["area"] if "area" in data else None
+
+            validate_model(
+                adapter_model,
+                input_data,
+                hyperparameters.n_timesteps_synchronize,
+                target_data,
+                mask=mask,
+                area=area,
+            )
 
     return adapter_model
 
