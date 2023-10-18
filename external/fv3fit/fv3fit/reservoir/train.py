@@ -80,6 +80,18 @@ def _get_transformers(
     return TransformerGroup(**transformers)
 
 
+def _expand_mask_zdim(mask: tf.Tensor, z_dim_len: int) -> tf.Tensor:
+    if mask.shape[-1] != z_dim_len and mask.shape[-1] == 1:
+        mask = mask * tf.ones(shape=(*mask.shape[:-1], z_dim_len))
+    else:
+        raise ValueError(
+            f"Mask variable must have trailing dim of 1 or {z_dim_len}",
+            f"but has len {mask.shape[-1]}.",
+        )
+
+    return mask
+
+
 def _get_input_mask_array(
     mask_variable: str,
     sample_batch: Mapping[str, tf.Tensor],
@@ -99,6 +111,7 @@ def _get_input_mask_array(
         raise ValueError(
             f"Mask variable values in field {mask_variable} are not " "all in {0, 1}."
         )
+
     return mask
 
 

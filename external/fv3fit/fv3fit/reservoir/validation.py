@@ -85,6 +85,7 @@ def log_tile_time_avgs(time_avg_fields: Mapping[Hashable, xr.Dataset]) -> None:
         wandb.log({f"timeseries/{name}": wandb.Image(plot_to_image(fig))})
         plt.close(fig)
 
+
 from fv3fit.reservoir.utils import get_ordered_X
 from fv3fit.reservoir import (
     ReservoirComputingModel,
@@ -378,8 +379,6 @@ def validate_model(
         )
 
     if wandb.run is not None:
-        if metrics["combined_score"] > 15.0:
-            wandb.run.tags = list(wandb.run.tags) + ["blowup"]
 
         log_metrics(metrics)
         log_metric_plots(spatial_metrics)
