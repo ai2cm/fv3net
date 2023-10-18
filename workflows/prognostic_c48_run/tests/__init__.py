@@ -198,9 +198,7 @@ from packaging.version import Version
 from typing import Optional
 
 
-def _importorskip(
-    modname: str, minversion: Optional[str] = None
-):
+def _importorskip(modname: str, minversion: Optional[str] = None):
     """Copied from xarray"""
     try:
         mod = importlib.import_module(modname)

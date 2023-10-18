@@ -18,7 +18,7 @@
 #   robustly produce bitwise identical results.  See
 #   https://github.com/ai2cm/SHiELD-minimal/pull/6 for some details on MPICH in
 #   the Ubuntu LTS 22.04 image.  This can be addressed by manually adding
-#   `-fno-lto` compiler flags to Makefile templates, but it is easiest not to 
+#   `-fno-lto` compiler flags to Makefile templates, but it is easiest not to
 #   need to worry about this.
 FROM ubuntu@sha256:9101220a875cee98b016668342c489ff0674f247f6ca20dfc91b91c0f28581ae
 

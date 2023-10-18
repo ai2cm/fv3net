@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import subprocess
@@ -17,7 +18,7 @@ import xarray as xr
 import yaml
 from .machine_learning_mocks import get_mock_predictor
 
-from . import requires_fv3gfs_wrapper, requires_shield_wrapper
+from . import has_shield_wrapper, requires_fv3gfs_wrapper, requires_shield_wrapper
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -37,29 +38,32 @@ class ConfigEnum:
     microphys_emulation = "microphys_emulation"
 
 
-default_fv3config_shield_path = (
-    Path(__file__).parent.parent.parent.parent
-    / "external"
-    / "SHiELD-wrapper"
-    / "wrapper"
-    / "tests"
-    / "pytest"
-    / "config"
-    / "restart-PIRE-like.yml"
-)
-with open(default_fv3config_shield_path, "r") as file:
-    default_fv3config_shield = fv3config.load(file)
-default_fv3config_shield["model"] = "shield"
-default_fv3config_shield["diag_table"] = "no_output"
-default_fv3config_shield["namelist"]["coupler_nml"]["current_date"] = [
-    2016,
-    8,
-    1,
-    0,
-    0,
-    0,
-]
-default_fv3config_shield["namelist"]["coupler_nml"]["force_date_from_namelist"] = True
+if has_shield_wrapper:
+    default_fv3config_shield_path = (
+        Path(__file__).parent.parent.parent.parent
+        / "external"
+        / "SHiELD-wrapper"
+        / "wrapper"
+        / "tests"
+        / "pytest"
+        / "config"
+        / "restart-PIRE-like.yml"
+    )
+    with open(default_fv3config_shield_path, "r") as file:
+        default_fv3config_shield = fv3config.load(file)
+    default_fv3config_shield["model"] = "shield"
+    default_fv3config_shield["diag_table"] = "no_output"
+    default_fv3config_shield["namelist"]["coupler_nml"]["current_date"] = [
+        2016,
+        8,
+        1,
+        0,
+        0,
+        0,
+    ]
+    default_fv3config_shield["namelist"]["coupler_nml"][
+        "force_date_from_namelist"
+    ] = True
 
 
 default_fv3config = rf"""
@@ -384,7 +388,7 @@ def get_default_config(fortran_model):
     if fortran_model == "fv3gfs":
         return yaml.safe_load(default_fv3config)
     elif fortran_model == "shield":
-        return default_fv3config_shield
+        return copy.deepcopy(default_fv3config_shield)
     else:
         raise ValueError(f"No default config defined for model {fortran_model!r}")
 
