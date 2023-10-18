@@ -203,3 +203,28 @@ def test_HybridReservoirComputingModel_dump_load(tmpdir):
     np.testing.assert_array_equal(
         model._hybrid_input_mask, loaded_predictor._hybrid_input_mask
     )
+
+
+def test_HybridReservoirComputingModel_hybrid_mask():
+    model = get_reservoir_computing_model(hybrid=True)
+
+    model.reset_state()
+    model._hybrid_input_mask = np.zeros_like(model._hybrid_input_mask)
+
+    n_times = 20
+
+    ts_sync = [
+        np.random.randn(n_times, *model.rank_divider.rank_extent, 1)
+        for v in model.input_variables
+    ]
+    model.synchronize(ts_sync)
+    prediction0 = model.predict([ts[-1] for ts in ts_sync])
+
+    model.reset_state()
+    model.synchronize(ts_sync)
+    ts_sync = [
+        np.random.randn(n_times, *model.rank_divider.rank_extent, 1)
+        for v in model.input_variables
+    ]
+    prediction1 = model.predict([ts[-1] for ts in ts_sync])
+    np.testing.assert_array_almost_equal(prediction0[0], prediction1[0])

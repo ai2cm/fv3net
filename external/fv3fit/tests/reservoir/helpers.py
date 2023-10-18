@@ -73,5 +73,3 @@ def get_reservoir_computing_model(
     predictor.reset_state()
 
     return predictor
-
-    return predictor
