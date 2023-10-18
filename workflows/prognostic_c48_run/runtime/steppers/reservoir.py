@@ -17,7 +17,7 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
-from runtime.names import SST, SPHUM, TEMP, PHYSICS_PRECIP_RATE, TOTAL_PRECIP, DELP
+from runtime.names import SST, SPHUM, TEMP, PHYSICS_PRECIP_RATE, TOTAL_PRECIP
 from runtime.tendency import add_tendency, tendencies_from_state_updates
 from runtime.diagnostics import (
     enforce_heating_and_moistening_tendency_constraints,
@@ -26,7 +26,6 @@ from runtime.diagnostics import (
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, NameDict
 
-import vcm
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +64,7 @@ class ReservoirConfig:
     hydrostatic: bool = False
     mse_conserving_limiter: bool = False
     interval_average_precipitation: bool = False
+
 
 class _FiniteStateMachine:
     """
@@ -172,7 +172,7 @@ class TendencyPrecipTracker:
         total_precip = physics_precip_total_over_model_timestep + reservoir_total_precip
         total_precip.attrs["units"] = "m"
         return total_precip
-    
+
 
 class TimeAverageInputs:
     """
@@ -484,19 +484,13 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     tendencies=tendency_updates_from_constraints,
                     dt=self.model_timestep,
                 )
-
-                tendency_updates_from_constraints.pop("dQ1")
-                net_moistening_res = vcm.mass_integrate(
-                    tendency_updates_from_constraints.pop("dQ2"), 
-                    state[DELP], 
-                    dim="z"
-                ).assign_attrs(
-                    units="kg/m^2/s",
-                    description=(
-                        "column integrated moisture tendency due to reservoir "
-                        "correction tendency over model timestep"
-                    ),
-                )
+                # Adjust corrective tendencies to act as if they are over
+                # the full reservoir timestep
+                for key in tendency_updates_from_constraints:
+                    if key != "specific_humidity_limiter_active":
+                        tendency_updates_from_constraints[key] *= (
+                            self.model_timestep / self.timestep.total_seconds()
+                        )
                 tendencies.update(tendency_updates_from_constraints)
 
         else:
@@ -507,6 +501,24 @@ class ReservoirPredictStepper(_ReservoirStepper):
     def get_diagnostics(self, state, tendency):
         diags = compute_diagnostics(state, tendency, self.label, self.hydrostatic)
         return diags, diags[f"net_moistening_due_to_{self.label}"]
+
+    def update_precip(
+        self, physics_precip, net_moistening_due_to_reservoir,
+    ):
+        diags = {}
+
+        # running average gets reset in this call
+        precip_rates = self.tendency_precip_tracker.interval_avg_precip_rates(
+            net_moistening_due_to_reservoir
+        )
+        diags.update(precip_rates)
+
+        diags[TOTAL_PRECIP] = self.tendency_precip_tracker.accumulated_precip_update(
+            physics_precip,
+            diags["reservoir_precip_rate_res_interval_avg"],
+            self.timestep.total_seconds(),
+        )
+        return diags
 
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:
@@ -581,6 +593,6 @@ def get_reservoir_steppers(
         model_timestep=model_timestep,
         hydrostatic=config.hydrostatic,
         mse_conserving_limiter=config.mse_conserving_limiter,
-        **_precip_tracker_kwargs
+        **_precip_tracker_kwargs,
     )
     return incrementer, predictor
