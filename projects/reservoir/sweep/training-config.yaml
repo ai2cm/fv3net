@@ -13,7 +13,7 @@ hyperparameters:
     - sst
   subdomain:
     layout: [1,1]
-    overlap: 0
+    overlap: 4
     rank_dims:
       - x
       - y

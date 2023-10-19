@@ -1,2 +1,2 @@
-filepath: gs://vcm-ml-scratch/andrep/reservoir/fv3_land/train/train_tile{}.nc
+filepath: gs://vcm-ml-scratch/andrep/reservoir/fv3_land/halo4/train/train_tile{}.nc
 dim_order: ["time", "x", "y"]
