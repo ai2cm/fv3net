@@ -29,6 +29,58 @@ def _run_one_step_predictions(synced_model, inputs, hybrid):
     return predictions
 
 
+def _get_slice(src_len, dst_len):
+    """
+    src_len: length of previous state dimension to be inserted into current state
+    dst_len: length of current state dimension
+    """
+    if src_len == dst_len:
+        sl = slice(None)
+    elif src_len < dst_len:
+        diff = dst_len - src_len
+        overlap = diff // 2
+        sl = slice(overlap, -overlap)
+    else:
+        raise ValueError("src_len must be <= dst_len")
+
+    return sl
+
+
+def _insert_tile_to_overlap(current: xr.DataArray, previous: xr.DataArray):
+    # we can't grab the halos for offline rollouts because there is no prediction
+    # for other tiles.  Instead just grab the original overlap, which is *very*
+    # optimistic for forecasting...
+
+    slices = []
+    try:
+        for src_len, dst_len in zip(previous.shape, current.shape):
+            slices.append(_get_slice(src_len, dst_len))
+    except ValueError:
+        raise ValueError(
+            f"Expected overlap for current state ({current.shape}) to be larger than "
+            f"or equal to overlap for previous predicted state ({previous.shape})."
+        )
+
+    current = current.copy(deep=True)
+    current.values[slices] = previous.values
+    return current
+
+
+def _insert_previous_state(current: xr.Dataset, previous: xr.Dataset):
+    if "z" not in previous.dims:
+        previous = previous.expand_dims(dim="z", axis=-1)
+
+    for key, previous_field in previous.items():
+        current_field = current[key]
+        if current_field.shape != previous_field.shape:
+            updated_field = _insert_tile_to_overlap(current_field, previous_field)
+        else:
+            updated_field = previous_field
+        current[key] = updated_field
+
+    return current
+
+
 def _run_rollout_predictions(synced_model, inputs, hybrid):
 
     # run one steps
@@ -36,7 +88,7 @@ def _run_rollout_predictions(synced_model, inputs, hybrid):
     previous_state = xr.Dataset()
     for i in range(len(inputs.time)):
         current_input = inputs.isel(time=i)
-        current_input = xr.Dataset({**current_input, **previous_state})
+        current_input = _insert_previous_state(current_input, previous_state)
         synced_model.increment_state(current_input)
         current_hybrid = hybrid.isel(time=i) if hybrid else {}
         previous_state = synced_model.predict(current_hybrid)
@@ -369,11 +421,11 @@ def validate_model(
     post_sync_hybrid = (
         hybrid_inputs.isel(time=slice(n_sync_steps, -1)) if hybrid_inputs else None
     )
+    persistence = targets.isel(time=slice(n_sync_steps, -1))
     targets = targets.isel(time=slice(n_sync_steps + 1, None))
 
     # for baseline comparison
-    persistence = post_sync_inputs.copy().isel(z=0)
-    persistence = persistence.assign_coords(time=targets.time)
+    persistence.assign_coords(time=targets.time)
     persistence_errors = (persistence - targets).compute()
 
     def _run_validation_experiment(_step_func, prefix):

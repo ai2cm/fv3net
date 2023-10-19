@@ -99,6 +99,7 @@ def _get_input_mask_array(
     mask_variable: str,
     sample_batch: Mapping[str, tf.Tensor],
     rank_divider: RankXYDivider,
+    trim_halo: bool = False,
 ) -> np.ndarray:
     if mask_variable not in sample_batch:
         raise KeyError(
@@ -109,6 +110,11 @@ def _get_input_mask_array(
     mask = mask * np.ones(
         rank_divider._rank_extent_all_features
     )  # broadcast feature dim
+
+    if trim_halo:
+        mask = rank_divider.trim_halo_from_rank_data(mask)
+        rank_divider = rank_divider.get_no_overlap_rank_divider()
+
     mask = rank_divider.get_all_subdomains_with_flat_feature(mask[0])
     if set(np.unique(mask)) != {0, 1}:
         raise ValueError(
@@ -220,6 +226,7 @@ def train_reservoir_model(
                         hyperparameters.mask_variable,
                         batch_data,
                         _hybrid_rank_divider_w_overlap,
+                        trim_halo=True,
                     )
                     hybrid_time_series = hybrid_time_series * hybrid_input_mask_array
                 else:
