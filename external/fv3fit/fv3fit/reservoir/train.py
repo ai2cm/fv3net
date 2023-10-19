@@ -305,29 +305,40 @@ def train_reservoir_model(
             except Exception as e:
                 logging.error("Error logging validation metrics to wandb", exc_info=e)
         else:
-            # TODO: add a measure of how many batches to load in
             data = next(iter(validation_batches))
             input_data = process_validation_batch_data_to_dataset(
-                data, adapter_model.input_variables
+                data, adapter_model.nonhybrid_input_variables
             )
+
+            if adapter_model.is_hybrid:
+                adapter_model = cast(HybridReservoirDatasetAdapter, adapter_model)
+                hybrid_data = process_validation_batch_data_to_dataset(
+                    data, adapter_model.hybrid_variables, trim_divider=rank_divider
+                )
+            else:
+                hybrid_data = None
+
+            output_vars = list(adapter_model.output_variables)
+            if "mask_field" in data:
+                output_vars.append("mask_field")
+            if "area" in data:
+                output_vars.append("area")
+
             target_data = process_validation_batch_data_to_dataset(
-                data, adapter_model.output_variables
+                data, output_vars, trim_divider=rank_divider
             ).squeeze()
 
-            if "mask_field" in data:
-                mask = data["mask_field"]
-                mask = mask[0, ..., 0]
-            else:
-                mask = None
-
-            area = data["area"] if "area" in data else None
+            output_mask = target_data.isel(time=0).get("mask_field", None)
+            area = target_data.isel(time=0).get("area", None)
+            target_data = target_data.drop_vars(["mask_field", "area"], errors="ignore")
 
             validate_model(
                 adapter_model,
                 input_data,
+                hybrid_data,
                 hyperparameters.n_timesteps_synchronize,
                 target_data,
-                mask=mask,
+                mask=output_mask,
                 area=area,
             )
 

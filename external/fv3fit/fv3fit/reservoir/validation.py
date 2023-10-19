@@ -16,19 +16,19 @@ UNITS = {
 }
 
 
-def _run_one_step_predictions(synced_model, inputs):
+def _run_one_step_predictions(synced_model, inputs, hybrid):
 
     # run one steps
     predictions = []
     for i in range(len(inputs.time)):
-        current_input = inputs.isel(time=i)
-        synced_model.increment_state(current_input)
-        predictions.append(synced_model.predict(current_input))
+        synced_model.increment_state(inputs.isel(time=i))
+        current_hybrid = hybrid.isel(time=i) if hybrid else {}
+        predictions.append(synced_model.predict(current_hybrid))
 
     return predictions
 
 
-def _run_rollout_predictions(synced_model, inputs):
+def _run_rollout_predictions(synced_model, inputs, hybrid):
 
     # run one steps
     predictions = []
@@ -37,7 +37,8 @@ def _run_rollout_predictions(synced_model, inputs):
         current_input = inputs.isel(time=i)
         current_input = xr.Dataset({**current_input, **previous_state})
         synced_model.increment_state(current_input)
-        previous_state = synced_model.predict(current_input)
+        current_hybrid = hybrid.isel(time=i) if hybrid else {}
+        previous_state = synced_model.predict(current_hybrid)
         predictions.append(previous_state)
 
     return predictions
@@ -290,7 +291,8 @@ def log_rmse_scalar_metrics(ds_val, variables):
 
 def validate_model(
     model: ReservoirAdapterType,
-    inputs: xr.Dataset,
+    reservoir_inputs: xr.Dataset,
+    hybrid_inputs: Optional[xr.Dataset],
     n_sync_steps: int,
     targets: xr.Dataset,
     mask=None,
@@ -298,7 +300,9 @@ def validate_model(
 ):
 
     # want to do the index handling in this function
-    if len(inputs.time) != len(targets.time):
+    if len(reservoir_inputs.time) != len(targets.time):
+        raise ValueError("Inputs and targets must have the same number of time steps.")
+    if hybrid_inputs and len(hybrid_inputs.time) != len(targets.time):
         raise ValueError("Inputs and targets must have the same number of time steps.")
 
     global_mean = _mean(dim=targets.dims, mask=mask, area=area)
@@ -308,13 +312,16 @@ def validate_model(
     # synchronize
     model.reset_state()
     for i in range(n_sync_steps):
-        model.increment_state(inputs.isel(time=i))
+        model.increment_state(reservoir_inputs.isel(time=i))
 
     if model.model.reservoir.state is None:
         raise ValueError("Reservoir state is None after synchronization.")
     synced_state = model.model.reservoir.state.copy()
 
-    post_sync_inputs = inputs.isel(time=slice(n_sync_steps, -1))
+    post_sync_inputs = reservoir_inputs.isel(time=slice(n_sync_steps, -1))
+    post_sync_hybrid = (
+        hybrid_inputs.isel(time=slice(n_sync_steps, -1)) if hybrid_inputs else None
+    )
     targets = targets.isel(time=slice(n_sync_steps + 1, None))
 
     # for baseline comparison
@@ -324,7 +331,7 @@ def validate_model(
 
     def _run_validation_experiment(_step_func, prefix):
         model.model.reservoir.set_state(synced_state)
-        predictions = _step_func(model, post_sync_inputs)
+        predictions = _step_func(model, post_sync_inputs, post_sync_hybrid)
         predictions_ds = xr.concat(predictions, dim="time")
         predictions_ds.assign_coords(time=targets.time)
 

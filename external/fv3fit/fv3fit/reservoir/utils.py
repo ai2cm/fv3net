@@ -27,10 +27,14 @@ def assure_txyz_dims(var_data: tf.Tensor) -> tf.Tensor:
     elif len(var_data.shape) == 3:
         orig_shape = var_data.shape
         reshaped_tensor = tf.reshape(var_data, shape=(*orig_shape, 1))
+    elif len(var_data.shape) == 2:
+        orig_shape = var_data.shape
+        reshaped_tensor = tf.reshape(var_data, shape=(1, *orig_shape, 1))
     else:
         raise ValueError(
             f"Tensor data has {len(var_data.shape)} dims, must either "
-            "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)."
+            "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)"
+            " or 2 dims (x, y)."
         )
     return reshaped_tensor
 
@@ -123,9 +127,20 @@ def process_batch_data(
 
 
 def process_validation_batch_data_to_dataset(
-    batch_data: Mapping[Hashable, tf.Tensor], variables: Iterable[Hashable],
+    batch_data: Mapping[Hashable, tf.Tensor],
+    variables: Iterable[Hashable],
+    trim_divider: Optional[RankXYDivider] = None,
 ):
+    # get_orderd_X assures txyz dims
     ordered_data = get_ordered_X(batch_data, variables)
+
+    if trim_divider is not None:
+        trimmed_data = []
+        for arr in ordered_data:
+            curr_divider = trim_divider.get_new_zdim_rank_divider(arr.shape[-1])
+            trimmed_data.append(curr_divider.trim_halo_from_rank_data(arr))
+        ordered_data = trimmed_data
+
     ds = xr.Dataset(
         {
             varname: xr.DataArray(data, dims=["time", "x", "y", "z"])
