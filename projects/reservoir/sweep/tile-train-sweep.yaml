@@ -1,6 +1,6 @@
 entity: ai2cm
 project:  sst-reservoir-tuning
-name: 2023-10-17-tile{}-mreadout-sweep
+name: 2023-10-18-tile{}-mreadout-sweep-v2
 command:
   - ${env}
   - python3
@@ -20,7 +20,7 @@ parameters:
     values: [100, 300, 500, 1000, 3000, 5000]
   readout_hyperparameters.l2:
     distribution: log_uniform_values
-    min: 0.0000001
+    min: 0.0001
     max: 100
   subdomain.layout:
     values:
