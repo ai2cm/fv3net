@@ -12,20 +12,20 @@ hyperparameters:
   output_variables:
     - sst
   subdomain:
-    layout: [1,1]
+    layout: [4,4]
     overlap: 4
     rank_dims:
       - x
       - y
   reservoir_hyperparameters:
-    state_size: 3000
+    state_size: 1000
     adjacency_matrix_sparsity: 0.999
     spectral_radius: 0.99
     seed: 0
     input_coupling_sparsity: 0
     input_coupling_scaling: 0.1
   readout_hyperparameters:
-    l2: 30
+    l2: 10
   n_timesteps_synchronize: 50
   input_noise: 0.001
   square_half_hidden_state: False

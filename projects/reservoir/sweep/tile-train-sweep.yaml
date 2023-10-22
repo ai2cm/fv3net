@@ -1,6 +1,6 @@
 entity: ai2cm
 project:  sst-reservoir-tuning
-name: 2023-10-18-tile{}-halo4-sweep
+name: 2023-10-22-tile{}-halo4-sparsity-sweep
 command:
   - ${env}
   - python3
@@ -16,15 +16,20 @@ metric:
   goal: minimize
   name: combined_score/sst
 parameters:
-  reservoir_hyperparameters.state_size:
-    values: [100, 300, 500, 1000, 3000, 5000]
-  readout_hyperparameters.l2:
+  reservoir_hyperparameters.adjacency_matrix_sparsity:
+    distribution: inv_log_uniform_values
+    min: 0.5
+    max: 0.99999
+  reservoir_hyperparameters.spectral_radius:
+    distribution: uniform
+    min: 0.5
+    max: 1.2
+  reservoir_hyperparameters.input_coupling_sparsity:
     distribution: log_uniform_values
-    min: 0.0001
-    max: 100
-  subdomain.layout:
-    values:
-      - [1, 1]
-      - [2, 2]
-      - [4, 4]
+    min: 0.00000001
+    max: 0.3
+  reservoir_hyperparameters.input_coupling_scaling:
+    distribution: uniform
+    min: 0
+    max: 0.5
 
