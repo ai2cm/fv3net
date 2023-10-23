@@ -10,6 +10,7 @@ import pytest
 import dataclasses
 import os
 
+from . import requires_fv3gfs_wrapper
 
 @dataclasses.dataclass
 class RadiationDiagnostic:
@@ -147,17 +148,20 @@ def completed_rundir(tmpdir_factory):
     return rundir
 
 
+@requires_fv3gfs_wrapper
 def get_zarr(rundir, zarrname):
     zarrpath = os.path.join(rundir, zarrname)
     return xr.open_zarr(zarrpath)
 
 
+@requires_fv3gfs_wrapper
 def test_radiation_diagnostics_output(completed_rundir):
     ds = get_zarr(completed_rundir, "radiation_diagnostics.zarr")
     for diagnostic in RADIATION_DIAGNOSTICS:
         assert diagnostic.python_name in ds.data_vars
 
 
+@requires_fv3gfs_wrapper
 def test_radiation_diagnostics_validate(completed_rundir):
     rtol = 1.0e-7
     python_radiation = get_zarr(completed_rundir, "radiation_diagnostics.zarr")

@@ -97,6 +97,7 @@ jobs:
         enum:
           - prognostic_run
           - prognostic_run_gpu
+          - prognostic_run_shield
           - post_process_run
           - fv3net
           - fv3fit
@@ -312,6 +313,7 @@ workflows:
               image:
                 - prognostic_run
                 - prognostic_run_gpu
+                - prognostic_run_shield
                 - post_process_run
                 - fv3net
                 - artifacts

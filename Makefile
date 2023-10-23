@@ -106,6 +106,12 @@ image_test_prognostic_run: image_test_emulation
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
 
+image_test_prognostic_run_shield:
+	tools/docker-run \
+		--rm \
+		-w /fv3net/workflows/prognostic_c48_run \
+		$(REGISTRY)/prognostic_run_shield:$(VERSION) pytest -vv
+
 image_test_%:
 	echo "No tests specified"
 
@@ -234,7 +240,9 @@ clean:
 update_submodules:
 	git submodule sync --recursive
 	git submodule update --init \
-		external/fv3gfs-fortran \
+		external/fv3gfs-fortran
+	git submodule update --init --recursive \
+		external/SHiELD-wrapper
 
 
 ############################################################

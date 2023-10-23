@@ -105,8 +105,8 @@ RUN bash ${FV3NET_SCRIPTS}/setup_environment.sh \
 # more comprehensive discussion.  This may not be absolutely necessary (we do
 # not worry about this in fv3net), but it feels cleaner not to mix compilers if
 # we can avoid it.
-COPY external/SHiELD-wrapper/wrapper /wrapper
-RUN make -C wrapper \
+COPY external/SHiELD-wrapper/wrapper /fv3net/external/SHiELD-wrapper/wrapper
+RUN make -C /fv3net/external/SHiELD-wrapper/wrapper \
     FC=${SHiELD_FC} \
     CC=${SHiELD_CC} \
     CXX=${SHiELD_CXX} \
