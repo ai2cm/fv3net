@@ -54,10 +54,14 @@ class RankXYDivider:
         if overlap < 0:
             raise ValueError("Overlap must be non-negative")
 
+        self._rank_dims = ["x", "y"]
+
         self.overlap = overlap
         self.subdomain_layout = subdomain_layout
         self.n_subdomains = subdomain_layout[0] * subdomain_layout[1]
-        self._partitioner = pace.util.TilePartitioner(subdomain_layout)
+        self._partitioner = pace.util.TilePartitioner(
+            self._subdomain_layout_for_partitioner
+        )
 
         self._init_rank_extent(rank_extent, overlap_rank_extent)
         self._x_rank_extent = self.rank_extent[0]
@@ -82,6 +86,13 @@ class RankXYDivider:
         return self._maybe_append_feature_value(self.rank_extent, self._z_feature_size)
 
     @property
+    def _subdomain_layout_for_partitioner(self):
+        # partitioner expects layout in y, x order:
+        x_ind = self._rank_dims.index("x")
+        y_ind = self._rank_dims.index("y")
+        return self.subdomain_layout[y_ind], self.subdomain_layout[x_ind]
+
+    @property
     def _rank_extent_all_features(self):
         # used for data consistency checks
         return self._maybe_append_feature_value(
@@ -90,7 +101,7 @@ class RankXYDivider:
 
     @property
     def _rank_dims_all_features(self):
-        return self._maybe_append_feature_value(["x", "y"], "z")
+        return self._maybe_append_feature_value(self._rank_dims, "z")
 
     @property
     def _subdomain_shape(self):
