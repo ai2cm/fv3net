@@ -3,8 +3,13 @@ import pytest
 from runtime.config import get_model_urls, get_wrapper, UserConfig
 import dataclasses
 
-from . import requires_fv3gfs_wrapper, requires_shield_wrapper
-from . import has_fv3gfs_wrapper, has_shield_wrapper
+from testing_utils import (
+    has_fv3gfs_wrapper,
+    has_shield_wrapper,
+    requires_fv3gfs_wrapper,
+    requires_shield_wrapper,
+)
+
 
 dummy_prescriber = {"dataset_key": "data_url", "variables": {"a": "a"}}
 

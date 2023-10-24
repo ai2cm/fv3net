@@ -10,7 +10,8 @@ import pytest
 import dataclasses
 import os
 
-from . import requires_fv3gfs_wrapper
+from testing_utils import requires_fv3gfs_wrapper
+
 
 @dataclasses.dataclass
 class RadiationDiagnostic:

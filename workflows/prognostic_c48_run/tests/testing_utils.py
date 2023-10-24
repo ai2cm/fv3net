@@ -204,7 +204,7 @@ def _importorskip(modname: str, minversion: Optional[str] = None):
         mod = importlib.import_module(modname)
         has = True
         if minversion is not None:
-            if Version(mod.__version__) < Version(minversion):
+            if Version(mod.__version__) < Version(minversion):  # type: ignore
                 raise ImportError("Minimum version not satisfied")
     except ImportError:
         has = False

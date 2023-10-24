@@ -15,9 +15,9 @@ import tensorflow as tf
 import vcm.testing
 import xarray as xr
 import yaml
-from .machine_learning_mocks import get_mock_predictor
+from machine_learning_mocks import get_mock_predictor
 
-from . import requires_fv3gfs_wrapper, requires_shield_wrapper
+from testing_utils import requires_fv3gfs_wrapper, requires_shield_wrapper
 
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")

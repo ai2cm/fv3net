@@ -1,5 +1,5 @@
 from runtime.steppers.machine_learning import PureMLStepper
-from .machine_learning_mocks import get_mock_predictor
+from machine_learning_mocks import get_mock_predictor
 import requests
 import xarray as xr
 import yaml
