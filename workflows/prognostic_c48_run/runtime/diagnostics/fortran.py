@@ -132,7 +132,7 @@ class FortranFileConfig:
 def file_configs_to_namelist_settings(
     diagnostics: Sequence[FortranFileConfig],
     physics_timestep: datetime.timedelta,
-    model: Literal["fv3gfs", "shield"],
+    fortran_model: Literal["fv3gfs", "shield"],
 ) -> Mapping[str, Mapping]:
     """Return overlay for physics output frequency configuration if any physics
     diagnostics are specified in given sequence of FortranFileConfig's."""
@@ -151,14 +151,14 @@ def file_configs_to_namelist_settings(
             # handle case of outputting diagnostics on every physics timestep
             physics_frequency = physics_timestep
         one_hour_duration = datetime.timedelta(hours=1)
-        if model == "fv3gfs":
+        if fortran_model == "fv3gfs":
             atmos_model_parameter = "fhout"
-        elif model == "shield":
+        elif fortran_model == "shield":
             atmos_model_parameter = "fdiag"
         else:
             raise ValueError(
-                f"Unrecognized model provided. Expected 'fv3gfs' or 'shield'. "
-                f"Got {model!r}."
+                f"Unrecognized fortran_model provided. Expected 'fv3gfs' or "
+                f"'shield'. Got {fortran_model!r}."
             )
         physics_frequency_hours = physics_frequency / one_hour_duration
         return {

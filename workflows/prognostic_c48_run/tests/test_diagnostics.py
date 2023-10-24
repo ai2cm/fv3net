@@ -383,7 +383,7 @@ def test_file_configs_to_namelist_settings_raises_error(model):
 
 
 @pytest.mark.parametrize(
-    "model, atmos_model_parameter",
+    "fortran_model, atmos_model_parameter",
     [("fv3gfs", "fhout"), ("shield", "fdiag")],
     ids=lambda x: f"{x[0]!r}",
 )
@@ -396,7 +396,7 @@ def test_file_configs_to_namelist_settings_raises_error(model):
     ],
 )
 def test_file_configs_to_namelist_settings(
-    model, atmos_model_parameter, time_config, expected_frequency_in_hours
+    fortran_model, atmos_model_parameter, time_config, expected_frequency_in_hours
 ):
     diagnostics = [
         FortranFileConfig(
@@ -410,7 +410,7 @@ def test_file_configs_to_namelist_settings(
         ),
     ]
     overlay = file_configs_to_namelist_settings(
-        diagnostics, timedelta(seconds=900), model
+        diagnostics, timedelta(seconds=900), fortran_model
     )
     expected_overlay = {
         "namelist": {
@@ -421,9 +421,12 @@ def test_file_configs_to_namelist_settings(
     assert overlay == expected_overlay
 
 
-@pytest.mark.parametrize("model", ["fv3gfs", "shield"])
-def test_file_configs_to_namelist_settings_empty_diagnostics(model):
-    assert file_configs_to_namelist_settings([], timedelta(seconds=900), model) == {}
+@pytest.mark.parametrize("fortran_model", ["fv3gfs", "shield"])
+def test_file_configs_to_namelist_settings_empty_diagnostics(fortran_model):
+    assert (
+        file_configs_to_namelist_settings([], timedelta(seconds=900), fortran_model)
+        == {}
+    )
 
 
 @pytest.mark.parametrize(

@@ -49,19 +49,19 @@ def test_get_model_urls(config, model_urls):
 
 
 @pytest.mark.parametrize(
-    "model",
+    "fortran_model",
     [
         pytest.param("fv3gfs", marks=requires_fv3gfs_wrapper),
         pytest.param("shield", marks=requires_shield_wrapper),
     ],
 )
-def test_get_wrapper(model):
-    config = UserConfig(model=model)
+def test_get_wrapper(fortran_model):
+    config = UserConfig(fortran_model=fortran_model)
     get_wrapper(config)
 
 
 @pytest.mark.parametrize(
-    "model",
+    "fortran_model",
     [
         pytest.param(
             "fv3gfs",
@@ -77,7 +77,7 @@ def test_get_wrapper(model):
         ),
     ],
 )
-def test_get_wrapper_error(model):
-    config = UserConfig(model=model)
+def test_get_wrapper_error(fortran_model):
+    config = UserConfig(fortran_model=fortran_model)
     with pytest.raises(ImportError, match="required for running"):
         get_wrapper(config)

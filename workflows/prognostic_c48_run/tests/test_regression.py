@@ -51,7 +51,7 @@ def get_shield_config():
     )
     with open(default_fv3config_shield_path, "r") as file:
         default_fv3config_shield = fv3config.load(file)
-    default_fv3config_shield["model"] = "shield"
+    default_fv3config_shield["fortran_model"] = "shield"
     default_fv3config_shield["diag_table"] = "no_output"
     return default_fv3config_shield
 
@@ -380,7 +380,9 @@ def get_default_config(fortran_model):
     elif fortran_model == "shield":
         return get_shield_config()
     else:
-        raise ValueError(f"No default config defined for model {fortran_model!r}")
+        raise ValueError(
+            f"No default config defined for fortran_model {fortran_model!r}"
+        )
 
 
 def assets_from_initial_condition_dir(dir_: str):

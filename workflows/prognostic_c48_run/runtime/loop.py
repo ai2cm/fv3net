@@ -178,7 +178,7 @@ class TimeLoop(
             self._reservoir_predict_stepper,
         ] = self._get_reservoir_stepper(config, init_time)
         self._log_info(self._tracer_metadata)
-        self._fortran_model = config.model
+        self._fortran_model = config.fortran_model
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     def _use_diagnostic_ml_prephysics(self, prephysics_config):
