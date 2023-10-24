@@ -105,7 +105,7 @@ class _FiniteStateMachine:
             )
 
 
-class TendencyPrecipTracker:
+class PrecipTracker:
     def __init__(self, reservoir_timestep_seconds: float):
         self.reservoir_timestep_seconds = reservoir_timestep_seconds
         self.physics_precip_averager = TimeAverageInputs([PHYSICS_PRECIP_RATE])
@@ -214,7 +214,7 @@ class _ReservoirStepper:
         warm_start: bool = False,
         hydrostatic: bool = False,
         mse_conserving_limiter: bool = False,
-        tendency_precip_tracker: Optional[TendencyPrecipTracker] = None,
+        precip_tracker: Optional[PrecipTracker] = None,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -226,7 +226,7 @@ class _ReservoirStepper:
         self.warm_start = warm_start
         self.hydrostatic = hydrostatic
         self.mse_conserving_limiter = mse_conserving_limiter
-        self.tendency_precip_tracker = tendency_precip_tracker
+        self.precip_tracker = precip_tracker
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -296,8 +296,8 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
                 )
             except RuntimeError:
                 raise ValueError(
-                    "MPI not available or tile dimension does not exist in state fields"
-                    " during reservoir increment update"
+                    "MPI not available or tile dimension does not exist in state "
+                    "fields during reservoir increment update"
                 )
             reservoir_inputs = rc_in_with_halos
 
@@ -406,8 +406,8 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self.input_averager is not None:
             self.input_averager.increment_running_average(inputs)
 
-        if self.tendency_precip_tracker is not None:
-            self.tendency_precip_tracker.increment_physics_precip_rate(
+        if self.precip_tracker is not None:
+            self.precip_tracker.increment_physics_precip_rate(
                 state[PHYSICS_PRECIP_RATE]
             )
 
@@ -458,7 +458,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
                     tendencies=tendency_updates_from_constraints,
                     dt=self.model_timestep,
                 )
-                # Adjust corrective tendencies to act as if they are over
+                # Adjust corrective tendencies to be averages over
                 # the full reservoir timestep
                 for key in tendency_updates_from_constraints:
                     if key != "specific_humidity_limiter_active":
@@ -482,12 +482,12 @@ class ReservoirPredictStepper(_ReservoirStepper):
         diags = {}
 
         # running average gets reset in this call
-        precip_rates = self.tendency_precip_tracker.interval_avg_precip_rates(
+        precip_rates = self.precip_tracker.interval_avg_precip_rates(
             net_moistening_due_to_reservoir
         )
         diags.update(precip_rates)
 
-        diags[TOTAL_PRECIP] = self.tendency_precip_tracker.accumulated_precip_update(
+        diags[TOTAL_PRECIP] = self.precip_tracker.accumulated_precip_update(
             physics_precip,
             diags["reservoir_precip_rate_res_interval_avg"],
             self.timestep.total_seconds(),
@@ -540,7 +540,7 @@ def get_reservoir_steppers(
     )
     _precip_tracker_kwargs = {}
     if config.interval_average_precipitation:
-        _precip_tracker_kwargs["tendency_precip_tracker"] = TendencyPrecipTracker(
+        _precip_tracker_kwargs["precip_tracker"] = PrecipTracker(
             reservoir_timestep_seconds=rc_tdelta.total_seconds(),
         )
     incrementer = ReservoirIncrementOnlyStepper(
