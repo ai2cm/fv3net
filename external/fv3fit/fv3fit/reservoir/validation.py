@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import generic_filter
 from typing import Union, Optional, Sequence
 import xarray as xr
 import tensorflow as tf
@@ -18,6 +19,28 @@ logger = logging.getLogger(__name__)
 
 ReservoirModel = Union[ReservoirComputingModel, HybridReservoirComputingModel]
 ReservoirAdapter = Union[HybridReservoirDatasetAdapter, ReservoirDatasetAdapter]
+
+
+def _variance_2d(slice_2d):
+    """Applies the standard deviation over a 2D slice."""
+    return generic_filter(slice_2d, np.var, size=(3, 3), mode="reflect")
+
+
+def _compute_2d_variance_mean_zsum(arr):
+    """
+    Rough estimates for grid-scale spatial variance of column-integrated
+    quantities in the absence of pressure thickness and area information.
+    """
+    variance_2d = xr.apply_ufunc(
+        _variance_2d,
+        arr,
+        input_core_dims=[["x", "y"]],
+        output_core_dims=[["x", "y"]],
+        vectorize=True,
+    )
+    if "z" in variance_2d.dims:
+        variance_2d = variance_2d.sum("z")
+    return variance_2d.mean().item()
 
 
 def _get_predictions_over_batch(
@@ -110,6 +133,8 @@ def validation_prediction(
     one_step_predictions = np.array(one_step_prediction_time_series)[n_synchronize:-1]
     time_means_to_calculate = {
         "time_mean_prediction": one_step_predictions,
+        "time_mean_persistence": persistence,
+        "time_mean_target": target,
         "time_mean_prediction_error": one_step_predictions - target,
         "time_mean_persistence_error": persistence - target,
         "time_mean_prediction_mse": (one_step_predictions - target) ** 2,
@@ -134,7 +159,6 @@ def validation_prediction(
     diags_ = []
     for key, data in time_means_to_calculate.items():
         diags_.append(_time_mean_dataset(model.input_variables, data, key))
-
     return xr.merge(diags_)
 
 
@@ -152,11 +176,14 @@ def log_rmse_z_plots(ds_val, variables):
     # will need to change this.
     for var in variables:
         rmse = {}
-        for comparison in ["persistence", "prediction", "imperfect_prediction"]:
+        for comparison in [
+            "persistence",
+            "imperfect_prediction",
+            "prediction",
+        ]:
             mse_key = f"time_mean_{comparison}_mse_{var}"
             if mse_key in ds_val:
                 rmse[comparison] = np.sqrt(ds_val[mse_key].mean(["x", "y"])).values
-
         wandb.log(
             {
                 f"val_rmse_zplot_{var}": wandb.plot.line_series(
@@ -168,6 +195,21 @@ def log_rmse_z_plots(ds_val, variables):
                 )
             }
         )
+
+
+def log_variance_scalar_metrics(ds_val, variables):
+    log_data = {}
+    for var in variables:
+        for comparison in [
+            "target",
+            "prediction",
+        ]:
+            key = f"time_mean_{comparison}_{var}"
+            print(f"{key} in ds_val: {key in ds_val}")
+            if key in ds_val:
+                variance_key = f"time_mean_{comparison}_2d_variance_zsum_{var}"
+                log_data[variance_key] = _compute_2d_variance_mean_zsum(ds_val[key])
+    wandb.log(log_data)
 
 
 def log_rmse_scalar_metrics(ds_val, variables):
@@ -202,5 +244,4 @@ def log_rmse_scalar_metrics(ds_val, variables):
         )
     except (KeyError):
         pass
-
     wandb.log(log_data)
