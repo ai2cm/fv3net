@@ -1,0 +1,289 @@
+data_table: default
+diag_table: no_output
+experiment_name: default
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.1/field_table
+forcing: gs://vcm-ml-experiments/spencerc/2023-09-13-SHiELD-forcing-data
+initial_conditions: ''  # no default provided
+namelist:
+  fms_affinity_nml:
+    affinity: false
+  amip_interp_nml:
+    data_set: reynolds_oi
+    date_out_of_range: climo
+    interp_oi_sst: true
+    no_anom_sst: false
+    use_ncep_ice: false
+    use_ncep_sst: true
+  atmos_model_nml:
+    blocksize: 24
+    chksum_debug: false
+    dycore_only: false
+    fdiag: 0.25
+    first_time_step: false
+  coupler_nml:
+    atmos_nthreads: 1
+    calendar: julian
+    current_date:
+    - 2016
+    - 8
+    - 1
+    - 0
+    - 0
+    - 0
+    days: 0
+    dt_atmos: 900
+    dt_ocean: 900
+    hours: 0
+    minutes: 30
+    months: 0
+    seconds: 0
+    use_hyper_thread: false
+  diag_manager_nml:
+    prepend_date: false
+  external_ic_nml:
+    checker_tr: false
+    filtered_terrain: true
+    gfs_dwinds: true
+    levp: 64
+    nt_checker: 0
+  fms_io_nml:
+    checksum_required: false
+    max_files_r: 100
+    max_files_w: 100
+  fms_nml:
+    clock_grain: ROUTINE
+    domains_stack_size: 3000000
+    print_memory_usage: false
+  fv_core_nml:
+    a_imp: 1.0
+    adjust_dry_mass: false
+    beta: 0.0
+    consv_am: false
+    consv_te: 0.0
+    d2_bg: 0.0
+    d2_bg_k1: 0.2
+    d2_bg_k2: 0.1
+    d4_bg: 0.15
+    d_con: 1.0
+    d_ext: 0.0
+    dddmp: 0.5
+    delt_max: 0.002
+    dnats: 1
+    do_vort_damp: true
+    dwind_2d: false
+    external_ic: false
+    fill: true
+    fill_dp: true
+    fv_debug: false
+    fv_sg_adj: 300
+    gfs_phil: false
+    grid_type: 0
+    hord_dp: -5
+    hord_mt: 5
+    hord_tm: 5
+    hord_tr: -5
+    hord_vt: 5
+    hydrostatic: false
+    io_layout:
+    - 1
+    - 1
+    k_split: 1
+    ke_bg: 0.0
+    kord_mt: 9
+    kord_tm: -9
+    kord_tr: 9
+    kord_wz: -9
+    layout:
+    - 1
+    - 1
+    make_nh: false
+    mountain: true
+    n_split: 6
+    n_sponge: 30
+    na_init: 0
+    ncep_ic: false
+    nggps_ic: false
+    no_dycore: false
+    nord: 3
+    npx: 49
+    npy: 49
+    npz: 79
+    npz_type: 'gcrm'
+    ntiles: 6
+    nudge_qv: true
+    nwat: 6
+    p_fac: 0.05
+    phys_hydrostatic: false
+    print_freq: 1
+    range_warn: true
+    reset_eta: false
+    rf_cutoff: 3000.0
+    rf_fast: true
+    sg_cutoff: 20000.0
+    tau: 5.0
+    tau_h2o: 0.0
+    use_hydro_pressure: false
+    vtdm4: 0.06
+    warm_start: true
+    z_tracer: true
+  gfdl_mp_nml:
+    c_paut: 0.5
+    c_pgacs: 0.01
+    c_psaci: 0.01
+    ccn_l: 300.0
+    ccn_o: 100.0
+    const_vg: false
+    const_vi: false
+    const_vr: false
+    const_vs: false
+    do_qa: true
+    do_cond_timescale: true
+    do_sedi_heat: true
+    do_sedi_w: true
+    dw_land: 0.15
+    dw_ocean: 0.1
+    fix_negative: true
+    icloud_f: 0
+    irain_f: 0
+    prog_ccn: false
+    qi0_crt: 8.0e-05
+    qi_lim: 1.0
+    ql_gen: 0.001
+    ql_mlt: 0.002
+    qs_mlt: 1.0e-6
+    qs0_crt: 0.003
+    rad_graupel: true
+    rad_rain: true
+    rad_snow: true
+    rh_inc: 0.2
+    rh_inr: 0.3
+    rh_ins: 0.3
+    rthresh: 8.0e-6
+    tau_i2s: 1000.0
+    tau_l2v: 300.0
+    tau_v2l: 90.0
+    vg_fac: 1.0
+    vg_max: 16.0
+    vi_fac: 0.85
+    vi_max: 1.0
+    vr_fac: 1.0
+    vr_max: 16.0
+    vs_fac: 1.0
+    vs_max: 2.0
+    z_slope_ice: true
+    z_slope_liq: true
+  gfs_physics_nml:
+    cal_pre: false
+    cap_k0_land: false
+    cdmbgwd:
+    - 3.5
+    - 0.25
+    cloud_gfdl: true
+    cnvcld: false
+    cnvgwd: true
+    debug: false
+    do_deep: true
+    do_ocean: false  # Turn off the mixed layer ocean for now.
+    dspheat: true
+    fhcyc: 24.0
+    fhlwr: 1800.0
+    fhswr: 1800.0
+    fhzero: 0.25
+    gwd_p_crit: 2000.0
+    hybedmf: false
+    iaer: 111
+    ialb: 1
+    ico2: 2
+    iems: 1
+    imfdeepcnv: 2
+    imfshalcnv: 2
+    isatmedmf: 1
+    isol: 2
+    isot: 1
+    isubc_lw: 2
+    isubc_sw: 2
+    ivegsrc: 1
+    ldiag3d: true
+    lwhtr: true
+    ncld: 5
+    nst_anl: true
+    pdfcld: true
+    pre_rad: false
+    prslrd0: 0.0
+    random_clds: false
+    redrag: true
+    satmedmf: true
+    shal_cnv: true
+    swhtr: true
+    trans_trac: true
+    use_ufo: true
+    xkzm_ml: 2.0
+    xkzm_hl: 2.0
+    xkzm_mi: 1.5
+    xkzm_hi: 1.5
+    xkzminv: 0.0
+    ysupbl: false
+    zhao_mic: false
+  integ_phys_nml:
+    do_inline_mp: true
+    do_sat_adj: false
+  interpolator_nml:
+    interp_method: conserve_great_circle
+  namsfc:
+    fabsl: 99999
+    faisl: 99999
+    faiss: 99999
+    fnabsc: grb/global_mxsnoalb.uariz.t1534.3072.1536.rg.grb
+    fnacna: ''
+    fnaisc: grb/CFSR.SEAICE.1982.2012.monthly.clim.grb
+    fnalbc: grb/global_snowfree_albedo.bosu.t1534.3072.1536.rg.grb
+    fnalbc2: grb/global_albedo4.1x1.grb
+    fnglac: grb/global_glacier.2x2.grb
+    fnmskh: grb/seaice_newland.grb
+    fnmxic: grb/global_maxice.2x2.grb
+    fnslpc: grb/global_slope.1x1.grb
+    fnsmcc: grb/global_soilmgldas.t1534.3072.1536.grb
+    fnsnoa: ''
+    fnsnoc: grb/global_snoclim.1.875.grb
+    fnsotc: grb/global_soiltype.statsgo.t1534.3072.1536.rg.grb
+    fntg3c: grb/global_tg3clim.2.6x1.5.grb
+    fntsfa: ''
+    fntsfc: grb/RTGSST.1982.2012.monthly.clim.grb
+    fnvegc: grb/global_vegfrac.0.144.decpercent.grb
+    fnvetc: grb/global_vegtype.igbp.t1534.3072.1536.rg.grb
+    fnvmnc: grb/global_shdmin.0.144x0.144.grb
+    fnvmxc: grb/global_shdmax.0.144x0.144.grb
+    fnzorc: igbp
+    fsicl: 99999
+    fsics: 99999
+    fslpl: 99999
+    fsmcl:
+    - 99999
+    - 99999
+    - 99999
+    fsnol: 99999
+    fsnos: 99999
+    fsotl: 99999
+    ftsfl: 99999
+    ftsfs: 90
+    fvetl: 99999
+    fvmnl: 99999
+    fvmxl: 99999
+    ldebug: false
+  ocean_nml:
+    do_mld_restore: true
+    end_lat: 30.0
+    eps_day: 10.0
+    gam: 0.12
+    mld_obs_ratio: 1.0
+    mld_option: obs
+    mld_restore_tscale: 15.0
+    ocean_option: MLM
+    restore_method: 2
+    sst_restore_tscale: 15.0
+    start_lat: -45.0
+    end_lat: 45.0
+    stress_ratio: 0.75
+    use_old_mlm: true
+    use_rain_flux: true
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0

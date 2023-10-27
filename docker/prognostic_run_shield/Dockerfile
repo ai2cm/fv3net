@@ -86,7 +86,7 @@ RUN cd ${SUBMODULE_DIR}/SHiELD_build/Build && \
     CXX=${SHiELD_CXX} \
     LD=${SHiELD_LD} \
     TEMPLATE=site/gnu.mk \
-    AVX_LEVEL=-march=native \
+    AVX_LEVEL=-mavx \
     ./COMPILE shield 64bit gnu pic
 
 COPY docker/prognostic_run/requirements.txt /fv3net/docker/prognostic_run/requirements.txt
