@@ -122,6 +122,12 @@ def log_metric_plots(plottable_metrics: Mapping[Hashable, xr.Dataset]) -> None:
                 kwargs = {"vmin": -1, "vmax": 1, "cmap": "RdBu_r"}
             else:
                 kwargs = {}
+
+            if "z" in value.dims:
+                kwargs["y"] = "z"
+            elif "y" in value.dims:
+                kwargs["y"] = "y"
+
             value.plot(**kwargs)
             wandb.log({f"{name}/{field}": wandb.Image(plot_to_image(fig))})
             plt.close(fig)
