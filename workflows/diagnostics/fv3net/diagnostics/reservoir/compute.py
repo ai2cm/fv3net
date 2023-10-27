@@ -3,20 +3,26 @@ import fsspec
 import numpy as np
 import os
 from tempfile import NamedTemporaryFile
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, cast
 import xarray as xr
 import vcm
 import yaml
 
 import fv3fit
-from fv3fit.reservoir.utils import get_ordered_X
-from fv3fit.reservoir import ReservoirComputingModel, HybridReservoirComputingModel
+from fv3fit.reservoir.validation import validation_prediction
+from fv3fit.reservoir import (
+    ReservoirComputingModel,
+    HybridReservoirComputingModel,
+    HybridReservoirDatasetAdapter,
+    ReservoirDatasetAdapter,
+)
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 ReservoirModel = Union[ReservoirComputingModel, HybridReservoirComputingModel]
+ReservoirAdapter = Union[HybridReservoirDatasetAdapter, ReservoirDatasetAdapter]
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -112,7 +118,8 @@ def _get_states_without_overlap(
 
 
 def main(args):
-    model: ReservoirModel = fv3fit.load(args.reservoir_model_path)
+    adapter = cast(ReservoirAdapter, fv3fit.load(args.reservoir_model_path))
+    model: ReservoirModel = adapter.model
     with fsspec.open(args.validation_config_path, "r") as f:
         val_data_config = yaml.safe_load(f)
     val_batches = _load_batches(
@@ -120,58 +127,8 @@ def main(args):
         variables=_get_variables_to_load(model),
         nfiles=val_data_config.get("nfiles", None),
     )
-    # Initialize hidden state
-    model.reset_state()
 
-    one_step_prediction_time_series = []
-    target_time_series = []
-    for batch_data in val_batches:
-        states_with_overlap_time_series = get_ordered_X(
-            batch_data, model.input_variables
-        )
-
-        if isinstance(model, HybridReservoirComputingModel):
-            hybrid_inputs_time_series = get_ordered_X(
-                batch_data, model.hybrid_variables
-            )
-            hybrid_inputs_time_series = _get_states_without_overlap(
-                hybrid_inputs_time_series, overlap=model.rank_divider.overlap
-            )
-        else:
-            hybrid_inputs_time_series = None
-        batch_predictions = _get_predictions_over_batch(
-            model, states_with_overlap_time_series, hybrid_inputs_time_series
-        )
-
-        one_step_prediction_time_series += batch_predictions
-        target_time_series.append(
-            _get_states_without_overlap(
-                states_with_overlap_time_series, overlap=model.rank_divider.overlap
-            )
-        )
-    target_time_series = np.concatenate(target_time_series, axis=0)[
-        args.n_synchronize :
-    ]
-
-    persistence = target_time_series[:-1]
-    target = target_time_series[1:]
-
-    # _get_predictions_over_batch predicts up to n_timesteps-1
-    one_step_predictions = np.array(one_step_prediction_time_series)[
-        args.n_synchronize : -1
-    ]
-    time_means_to_calculate = {
-        "time_mean_prediction": one_step_predictions,
-        "time_mean_error": one_step_predictions - target,
-        "time_mean_persistence_error": persistence - target,
-        "time_mean_mse": (one_step_predictions - target) ** 2,
-        "time_mean_persistence_mse": (persistence - target) ** 2,
-    }
-    diags_ = []
-    for key, data in time_means_to_calculate.items():
-        diags_.append(_time_mean_dataset(model.input_variables, data, key))
-
-    ds = xr.merge(diags_)
+    ds = validation_prediction(model, val_batches, args.n_synchronize,)
 
     output_file = os.path.join(args.output_path, "offline_diags.nc")
 

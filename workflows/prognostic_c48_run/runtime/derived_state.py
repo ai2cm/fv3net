@@ -2,8 +2,6 @@ from typing import Hashable, Mapping, MutableMapping, Set
 
 import cftime
 import pace.util
-import fv3gfs.wrapper
-import fv3gfs.wrapper._properties
 import numpy as np
 import xarray as xr
 from runtime.names import DELP, PHYSICS_PRECIP_RATE, TIME_KEYS
@@ -19,20 +17,35 @@ class FV3StateMapper(Mapping):
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
     """
 
-    def __init__(self, getter, alternate_keys: Mapping[str, str] = None):
+    def __init__(
+        self, getter, tracer_metadata, alternate_keys: Mapping[str, str] = None
+    ):
         self._getter = getter
+        self._tracer_metadata = tracer_metadata
         self._alternate_keys = alternate_keys or {
             "lon": "longitude",
             "lat": "latitude",
             "physics_precip": PHYSICS_PRECIP_RATE,
+        }
+        # Expose a subset of the physics diagnostics to the getter.  When adding
+        # fields to this dictionary it is important to check that they are
+        # instantaneous (as opposed to interval-averaged) diagnostics in FV3GFS;
+        # otherwise their meaning will change depending on the value of the
+        # gfs_physics_nml.fhzero namelist parameter.
+        self._diagnostics = {
+            "latent_heat_flux": "lhtfl",
+            "eastward_wind_at_10m": "u10m",
+            "northward_wind_at_10m": "v10m",
         }
 
     def __getitem__(self, key: str) -> xr.DataArray:
         if key in TIME_KEYS:
             time = self._getter.get_state([key])[key]
             return xr.DataArray(time, name=key)
-        elif key == "latent_heat_flux":
-            return self._getter.get_diagnostic_by_name("lhtfl").data_array
+        elif key in self._diagnostics:
+            return self._getter.get_diagnostic_by_name(
+                self._diagnostics[key]
+            ).data_array
         elif key == "total_water":
             return self._total_water()
         else:
@@ -51,18 +64,18 @@ class FV3StateMapper(Mapping):
 
     def keys(self):
         dynamics_names = set(
-            v["name"] for v in fv3gfs.wrapper._properties.DYNAMICS_PROPERTIES
+            v["name"] for v in self._getter._properties.DYNAMICS_PROPERTIES
         )
         physics_names = set(
-            v["name"] for v in fv3gfs.wrapper._properties.PHYSICS_PROPERTIES
+            v["name"] for v in self._getter._properties.PHYSICS_PROPERTIES
         )
-        tracer_names = set(v for v in self._getter.get_tracer_metadata())
+        tracer_names = set(v for v in self._tracer_metadata)
         # see __getitem__
         local_names = {"latent_heat_flux", "total_water"}
         return dynamics_names | physics_names | tracer_names | local_names
 
     def _total_water(self):
-        a = self._getter.get_tracer_metadata()
+        a = self._tracer_metadata
         water_species = [name for name in a if a[name]["is_water"]]
         return sum(self[name] for name in water_species)
 
@@ -77,13 +90,15 @@ class DerivedFV3State(MutableMapping):
 
     """
 
-    def __init__(self, getter):
+    def __init__(self, getter, tracer_metadata):
         """
         Args:
             getter: the fv3gfs object or a mock of it.
         """
         self._getter = getter
-        self._mapper = DerivedMapping(FV3StateMapper(getter, alternate_keys=None))
+        self._mapper = DerivedMapping(
+            FV3StateMapper(getter, tracer_metadata, alternate_keys=None)
+        )
 
     @property
     def time(self) -> cftime.DatetimeJulian:

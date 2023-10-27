@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set
+from typing import Sequence, Optional, Set, Tuple
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -8,7 +8,7 @@ from .._shared.training_config import Hyperparameters
 
 @dataclass
 class CubedsphereSubdomainConfig:
-    layout: Sequence[int]
+    layout: Tuple[int, int]
     overlap: int
     rank_dims: Sequence[str]
 
@@ -59,13 +59,20 @@ class BatchLinearRegressorHyperparameters:
 
 
 @dataclass
+class TransformerConfig:
+    input: Optional[str] = None
+    output: Optional[str] = None
+    hybrid: Optional[str] = None
+
+
+@dataclass
 class ReservoirTrainingConfig(Hyperparameters):
     """
     input_variables: variables and additional features in time series
     output_variables: time series variables, must be subset of input_variables
     reservoir_hyperparameters: hyperparameters for reservoir
     readout_hyperparameters: hyperparameters for readout
-    n_batches_burn: number of training batches at start of time series to use
+    n_timesteps_synchronize: number of timesteps at start of time series to use
         for synchronizaton.  This data is  used to update the reservoir state
         but is not included in training.
     input_noise: stddev of normal distribution which is sampled to add input
@@ -79,8 +86,11 @@ class ReservoirTrainingConfig(Hyperparameters):
         state before it is used as input to the regressor's .fit and
         .predict methods. This option was found to be important for skillful
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
-    autoencoder_path: optional path for autoencoder to use in encoding time series
-        before passing to reservoir
+    transformers: optional TransformerConfig for autoencoders to use in
+        encoding input, output, and/or hybrid variable sets.
+    mask_variable: if specified, save mask array that is multiplied to the input array
+        before multiplication with W_in. This applies a mask using the
+        mask_variable field.
     """
 
     input_variables: Sequence[str]
@@ -88,21 +98,17 @@ class ReservoirTrainingConfig(Hyperparameters):
     subdomain: CubedsphereSubdomainConfig
     reservoir_hyperparameters: ReservoirHyperparameters
     readout_hyperparameters: BatchLinearRegressorHyperparameters
-    n_batches_burn: int
+    n_timesteps_synchronize: int
     input_noise: float
     seed: int = 0
+    transformers: Optional[TransformerConfig] = None
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
-    autoencoder_path: Optional[str] = None
     hybrid_variables: Optional[Sequence[str]] = None
+    mask_variable: Optional[str] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
-        if set(self.output_variables).issubset(self.input_variables) is False:
-            raise ValueError(
-                f"Output variables {self.output_variables} must be a subset of "
-                f"input variables {self.input_variables}."
-            )
         if self.hybrid_variables is not None:
             hybrid_and_input_vars_intersection = set(
                 self.hybrid_variables
@@ -116,15 +122,19 @@ class ReservoirTrainingConfig(Hyperparameters):
     @property
     def variables(self) -> Set[str]:
         if self.hybrid_variables is not None:
-            hybrid_vars = list(self.hybrid_variables)  # type: ignore
+            additional_vars = list(self.hybrid_variables)  # type: ignore
         else:
-            hybrid_vars = []
-        return set(list(self.input_variables) + hybrid_vars)
+            additional_vars = []
+        if self.mask_variable is not None:
+            additional_vars.append(self.mask_variable)
+        return set(
+            list(self.input_variables) + list(self.output_variables) + additional_vars
+        )
 
     @classmethod
     def from_dict(cls, kwargs) -> "ReservoirTrainingConfig":
         kwargs = {**kwargs}
-        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float])
+        dacite_config = dacite.Config(strict=True, cast=[bool, str, int, float, tuple])
         kwargs["reservoir_hyperparameters"] = dacite.from_dict(
             data_class=ReservoirHyperparameters,
             data=kwargs.get("reservoir_hyperparameters", {}),
@@ -140,6 +150,11 @@ class ReservoirTrainingConfig(Hyperparameters):
             data=kwargs.get("subdomain", {}),
             config=dacite_config,
         )
+        kwargs["transformers"] = dacite.from_dict(
+            data_class=TransformerConfig,
+            data=kwargs.get("transformers", {}),
+            config=dacite_config,
+        )
         return dacite.from_dict(
             data_class=ReservoirTrainingConfig,
             data=kwargs,
@@ -148,14 +163,14 @@ class ReservoirTrainingConfig(Hyperparameters):
 
     def dump(self, path: str):
         metadata = {
-            "n_batches_burn": self.n_batches_burn,
+            "n_timesteps_synchronize": self.n_timesteps_synchronize,
             "input_noise": self.input_noise,
             "seed": self.seed,
             "n_jobs": self.n_jobs,
             "reservoir_hyperparameters": asdict(self.reservoir_hyperparameters),
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
-            "autoencoder_path": self.autoencoder_path,
+            "transformers": asdict(self.transformers),
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)

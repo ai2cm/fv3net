@@ -14,7 +14,7 @@ from fv3fit._shared import (
     DatasetPredictor,
 )
 from fv3fit._shared.training_config import Hyperparameters
-
+from tensorflow.python.keras.utils.generic_utils import to_list
 from fv3fit.keras import (
     train_pure_keras_model,
     CallbackConfig,
@@ -68,8 +68,8 @@ class Autoencoder(tf.keras.Model, Transformer):
         x = _ensure_all_items_have_sample_dim(x)
         return self.encoder.predict(x)
 
-    def decode(self, latent_x: ArrayLike) -> ArrayLike:
-        return self.decoder.predict(latent_x)
+    def decode(self, latent_x: ArrayLike) -> Sequence[ArrayLike]:
+        return to_list(self.decoder.predict(latent_x))
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:

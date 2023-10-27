@@ -1,22 +1,23 @@
+from __future__ import annotations
 import fsspec
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence, cast
+from typing import Iterable, Hashable, Sequence, Union, Optional
 import xarray as xr
 import yaml
 
-import fv3fit
 from fv3fit import Predictor
 from .readout import ReservoirComputingReadout
 from .reservoir import Reservoir
-from .domain import RankDivider
+from .domain2 import RankXYDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import ReloadableTransfomer, encode_columns, decode_columns
-from ._reshaping import flatten_2d_keeping_columns_contiguous
+from .transformers import encode_columns, decode_columns, TransformerGroup
+
+DIMENSION_ORDER = ("x", "y")
 
 
-def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
+def _transpose_xy_dims(ds: xr.Dataset):
     # Useful for transposing the x, y dims in a dataset to match those in
     # RankDivider.rank_dims, and leaves other dims in the same order
     # relative to x,y. Dims after the first occurence of one of the rank_dims
@@ -24,17 +25,18 @@ def _transpose_xy_dims(ds: xr.Dataset, rank_dims: Sequence[str]):
     # e.g. (time, y, x, z) -> (time, x, y, z) for rank_dims=(x, y)
     leading_non_xy_dims = []
     for dim in ds.dims:
-        if dim not in rank_dims:
+        if dim not in DIMENSION_ORDER:
             leading_non_xy_dims.append(dim)
-        if dim in rank_dims:
+        if dim in DIMENSION_ORDER:
             break
-    ordered_dims = (*leading_non_xy_dims, *rank_dims)
+    ordered_dims = (*leading_non_xy_dims, *DIMENSION_ORDER)
     return ds.transpose(*ordered_dims, ...)
 
 
 @io.register("hybrid-reservoir")
 class HybridReservoirComputingModel(Predictor):
     _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
+    _HYBRID_MASK_NAME = "hybrid_input_mask.npy"
 
     def __init__(
         self,
@@ -43,9 +45,10 @@ class HybridReservoirComputingModel(Predictor):
         output_variables: Iterable[Hashable],
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
-        rank_divider: RankDivider,
-        autoencoder: ReloadableTransfomer,
+        rank_divider: RankXYDivider,
+        transformers: TransformerGroup,
         square_half_hidden_state: bool = False,
+        hybrid_input_mask: Optional[np.ndarray] = None,
     ):
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
@@ -54,60 +57,74 @@ class HybridReservoirComputingModel(Predictor):
             readout=readout,
             square_half_hidden_state=square_half_hidden_state,
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
+        self.reservoir = self.reservoir_model.reservoir
         self.input_variables = input_variables
         self.hybrid_variables = hybrid_variables
         self.output_variables = output_variables
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
-        self.autoencoder = autoencoder
+        self.transformers = transformers
+        no_overlap_divider = self.rank_divider.get_no_overlap_rank_divider()
+        self._output_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.output.n_latent_dims
+        )
+        self._hybrid_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.hybrid.n_latent_dims
+        )
+        self._hybrid_input_mask = hybrid_input_mask
+
+    @classmethod
+    def from_reservoir_model(
+        cls, model: ReservoirComputingModel, hybrid_variables: Iterable[Hashable]
+    ) -> HybridReservoirComputingModel:
+        return cls(
+            input_variables=model.input_variables,
+            hybrid_variables=hybrid_variables,
+            output_variables=model.output_variables,
+            reservoir=model.reservoir,
+            readout=model.readout,
+            square_half_hidden_state=model.square_half_hidden_state,
+            rank_divider=model.rank_divider,
+            transformers=model.transformers,
+        )
 
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
         encoded_hybrid_input = encode_columns(
-            input_arrs=hybrid_input, transformer=self.autoencoder
+            input_arrs=hybrid_input, transformer=self.transformers.hybrid
         )
-        if encoded_hybrid_input.shape[:2] != tuple(
-            self.rank_divider.rank_extent_without_overlap
-        ):
-            raise ValueError(
-                "Hybrid input provided for prediction must have x, y dims of size "
-                f"{self.rank_divider.rank_extent_without_overlap}, which is the rank "
-                f"data shape *excluding* any overlap/halo points. "
-                f"Data provided has shape {encoded_hybrid_input.shape[:2]}."
-            )
-        # RankDivider assumes arrays to be sliced include overlap/halo points,
-        # so add zero padding to the hybrid input data array's xy axes
-        nhalo = self.rank_divider.overlap
-        padded_encoded_hybrid_input = np.pad(
-            encoded_hybrid_input, pad_width=((nhalo, nhalo), (nhalo, nhalo), (0, 0))
+
+        flat_hybrid_in = self._hybrid_rank_divider.get_all_subdomains_with_flat_feature(
+            encoded_hybrid_input
         )
-        flat_encoded_hybrid_input = self.rank_divider.flatten_subdomains_to_columns(
-            padded_encoded_hybrid_input, with_overlap=False
+
+        if self._hybrid_input_mask is not None:
+            flat_hybrid_in = flat_hybrid_in * self._hybrid_input_mask
+
+        readout_input = self._concatenate_readout_inputs(
+            self.reservoir_model.reservoir.state, flat_hybrid_in
         )
-        flattened_readout_input = self._concatenate_readout_inputs(
-            self.reservoir_model.reservoir.state, flat_encoded_hybrid_input
+
+        flat_prediction = self.readout.predict(readout_input)
+        prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
+            flat_prediction
         )
-        flat_prediction = self.readout.predict(flattened_readout_input).reshape(-1)
-        prediction = self.rank_divider.merge_subdomains(flat_prediction)
         decoded_prediction = decode_columns(
-            encoded_output=prediction,
-            transformer=self.autoencoder,
-            xy_shape=self.rank_divider.rank_extent_without_overlap,
+            encoded_output=prediction, transformer=self.transformers.output,
         )
         return decoded_prediction
 
     def _concatenate_readout_inputs(self, hidden_state_input, flat_hybrid_input):
-        # hybrid input is flattened prior to being input to this step
+        # TODO: square even terms should be handled by Reservoir model?
         if self.square_half_hidden_state is True:
-            hidden_state_input = square_even_terms(hidden_state_input, axis=0)
+            hidden_state_input = square_even_terms(hidden_state_input, axis=-1)
 
-        readout_input = np.concatenate([hidden_state_input, flat_hybrid_input], axis=0)
-        flattened_readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
-        return flattened_readout_input
+        readout_input = np.concatenate([hidden_state_input, flat_hybrid_input], axis=-1)
+        return readout_input
 
     def reset_state(self):
         self.reservoir_model.reset_state()
@@ -118,16 +135,37 @@ class HybridReservoirComputingModel(Predictor):
     def synchronize(self, synchronization_time_series):
         self.reservoir_model.synchronize(synchronization_time_series)
 
+    def get_model_from_subdomain(
+        self, subdomain_index: int
+    ) -> HybridReservoirComputingModel:
+        """Returns a new model instance for a single subdomain"""
+        if self.rank_divider.n_subdomains == 1:
+            raise ValueError("Model must have multiple subdomains to split.")
+
+        split_pure_model = self.reservoir_model.get_model_from_subdomain(
+            subdomain_index
+        )
+
+        return self.from_reservoir_model(split_pure_model, self.hybrid_variables)
+
     def dump(self, path: str) -> None:
         self.reservoir_model.dump(path)
         with fsspec.open(os.path.join(path, self._HYBRID_VARIABLES_NAME), "w") as f:
             f.write(yaml.dump({"hybrid_variables": self.hybrid_variables}))
+        if self._hybrid_input_mask is not None:
+            np.save(os.path.join(path, self._HYBRID_MASK_NAME), self._hybrid_input_mask)
 
     @classmethod
-    def load(cls, path: str) -> "HybridReservoirComputingModel":
+    def load(cls, path: str) -> HybridReservoirComputingModel:
         pure_reservoir_model = ReservoirComputingModel.load(path)
         with fsspec.open(os.path.join(path, cls._HYBRID_VARIABLES_NAME), "r") as f:
             hybrid_variables = yaml.safe_load(f)["hybrid_variables"]
+
+        if os.path.exists(os.path.join(path, cls._HYBRID_MASK_NAME)):
+            hybrid_input_mask = np.load(os.path.join(path, cls._HYBRID_MASK_NAME))
+        else:
+            hybrid_input_mask = None
+
         return cls(
             input_variables=pure_reservoir_model.input_variables,
             output_variables=pure_reservoir_model.output_variables,
@@ -135,53 +173,10 @@ class HybridReservoirComputingModel(Predictor):
             readout=pure_reservoir_model.readout,
             square_half_hidden_state=pure_reservoir_model.square_half_hidden_state,
             rank_divider=pure_reservoir_model.rank_divider,
-            autoencoder=pure_reservoir_model.autoencoder,
+            transformers=pure_reservoir_model.transformers,
             hybrid_variables=hybrid_variables,
+            hybrid_input_mask=hybrid_input_mask,
         )
-
-
-class HybridDatasetAdapter:
-    def __init__(self, model: HybridReservoirComputingModel) -> None:
-        self.model = model
-
-    def predict(self, inputs: xr.Dataset) -> xr.Dataset:
-        # TODO: potentially use in train.py instead of special functions there
-        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
-
-        prediction_arr = self.model.predict(xy_input_arrs)
-        return self._output_array_to_ds(prediction_arr, dims=list(inputs.dims))
-
-    def increment_state(self, inputs: xr.Dataset):
-        xy_input_arrs = self._input_dataset_to_arrays(inputs)  # x, y, feature dims
-        self.model.increment_state(xy_input_arrs)
-
-    def reset_state(self):
-        self.model.reset_state()
-
-    def _input_dataset_to_arrays(self, inputs: xr.Dataset) -> Sequence[np.ndarray]:
-        # Converts from xr dataset to sequence of variable ndarrays expected by encoder
-        # Make sure the xy dimensions match the rank divider
-        transposed_inputs = _transpose_xy_dims(
-            ds=inputs, rank_dims=self.model.rank_divider.rank_dims
-        )
-        input_arrs = []
-        for variable in self.model.input_variables:
-            da = transposed_inputs[variable]
-            if "z" not in da.dims:
-                da = da.expand_dims("z", axis=-1)
-            input_arrs.append(da.values)
-        return input_arrs
-
-    def _output_array_to_ds(
-        self, outputs: Sequence[np.ndarray], dims: Sequence[str]
-    ) -> xr.Dataset:
-        ds = xr.Dataset(
-            {
-                var: (dims, outputs[i])
-                for i, var in enumerate(self.model.output_variables)
-            }
-        )
-        return ds
 
 
 @io.register("pure-reservoir")
@@ -190,7 +185,7 @@ class ReservoirComputingModel(Predictor):
     _READOUT_SUBDIR = "readout"
     _METADATA_NAME = "metadata.yaml"
     _RANK_DIVIDER_NAME = "rank_divider.yaml"
-    _AUTOENCODER_SUBDIR = "autoencoder"
+    _TRANSFORMERS_SUBDIR = "transformers"
 
     def __init__(
         self,
@@ -198,8 +193,8 @@ class ReservoirComputingModel(Predictor):
         output_variables: Iterable[Hashable],
         reservoir: Reservoir,
         readout: ReservoirComputingReadout,
-        rank_divider: RankDivider,
-        autoencoder: ReloadableTransfomer,
+        rank_divider: RankXYDivider,
+        transformers: TransformerGroup,
         square_half_hidden_state: bool = False,
     ):
         """_summary_
@@ -219,49 +214,81 @@ class ReservoirComputingModel(Predictor):
         self.readout = readout
         self.square_half_hidden_state = square_half_hidden_state
         self.rank_divider = rank_divider
-        self.autoencoder = autoencoder
+        self.transformers = transformers
+
+        no_overlap_divider = rank_divider.get_no_overlap_rank_divider()
+        self._output_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
+            z_feature_size=transformers.output.n_latent_dims
+        )
 
     def process_state_to_readout_input(self):
+        readout_input = self.reservoir.state
         if self.square_half_hidden_state is True:
-            readout_input = square_even_terms(self.reservoir.state, axis=0)
-        else:
-            readout_input = self.reservoir.state
-        # For prediction over multiple subdomains (>1 column in reservoir state
-        # array), flatten state into 1D vector before predicting
-        readout_input = flatten_2d_keeping_columns_contiguous(readout_input)
+            readout_input = square_even_terms(readout_input, axis=0)
+
         return readout_input
 
     def predict(self):
         # Returns raw readout prediction of latent state.
         readout_input = self.process_state_to_readout_input()
-        flat_prediction = self.readout.predict(readout_input).reshape(-1)
-        prediction = self.rank_divider.merge_subdomains(flat_prediction)
+        flat_prediction = self.readout.predict(readout_input)
+        prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
+            flat_prediction
+        )
         decoded_prediction = decode_columns(
-            encoded_output=prediction,
-            transformer=self.autoencoder,
-            xy_shape=self.rank_divider.rank_extent_without_overlap,
+            encoded_output=prediction, transformer=self.transformers.output,
         )
         return decoded_prediction
 
     def reset_state(self):
         input_shape = (
-            self.reservoir.hyperparameters.state_size,
             self.rank_divider.n_subdomains,
+            self.reservoir.hyperparameters.state_size,
         )
         self.reservoir.reset_state(input_shape)
 
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         # input array is in native x, y, z_feature coordinates
         encoded_xy_input_arrs = encode_columns(
-            prediction_with_overlap, self.autoencoder
+            prediction_with_overlap, self.transformers.input
         )
-        encoded_flattened_subdomains = self.rank_divider.flatten_subdomains_to_columns(
-            encoded_xy_input_arrs, with_overlap=True
+        encoded_flat_sub = self.rank_divider.get_all_subdomains_with_flat_feature(
+            encoded_xy_input_arrs
         )
-        self.reservoir.increment_state(encoded_flattened_subdomains)
+        self.reservoir.increment_state(encoded_flat_sub)
 
     def synchronize(self, synchronization_time_series):
-        self.reservoir.synchronize(synchronization_time_series)
+        # input arrays in native x, y, z_feature coordinates
+        encoded_timeseries = encode_columns(
+            synchronization_time_series, self.transformers.input
+        )
+        encoded_flat = self.rank_divider.get_all_subdomains_with_flat_feature(
+            encoded_timeseries
+        )
+        self.reservoir.synchronize(encoded_flat)
+
+    def get_model_from_subdomain(self, subdomain_index: int) -> ReservoirComputingModel:
+        """Returns a new model instance for a single subdomain"""
+        if self.rank_divider.n_subdomains == 1:
+            raise ValueError("Model must have multiple subdomains to split.")
+
+        new_rank_divider = RankXYDivider(
+            subdomain_layout=(1, 1),
+            overlap=self.rank_divider.overlap,
+            overlap_rank_extent=self.rank_divider.subdomain_extent,
+            z_feature_size=self.rank_divider._z_feature_size,
+        )
+
+        new_readout = self.readout.get_subdomain_readout(subdomain_index)
+        return self.__class__(
+            input_variables=self.input_variables,
+            output_variables=self.output_variables,
+            reservoir=self.reservoir,
+            readout=new_readout,
+            rank_divider=new_rank_divider,
+            transformers=self.transformers,
+            square_half_hidden_state=self.square_half_hidden_state,
+        )
 
     def dump(self, path: str) -> None:
         """Dump data to a directory
@@ -281,11 +308,10 @@ class ReservoirComputingModel(Predictor):
             f.write(yaml.dump(metadata))
 
         self.rank_divider.dump(os.path.join(path, self._RANK_DIVIDER_NAME))
-        if self.autoencoder is not None:
-            fv3fit.dump(self.autoencoder, os.path.join(path, self._AUTOENCODER_SUBDIR))
+        self.transformers.dump(os.path.join(path, self._TRANSFORMERS_SUBDIR))
 
     @classmethod
-    def load(cls, path: str) -> "ReservoirComputingModel":
+    def load(cls, path: str) -> ReservoirComputingModel:
         """Load a model from a remote path"""
         reservoir = Reservoir.load(os.path.join(path, cls._RESERVOIR_SUBDIR))
         readout = ReservoirComputingReadout.load(
@@ -294,12 +320,11 @@ class ReservoirComputingModel(Predictor):
         with fsspec.open(os.path.join(path, cls._METADATA_NAME), "r") as f:
             metadata = yaml.safe_load(f)
 
-        rank_divider = RankDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
-
-        autoencoder = cast(
-            ReloadableTransfomer,
-            fv3fit.load(os.path.join(path, cls._AUTOENCODER_SUBDIR)),
+        rank_divider = RankXYDivider.load(os.path.join(path, cls._RANK_DIVIDER_NAME))
+        transformers = TransformerGroup.load(
+            os.path.join(path, cls._TRANSFORMERS_SUBDIR)
         )
+
         return cls(
             input_variables=metadata["input_variables"],
             output_variables=metadata["output_variables"],
@@ -307,5 +332,10 @@ class ReservoirComputingModel(Predictor):
             readout=readout,
             square_half_hidden_state=metadata["square_half_hidden_state"],
             rank_divider=rank_divider,
-            autoencoder=autoencoder,
+            transformers=transformers,
         )
+
+
+ReservoirModelType = Union[
+    HybridReservoirComputingModel, ReservoirComputingModel,
+]

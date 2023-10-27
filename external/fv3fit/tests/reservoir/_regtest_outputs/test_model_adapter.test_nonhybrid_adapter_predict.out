@@ -1,0 +1,6 @@
+<xarray.Dataset>
+Dimensions:  (x: 4, y: 4, z: 3)
+Dimensions without coordinates: x, y, z
+Data variables:
+    a        (x, y, z) float64 0.1522 -0.3741 -0.01345 ... 0.1408 0.4735 1.855
+    b        (x, y, z) float64 0.8155 0.4106 0.481 ... 1.416 -0.3027 0.9897

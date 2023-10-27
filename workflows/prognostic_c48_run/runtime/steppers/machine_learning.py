@@ -7,9 +7,14 @@ from typing import Hashable, Iterable, Mapping, Optional, Sequence, Set, cast
 
 import fv3fit
 import xarray as xr
-from runtime.diagnostics import compute_diagnostics, compute_ml_momentum_diagnostics
-from runtime.names import DELP, SPHUM, is_state_update_variable, is_tendency_variable
+from runtime.diagnostics import (
+    compute_diagnostics,
+    compute_ml_momentum_diagnostics,
+    enforce_heating_and_moistening_tendency_constraints,
+)
+from runtime.names import is_state_update_variable, is_tendency_variable
 from runtime.types import Diagnostics, State
+
 import vcm
 
 
@@ -64,8 +69,18 @@ class MachineLearningConfig:
     scaling: Mapping[str, float] = dataclasses.field(default_factory=dict)
 
 
-def _invert_dict(d: Mapping) -> Mapping:
+def invert_dict(d: Mapping) -> Mapping:
     return dict(zip(d.values(), d.keys()))
+
+
+def rename_dataset_members(ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
+    all_names = set(ds.dims) & set(rename)
+    rename_restricted = {key: rename[key] for key in all_names}
+    redimed = ds.rename_dims(rename_restricted)
+
+    all_names = set(ds.data_vars) & set(rename)
+    rename_restricted = {key: rename[key] for key in all_names}
+    return redimed.rename(rename_restricted)
 
 
 class RenamingAdapter:
@@ -85,24 +100,15 @@ class RenamingAdapter:
         self.rename_in = rename_in
         self.rename_out = {} if rename_out is None else rename_out
 
-    def _rename(self, ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
-        all_names = set(ds.dims) & set(rename)
-        rename_restricted = {key: rename[key] for key in all_names}
-        redimed = ds.rename_dims(rename_restricted)
-
-        all_names = set(ds.data_vars) & set(rename)
-        rename_restricted = {key: rename[key] for key in all_names}
-        return redimed.rename(rename_restricted)
-
     def _rename_inputs(self, ds: xr.Dataset) -> xr.Dataset:
-        return self._rename(ds, self.rename_in)
+        return rename_dataset_members(ds, self.rename_in)
 
     def _rename_outputs(self, ds: xr.Dataset) -> xr.Dataset:
-        return self._rename(ds, _invert_dict(self.rename_out))
+        return rename_dataset_members(ds, invert_dict(self.rename_out))
 
     @property
     def input_variables(self) -> Set[str]:
-        invert_rename_in = _invert_dict(self.rename_in)
+        invert_rename_in = invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
@@ -201,8 +207,6 @@ class PureMLStepper:
 
     def __call__(self, time, state):
         diagnostics: Diagnostics = {}
-        delp = state[DELP]
-
         prediction: State = predict(self.model, state)
 
         tendency, state_updates = {}, {}
@@ -217,52 +221,22 @@ class PureMLStepper:
         for name in state_updates.keys():
             diagnostics[name] = state_updates[name]
 
-        dQ1_initial = tendency.get("dQ1", xr.zeros_like(state[SPHUM]))
-        dQ2_initial = tendency.get("dQ2", xr.zeros_like(state[SPHUM]))
-
-        if self.mse_conserving_limiter:
-            dQ2_updated, dQ1_updated = vcm.non_negative_sphum_mse_conserving(
-                state[SPHUM], dQ2_initial, self.timestep, q1=dQ1_initial,
-            )
-        else:
-            dQ1_updated, dQ2_updated = vcm.non_negative_sphum(
-                state[SPHUM], dQ1_initial, dQ2_initial, dt=self.timestep,
-            )
-
-        if "dQ1" in tendency:
-            if self.hydrostatic:
-                heating = vcm.column_integrated_heating_from_isobaric_transition(
-                    dQ1_updated - tendency["dQ1"], delp, "z"
-                )
-            else:
-                heating = vcm.column_integrated_heating_from_isochoric_transition(
-                    dQ1_updated - tendency["dQ1"], delp, "z"
-                )
-            heating = heating.assign_attrs(
-                long_name="Change in ML column heating due to non-negative specific "
-                "humidity limiter"
-            )
-            diagnostics.update(
-                {"column_integrated_dQ1_change_non_neg_sphum_constraint": heating}
-            )
-            tendency.update({"dQ1": dQ1_updated})
-        if "dQ2" in tendency:
-            moistening = vcm.mass_integrate(
-                dQ2_updated - tendency["dQ2"], delp, dim="z"
-            )
-            moistening = moistening.assign_attrs(
-                units="kg/m^2/s",
-                long_name="Change in ML column moistening due to non-negative specific "
-                "humidity limiter",
-            )
-            diagnostics.update(
-                {"column_integrated_dQ2_change_non_neg_sphum_constraint": moistening}
-            )
-            tendency.update({"dQ2": dQ2_updated})
-
-        diagnostics["specific_humidity_limiter_active"] = xr.where(
-            dQ2_initial != dQ2_updated, 1, 0
+        # Adjust dQ1 and dQ2 to ensure non-negative humidity and optionally conserve MSE
+        # and add diagnostics tracking the tendency adjustments related to this step
+        (
+            tendency_updates,
+            diagnostics_updates,
+        ) = enforce_heating_and_moistening_tendency_constraints(
+            state=state,
+            tendency=tendency,
+            timestep=self.timestep,
+            mse_conserving=self.mse_conserving_limiter,
+            hydrostatic=self.hydrostatic,
+            temperature_tendency_name="dQ1",
+            humidity_tendency_name="dQ2",
         )
+        tendency.update(tendency_updates)
+        diagnostics.update(diagnostics_updates)
 
         return (
             tendency,
