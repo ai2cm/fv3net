@@ -307,3 +307,8 @@ def test_model_paths_and_rank_index_mismatch_on_load():
         reservoir.get_reservoir_steppers(
             config, 1, datetime(2020, 1, 1), MODEL_TIMESTEP
         )
+
+
+def test_reservoir_config_raises_error_on_invalid_key():
+    with pytest.raises(ValueError):
+        ReservoirConfig({"a": "model"}, 1, reservoir_timestep="10m")
