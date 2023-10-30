@@ -12,6 +12,7 @@ from typing import (
     cast,
     Sequence,
     Dict,
+    Union,
 )
 
 import fv3fit
@@ -54,7 +55,7 @@ class ReservoirConfig:
             limiter. Defaults to false.
     """
 
-    models: Mapping[int, str]
+    models: Mapping[Union[int, str], str]
     synchronize_steps: int = 1
     reservoir_timestep: str = "3h"  # TODO: Could this be inferred?
     time_average_inputs: bool = False
@@ -63,6 +64,19 @@ class ReservoirConfig:
     rename_mapping: NameDict = dataclasses.field(default_factory=dict)
     hydrostatic: bool = False
     mse_conserving_limiter: bool = False
+
+    def __post_init__(self):
+        # This handles cases in automatic config writing where json/yaml
+        # do not allow integer keys
+        for key, url in self.models.items():
+            try:
+                int_key = int(self.models.pop(key))
+                self.models[int_key] = url
+            except (ValueError) as e:
+                raise ValueError(
+                    "Keys in reservoir_corrector.models must be integers "
+                    "or string representation of integers."
+                ) from e
 
 
 class _FiniteStateMachine:
