@@ -68,15 +68,17 @@ class ReservoirConfig:
     def __post_init__(self):
         # This handles cases in automatic config writing where json/yaml
         # do not allow integer keys
+        _models = {}
         for key, url in self.models.items():
             try:
-                int_key = int(self.models.pop(key))
-                self.models[int_key] = url
+                int_key = int(key)
+                _models[int_key] = url
             except (ValueError) as e:
                 raise ValueError(
                     "Keys in reservoir_corrector.models must be integers "
                     "or string representation of integers."
                 ) from e
+        self.models = _models
 
 
 class _FiniteStateMachine:
