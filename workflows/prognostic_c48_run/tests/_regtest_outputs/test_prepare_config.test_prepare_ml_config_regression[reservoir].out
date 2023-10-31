@@ -436,6 +436,7 @@ radiation_scheme: null
 reservoir_corrector:
   diagnostic_only: false
   hydrostatic: false
+  interval_average_precipitation: false
   models:
     0: gs://vcm-ml-scratch/rc-model-tile-0
     1: gs://vcm-ml-scratch/rc-model-tile-1
