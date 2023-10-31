@@ -1,4 +1,5 @@
 resources:
+- reservoir-train-prog.yaml
 - prognostic_run_diags.yaml
 - prognostic-run.yaml
 - restart-prognostic-run.yaml
@@ -13,6 +14,7 @@ resources:
 - wandb-sweep.yaml
 - chgres-cube.yaml
 - scream-prognostic-run.yaml
+
 configurations:
 - image-transformerconfig.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1

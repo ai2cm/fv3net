@@ -1,0 +1,213 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: reservoir-train-prog
+spec:
+  entrypoint: reservoir-train-prog
+  volumes:
+    - name: workdir
+      emptyVol: {}
+    - name: dshm
+      emptyDir:
+        medium: Memory
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+  - name: reservoir-train-prog
+    inputs:
+      parameters:
+      - name: tag
+      - name: training-config   # used in withParam
+      - name: training-data-config
+      - {name: validation-data-config, value: " "}
+      - name: num-ranks # one reservoir trained per rank
+      - name: prognostic-run-config
+      - name: public-report-output
+      - {name: bucket, value: "vcm-ml-experiments"}
+      - {name: project, value: "default"}
+      - {name: segment-count, value: "1"}
+      - {name: cpu-prog, value: "6"}
+      - {name: memory-prog, value: 6Gi}
+      - {name: cpu-training, value: "1"}
+      - {name: memory-training, value: 6Gi}
+      - {name: training-flags, value: " "}
+      - {name: online-diags-flags, value: " "}
+      - {name: do-prognostic-run, value: "true"}
+      - {name: no-wandb, value: "false"}
+      - {name: wandb-project, value: "argo-default"}
+      - {name: wandb-tags, value: ""}
+      - {name: wandb-group, value: ""}
+    dag:
+      tasks:
+      - name: resolve-output-url
+        templateRef:
+          name: resolve-output-url
+          template: resolve-output-url
+        arguments:
+          parameters:
+            - name: bucket
+              value: "{{inputs.parameters.bucket}}"
+            - name: project
+              value: "{{inputs.parameters.project}}"
+            - name: tag
+              value: "{{inputs.parameters.tag}}"
+      - name: write-training-configs
+        template: write-training-configs
+        arguments:
+          parameters:
+            - name: num-ranks
+              value: "{{inputs.parameters.num-ranks}}"
+            - name: base-training-config
+              value: "{{inputs.parameters.training-config}}"
+            - name: base-training-data-config
+              value: "{{inputs.parameters.training-data-config}}"
+            - name: base-validation-data-config
+              value: "{{inputs.parameters.validation-data-config}}"
+      - name: insert-model-urls
+        when: "{{inputs.parameters.do-prognostic-run}} == true"
+        dependencies: [resolve-output-url]
+        template: insert-model-urls
+        arguments:
+          parameters:
+              - name: root
+                value: "{{tasks.resolve-output-url.outputs.result}}"
+              - name: num-ranks
+                value: "{{inputs.parameters.num-ranks}}"
+              - name: prognostic-config
+                value: "{{inputs.parameters.prognostic-run-config}}"
+      - name: train-model
+        dependencies: [resolve-output-url, write-training-configs]
+        templateRef:
+          name: training
+          template: training
+        withParam: "{{tasks.write-training-configs.outputs.parameters.training-configs}}"
+        arguments:
+          parameters:
+            - name: training_config
+              value: "{{item.training_config}}"
+            - name: training_data_config
+              value: "{{item.training_data_config}}"
+            - name: validation_data_config
+              value: "{{item.validation_data_config}}"
+            - name: output
+              value: "{{tasks.resolve-output-url.outputs.result}}/trained_models/rank_{{item.rank}}"
+            - name: cpu
+              value: "{{inputs.parameters.cpu-training}}"
+            - name: memory
+              value: "{{inputs.parameters.memory-training}}"
+            - name: flags
+              value: "{{inputs.parameters.training-flags}}"
+            - name: no-wandb
+              value: "{{inputs.parameters.no-wandb}}"
+            - name: wandb-project
+              value: "{{inputs.parameters.wandb-project}}"
+            - name: wandb-tags
+              value: "{{inputs.parameters.tag}},{{inputs.parameters.wandb-tags}}"
+            - name: wandb-group
+              value: "{{inputs.parameters.wandb-group}}"
+            - name: reservoir
+              value: "true"
+      - name: prognostic-run
+        when: "{{inputs.parameters.do-prognostic-run}} == true"
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        dependencies: [train-model, insert-model-urls]
+        arguments:
+          parameters:
+              - name: config
+                value: "{{tasks.insert-model-urls.outputs.parameters.prognostic-config}}"
+              - name: bucket
+                value: "{{inputs.parameters.bucket}}"
+              - name: project
+                value: "{{inputs.parameters.project}}"
+              - name: tag
+                value: "{{inputs.parameters.tag}}"
+              - name: segment-count
+                value: "{{inputs.parameters.segment-count}}"
+              - name: cpu
+                value: "{{inputs.parameters.cpu-prog}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-prog}}"
+              - name: online-diags-flags
+                value: "{{inputs.parameters.online-diags-flags}}"
+  - name: write-training-configs
+    inputs:
+      parameters:
+        - {name: num-ranks}
+        - {name: base-training-config}
+        - {name: base-training-data-config}
+        - {name: base-validation-data-config}
+        - {name: rank-placeholder, value: "{RANK}"}
+    outputs:
+      parameters:
+      - name: training-configs
+        valueFrom:
+          path: /tmp/compiled-config.yaml
+    script:
+      image: python:alpine3.8
+      command: [python]
+      source: |
+        import json
+        # workaround for lowercase booleans in input dict
+        true=True
+        false=False
+        base_training_config={{inputs.parameters.base-training-config}}
+
+        nranks = int({{inputs.parameters.num-ranks}})
+        configs = []
+        for rank in range(nranks):
+
+            train_data_config = json.dumps(
+              {{inputs.parameters.base-training-data-config}}
+            ).replace("{{inputs.parameters.rank-placeholder}}", str(rank))
+            val_data_config = json.dumps(
+              {{inputs.parameters.base-validation-data-config}}
+            ).replace("{{inputs.parameters.rank-placeholder}}", str(rank)
+            )
+            config = {
+              "rank": rank,
+              "name": f"hybrid_reservoir_model_rank_{rank}",
+              "training_config": base_training_config,
+              "training_data_config": json.loads(train_data_config),
+              "validation_data_config": json.loads(val_data_config),
+            }
+            configs.append(config)
+        with open('/tmp/compiled-config.yaml', 'w') as f:
+            json.dump(configs, f)
+
+  - name: insert-model-urls
+    inputs:
+      parameters:
+        - {name: root}
+        - {name: num-ranks}
+        - {name: prognostic-config}
+    outputs:
+      parameters:
+      - name: prognostic-config
+        valueFrom:
+          path: /tmp/compiled-config.yaml
+    script:
+      image: python:alpine3.8
+      command: [python]
+      source: |
+        import json
+        # workaround for lowercase booleans in input dict
+        true=True
+        false=False
+
+        config = {{inputs.parameters.prognostic-config}}
+        model_mapping = {}
+        root_url = '{{inputs.parameters.root}}'
+        for rank in range({{inputs.parameters.num-ranks}}):
+            model_mapping[int(rank)] = f"{root_url}/trained_models/rank_{rank}"
+        config["reservoir_corrector"]["models"] = model_mapping
+
+        print(model_mapping)
+        with open("/tmp/compiled-config.yaml", "w") as f:
+            json.dump(config, f)
+
+        import subprocess
+        subprocess.check_call(["cat", "/tmp/compiled-config.yaml"])
