@@ -1,8 +1,8 @@
 #!/bin/bash
 
 python3 regrid_latlon_era5.py \
-    gs://vcm-ml-scratch/andrep/reservoir/era5/era5_daily_all_360x180_v2.zarr \
-    gs://vcm-ml-scratch/andrep/era5_regrid/era5_daily_all_c48_regrid_v1.zarr \
+    gs://vcm-ml-intermediate/reservoir/era5/era5_daily_all_360x180_v2_filled_na.zarr/ \
+    gs://vcm-ml-intermediate/reservoir/era5_regrid/era5_daily_all_c48_regrid_v2.zarr \
     --template_path gs://vcm-ml-scratch/andrep/reservoir/era5/c48_template.nc \
     --project vcm-ml \
     --region us-central1 \
