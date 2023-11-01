@@ -21,6 +21,7 @@ class IntervalConfig:
     apply_interval_seconds: int
     offset_seconds: int = 0
     record_fields_before_update: Optional[List[str]] = None
+    n_calls: Optional[int] = None
 
 
 class IntervalStepper:
