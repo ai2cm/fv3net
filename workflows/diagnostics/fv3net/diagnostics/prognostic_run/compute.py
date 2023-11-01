@@ -143,8 +143,20 @@ def _is_empty(data: Union[xr.Dataset, xr.DataArray]) -> bool:
         return False
 
 
+def ignore_nan_values(x, y, w):
+    if "time" not in w.dims and "time" in x.dims:
+        w = w.expand_dims(dim={"time": x.time})
+    mask = np.isnan(x) | np.isnan(y)
+    x = x.where(~mask, drop=True)
+    y = y.where(~mask, drop=True)
+    w = w.where(~mask, drop=True)
+    return x, y, w
+
+
 def rms(x, y, w, dims):
     with xr.set_options(keep_attrs=True):
+        if np.isnan(x).any() or np.isnan(y).any():
+            x, y, w = ignore_nan_values(x, y, w)
         return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
 

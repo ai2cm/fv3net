@@ -16,7 +16,6 @@ from ..calc.thermo.vertically_dependent import (
     pressure_at_midpoint_log,
     surface_pressure_from_delp,
 )
-from ..calc.thermo.constants import TOA_PRESSURE
 from .coarsen import (
     block_coarsen,
     block_edge_coarsen,
@@ -77,6 +76,7 @@ logger = logging.getLogger("vcm.coarsen")
 def coarsen_restarts_on_sigma(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
+    toa_pressure: float,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     mass_weighted: bool = True,
@@ -88,6 +88,9 @@ def coarsen_restarts_on_sigma(
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
             of 8.
         grid_spec: Dataset containing the variables area, dx, dy.
+        toa_pressure: pressure at the top of the atmosphere in units of Pascals
+            (not used in this function, but required for harmonizing the required
+            arguments with other coarse-graining functions).
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
@@ -152,6 +155,7 @@ def coarsen_restarts_on_sigma(
 def coarsen_restarts_on_pressure(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
+    toa_pressure: float,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     extrapolate: bool = False,
@@ -163,6 +167,7 @@ def coarsen_restarts_on_pressure(
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
             of 8.
         grid_spec: Dataset containing the variables area, dx, dy.
+        toa_pressure: pressure at the top of the atmosphere in units of Pascals.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
@@ -192,6 +197,7 @@ def coarsen_restarts_on_pressure(
         grid_spec.dy.rename(
             {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
+        toa_pressure,
         coarsening_factor,
         coarsen_agrid_winds,
         extrapolate=extrapolate,
@@ -211,6 +217,7 @@ def coarsen_restarts_on_pressure(
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
+        toa_pressure,
         coarsening_factor,
         extrapolate=extrapolate,
     )
@@ -224,7 +231,7 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["fv_core.res"] = _impose_hydrostatic_balance(
-        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"], toa_pressure
     )
 
     for category in CATEGORY_LIST:
@@ -236,6 +243,7 @@ def coarsen_restarts_on_pressure(
 def coarsen_restarts_via_blended_method(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
+    toa_pressure: float,
     restarts: Mapping[str, xr.Dataset],
     coarsen_agrid_winds: bool = False,
     mass_weighted: bool = True,
@@ -248,6 +256,7 @@ def coarsen_restarts_via_blended_method(
         coarsening_factor: the amount of coarsening to apply. C384 to C48 is a
             factor of 8.
         grid_spec: Dataset containing the variables area, dx, dy.
+        toa_pressure: pressure at the top of the atmosphere in units of Pascals.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
         coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
@@ -276,6 +285,7 @@ def coarsen_restarts_via_blended_method(
         grid_spec.dy.rename(
             {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
+        toa_pressure,
         coarsening_factor,
         coarsen_agrid_winds,
         mass_weighted,
@@ -295,6 +305,7 @@ def coarsen_restarts_via_blended_method(
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
+        toa_pressure,
         coarsening_factor,
         mass_weighted,
     )
@@ -308,7 +319,7 @@ def coarsen_restarts_via_blended_method(
     )
 
     coarsened["fv_core.res"] = _impose_hydrostatic_balance(
-        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"], toa_pressure
     )
 
     for category in CATEGORY_LIST:
@@ -422,6 +433,7 @@ def _coarse_grain_fv_core_on_pressure(
     area,
     dx,
     dy,
+    toa_pressure,
     coarsening_factor,
     coarsen_agrid_winds=False,
     extrapolate=False,
@@ -442,6 +454,8 @@ def _coarse_grain_fv_core_on_pressure(
         x edge lengths
     dy : xr.DataArray
         y edge lengths
+    toa_pressure : float
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     coarsen_agrid_winds : bool
@@ -472,6 +486,7 @@ def _coarse_grain_fv_core_on_pressure(
         ds[masked_area_weighted_vars],
         delp,
         area,
+        toa_pressure,
         coarsening_factor,
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_CENTER,
@@ -482,6 +497,7 @@ def _coarse_grain_fv_core_on_pressure(
         ds[dx_edge_weighted_vars],
         delp,
         dx,
+        toa_pressure,
         coarsening_factor,
         x_dim=FV_CORE_X_CENTER,
         y_dim=FV_CORE_Y_OUTER,
@@ -493,6 +509,7 @@ def _coarse_grain_fv_core_on_pressure(
         ds[dy_edge_weighted_vars],
         delp,
         dy,
+        toa_pressure,
         coarsening_factor,
         x_dim=FV_CORE_X_OUTER,
         y_dim=FV_CORE_Y_CENTER,
@@ -562,10 +579,10 @@ def compute_blending_weights(blending_pressure, ps_coarse, pfull_coarse):
 def _compute_blending_weights_agrid(
     delp,
     area,
+    toa_pressure,
     coarsening_factor,
     x_dim=FV_CORE_X_CENTER,
     y_dim=FV_CORE_Y_CENTER,
-    toa_pressure=TOA_PRESSURE,
 ):
     """Compute the blending weights on the A-grid.
 
@@ -605,7 +622,7 @@ def _compute_blending_weights_agrid(
 
 
 def _compute_blending_weights_dgrid(
-    delp, length, coarsening_factor, edge, x_dim, y_dim, toa_pressure=TOA_PRESSURE
+    delp, length, toa_pressure, coarsening_factor, edge, x_dim, y_dim
 ):
     """This follows the approach Chris describes in Section 7 of `this document
     <https://drive.google.com/file/d/1FyLTnR1C5_Ab5Tdbbuhtxm52VC-NroJG/view>`_,
@@ -683,6 +700,7 @@ def _coarse_grain_fv_core_via_blended_method(
     area,
     dx,
     dy,
+    toa_pressure,
     coarsening_factor,
     coarsen_agrid_winds=False,
     mass_weighted=True,
@@ -702,6 +720,8 @@ def _coarse_grain_fv_core_via_blended_method(
         x edge lengths
     dy : xr.DataArray
         y edge lengths
+    toa_pressure : float
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     coarsen_agrid_winds : bool
@@ -715,19 +735,36 @@ def _coarse_grain_fv_core_via_blended_method(
     xr.Dataset
     """
     pressure_level = _coarse_grain_fv_core_on_pressure(
-        ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds
+        ds, delp, area, dx, dy, toa_pressure, coarsening_factor, coarsen_agrid_winds,
     )
     model_level = _coarse_grain_fv_core(
         ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds, mass_weighted
     )
     weights_agrid = _compute_blending_weights_agrid(
-        delp, area, coarsening_factor, x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_CENTER
+        delp,
+        area,
+        toa_pressure,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
     weights_dgrid_u = _compute_blending_weights_dgrid(
-        delp, dx, coarsening_factor, "x", x_dim=FV_CORE_X_CENTER, y_dim=FV_CORE_Y_OUTER
+        delp,
+        dx,
+        toa_pressure,
+        coarsening_factor,
+        "x",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
     )
     weights_dgrid_v = _compute_blending_weights_dgrid(
-        delp, dy, coarsening_factor, "y", x_dim=FV_CORE_X_OUTER, y_dim=FV_CORE_Y_CENTER
+        delp,
+        dy,
+        toa_pressure,
+        coarsening_factor,
+        "y",
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
     names_2d_agrid = _2d_fv_core_names_agrid(ds)
     names_3d_agrid = _3d_fv_core_names_agrid(ds, coarsen_agrid_winds)
@@ -743,7 +780,7 @@ def _coarse_grain_fv_core_via_blended_method(
 
 
 def _coarse_grain_fv_tracer_via_blended_method(
-    ds, delp, area, coarsening_factor, mass_weighted=True
+    ds, delp, area, toa_pressure, coarsening_factor, mass_weighted=True
 ):
     """Coarse grain a set of fv_tracer restart files via the blended
     pressure-level / model-level approach.
@@ -756,6 +793,8 @@ def _coarse_grain_fv_tracer_via_blended_method(
         Pressure thicknesses
     area : xr.DataArray
         Area weights
+    toa_pressure : float
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     mass_weighted: bool
@@ -767,7 +806,7 @@ def _coarse_grain_fv_tracer_via_blended_method(
     xr.Dataset
     """
     pressure_level = _coarse_grain_fv_tracer_on_pressure(
-        ds, delp, area, coarsening_factor
+        ds, delp, area, toa_pressure, coarsening_factor
     )
     model_level = _coarse_grain_fv_tracer(
         ds, delp, area, coarsening_factor, mass_weighted
@@ -775,6 +814,7 @@ def _coarse_grain_fv_tracer_via_blended_method(
     weights = _compute_blending_weights_agrid(
         delp,
         area,
+        toa_pressure,
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
         y_dim=FV_TRACER_Y_CENTER,
@@ -861,7 +901,7 @@ def _coarse_grain_fv_tracer(ds, delp, area, coarsening_factor, mass_weighted=Tru
 
 
 def _coarse_grain_fv_tracer_on_pressure(
-    ds, delp, area, coarsening_factor, extrapolate=False
+    ds, delp, area, toa_pressure, coarsening_factor, extrapolate=False
 ):
     """Coarse grain a set of fv_tracer restart files, averaging on surfaces of
     constant pressure.
@@ -874,6 +914,8 @@ def _coarse_grain_fv_tracer_on_pressure(
         Pressure thicknesses
     area : xr.DataArray
         Area weights
+    toa_pressure : float
+        Pressure at the top of the atmosphere in units of Pascals.
     coarsening_factor : int
         Coarsening factor to use
     extrapolate : bool
@@ -893,6 +935,7 @@ def _coarse_grain_fv_tracer_on_pressure(
         ds,
         delp,
         area,
+        toa_pressure,
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
         y_dim=FV_TRACER_Y_CENTER,
@@ -944,13 +987,17 @@ def _coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def _impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
+def _impose_hydrostatic_balance(
+    ds_fv_core, ds_fv_tracer, toa_pressure, dim=RESTART_Z_CENTER
+):
     """Compute layer thicknesses assuming hydrostatic balance and adjust
     surface geopotential in order to maintain same model top height.
 
     Args:
         ds_fv_core (xr.Dataset): fv_core restart category Dataset
         ds_fv_tracer (xr.Dataset): fv_tracer restart category Dataset
+        toa_pressure (float): pressure at the top of the atmosphere in units
+            of Pascals
         dim (str): vertical dimension name (default "zaxis_1")
 
     Returns:
@@ -964,6 +1011,7 @@ def _impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
         ds_fv_core["T"],
         ds_fv_tracer["sphum"].rename({FV_TRACER_Y_CENTER: FV_CORE_Y_CENTER}),
         ds_fv_core["delp"],
+        toa_pressure,
         dim=dim,
     )
     return ds_fv_core.assign(DZ=dz, phis=dz_and_top_to_phis(height_top, dz, dim=dim))
