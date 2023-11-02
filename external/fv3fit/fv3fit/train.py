@@ -173,7 +173,10 @@ def main(args, unknown_args=None):
         model = fv3fit.DerivedModel(model, training_config.derived_output_variables)
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
-    fv3fit.dump(model, args.output_path)
+
+    with put_dir(args.output_path) as path:
+        fv3fit.dump(model, path)
+
     StepMetadata(
         job_type="training", url=args.output_path, args=sys.argv[1:],
     ).print_json()
