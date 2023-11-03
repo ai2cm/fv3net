@@ -266,6 +266,9 @@ constraints.txt: $(REQUIREMENTS)
 	.dataflow-versions.txt \
 	$^ \
 	--output-file constraints.txt
+	# remove constraints from GitHub, since pip does not support unnamed
+	# constraints, despite the fact that pip-compile includes them:
+	sed -i '/git+https/d' constraints.txt
 	# remove extras in name: e.g. apache-beam[gcp] --> apache-beam
 	sed -i.bak  's/\[.*\]//g' constraints.txt
 	rm -f constraints.txt.bak .dataflow-versions.txt
