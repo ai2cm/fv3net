@@ -49,6 +49,8 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
 def _get_transformers(
     sample_batch: Mapping[str, tf.Tensor], hyperparameters: ReservoirTrainingConfig
 ) -> TransformerGroup:
+    clipped_sample_batch = clip_batch_data(sample_batch, hyperparameters.clip_config)
+
     # Load transformers with specified paths
     transformers = {}
     for variable_group in ["input", "output", "hybrid"]:
@@ -59,25 +61,21 @@ def _get_transformers(
     # If input transformer not specified, always create a standard norm transform
     if "input" not in transformers:
         transformers["input"] = get_standard_normalizing_transformer(
-            hyperparameters.input_variables, sample_batch
+            hyperparameters.input_variables, clipped_sample_batch
         )
 
-    # If output transformer not specified and output_variables != input_variables,
-    # create a separate standard norm transform
+    # Output is not clipped, so use the original sample batch
     if "output" not in transformers:
-        if hyperparameters.output_variables != hyperparameters.input_variables:
-            transformers["output"] = get_standard_normalizing_transformer(
-                hyperparameters.output_variables, sample_batch
-            )
-        else:
-            transformers["output"] = transformers["input"]
+        transformers["output"] = get_standard_normalizing_transformer(
+            hyperparameters.output_variables, sample_batch
+        )
 
     # If hybrid variables transformer not specified, and hybrid variables are defined,
     # create a separate standard norm transform
     if "hybrid" not in transformers:
         if hyperparameters.hybrid_variables is not None:
             transformers["hybrid"] = get_standard_normalizing_transformer(
-                hyperparameters.hybrid_variables, sample_batch
+                hyperparameters.hybrid_variables, clipped_sample_batch
             )
         else:
             transformers["hybrid"] = transformers["input"]
@@ -116,10 +114,13 @@ def train_reservoir_model(
         train_batches if isinstance(train_batches, Sequence) else [train_batches]
     )
     sample_batch = next(iter(train_batches_sequence[0]))
-    sample_batch = clip_batch_data(sample_batch, hyperparameters.clip_config)
-    sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
+    # Clipping is done inside this function to preserve full length outputs
     transformers = _get_transformers(sample_batch, hyperparameters,)
+
+    clipped_sample_batch = clip_batch_data(sample_batch, hyperparameters.clip_config)
+    sample_X = get_ordered_X(clipped_sample_batch, hyperparameters.input_variables)
+
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
@@ -133,7 +134,7 @@ def train_reservoir_model(
 
     if hyperparameters.mask_variable is not None:
         input_mask_array: Optional[np.ndarray] = _get_input_mask_array(
-            hyperparameters.mask_variable, sample_batch, rank_divider
+            hyperparameters.mask_variable, clipped_sample_batch, rank_divider
         )
     else:
         input_mask_array = None
@@ -159,10 +160,12 @@ def train_reservoir_model(
         )
 
         for b, batch_data in enumerate(train_batches):
-            batch_data = clip_batch_data(batch_data, hyperparameters.clip_config)
+            batch_data_clipped = clip_batch_data(
+                batch_data, hyperparameters.clip_config
+            )
             input_time_series = process_batch_data(
                 variables=hyperparameters.input_variables,
-                batch_data=batch_data,
+                batch_data=batch_data_clipped,
                 rank_divider=rank_divider,
                 autoencoder=transformers.input,
                 trim_halo=False,
@@ -174,6 +177,7 @@ def train_reservoir_model(
             _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
                 z_feature_size=transformers.output.n_latent_dims
             )
+            # don't pass in clipped data here, as clipping is not enabled for outputs
             output_time_series = process_batch_data(
                 variables=hyperparameters.output_variables,
                 batch_data=batch_data,
@@ -199,7 +203,7 @@ def train_reservoir_model(
 
                 hybrid_time_series = process_batch_data(
                     variables=hyperparameters.hybrid_variables,
-                    batch_data=batch_data,
+                    batch_data=batch_data_clipped,
                     rank_divider=_hybrid_rank_divider_w_overlap,
                     autoencoder=transformers.hybrid,
                     trim_halo=True,

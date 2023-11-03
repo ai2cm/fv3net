@@ -150,7 +150,6 @@ def clip_batch_data(
                 clipped_batch[var] = tensor[
                     ..., clip_config[var].start : clip_config[var].stop
                 ]
-                print(f"Clipped {var} to shape {clipped_batch[var].shape}")
             else:
                 clipped_batch[var] = tensor
 
