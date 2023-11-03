@@ -19,6 +19,7 @@ from .utils import (
     assure_txyz_dims,
     SynchronziationTracker,
     get_standard_normalizing_transformer,
+    clip_batch_data,
 )
 from .transformers import TransformerGroup, Transformer
 from .._shared import register_training_function
@@ -110,9 +111,10 @@ def train_reservoir_model(
         train_batches if isinstance(train_batches, Sequence) else [train_batches]
     )
     sample_batch = next(iter(train_batches_sequence[0]))
+    sample_batch = clip_batch_data(sample_batch, hyperparameters.clip_config)
     sample_X = get_ordered_X(sample_batch, hyperparameters.input_variables)
 
-    transformers = _get_transformers(sample_batch, hyperparameters)
+    transformers = _get_transformers(sample_batch, hyperparameters,)
     subdomain_config = hyperparameters.subdomain
 
     # sample_X[0] is the first data variable, shape elements 1:-1 are the x,y shape
@@ -152,6 +154,7 @@ def train_reservoir_model(
         )
 
         for b, batch_data in enumerate(train_batches):
+            batch_data = clip_batch_data(batch_data, hyperparameters.clip_config)
             input_time_series = process_batch_data(
                 variables=hyperparameters.input_variables,
                 batch_data=batch_data,
@@ -274,6 +277,7 @@ def train_reservoir_model(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
+            clip_config=hyperparameters.clip_config,
         )
 
     if validation_batches is not None and wandb.run is not None:
@@ -282,6 +286,7 @@ def train_reservoir_model(
                 model,
                 val_batches=validation_batches,
                 n_synchronize=hyperparameters.n_timesteps_synchronize,
+                clip_config=hyperparameters.clip_config,
             )
             log_rmse_z_plots(ds_val, model.output_variables)
             log_rmse_scalar_metrics(ds_val, model.output_variables)

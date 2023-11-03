@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Optional
+from typing import Iterable, Mapping, Optional, Hashable
 
 from fv3fit.reservoir.transformers import (
     # ReloadableTransformer,
@@ -9,6 +9,7 @@ from fv3fit.reservoir.transformers import (
     encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
+from fv3fit.reservoir.config import ClipZConfig
 from fv3fit.reservoir.domain2 import RankXYDivider
 from ._reshaping import stack_array_preserving_last_dim
 
@@ -88,6 +89,7 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
 def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
     ordered_tensors = [X[v] for v in variables]
     reshaped_tensors = [assure_txyz_dims(var_tensor) for var_tensor in ordered_tensors]
+
     return reshaped_tensors
 
 
@@ -121,7 +123,9 @@ def process_batch_data(
         return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
 
 
-def get_standard_normalizing_transformer(variables, sample_batch):
+def get_standard_normalizing_transformer(
+    variables, sample_batch,
+):
     variable_data = get_ordered_X(sample_batch, variables)
     variable_data_stacked = [
         stack_array_preserving_last_dim(arr).numpy() for arr in variable_data
@@ -129,3 +133,25 @@ def get_standard_normalizing_transformer(variables, sample_batch):
     return build_concat_and_scale_only_autoencoder(
         variables=variables, X=variable_data_stacked
     )
+
+
+def clip_batch_data(
+    batch: Mapping[str, tf.Tensor],
+    clip_config: Optional[Mapping[Hashable, ClipZConfig]],
+):
+    dim_ordered_batch = {k: assure_txyz_dims(v) for k, v in batch.items()}
+
+    if clip_config is None:
+        return dim_ordered_batch
+    else:
+        clipped_batch = {}
+        for var, tensor in batch.items():
+            if var in clip_config:
+                clipped_batch[var] = tensor[
+                    ..., clip_config[var].start : clip_config[var].stop
+                ]
+                print(f"Clipped {var} to shape {clipped_batch[var].shape}")
+            else:
+                clipped_batch[var] = tensor
+
+        return clipped_batch
