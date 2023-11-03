@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import dataclasses
 import os
+from testing_utils import requires_fv3gfs_wrapper
 
 
 @dataclasses.dataclass
@@ -152,12 +153,14 @@ def get_zarr(rundir, zarrname):
     return xr.open_zarr(zarrpath)
 
 
+@requires_fv3gfs_wrapper
 def test_radiation_diagnostics_output(completed_rundir):
     ds = get_zarr(completed_rundir, "radiation_diagnostics.zarr")
     for diagnostic in RADIATION_DIAGNOSTICS:
         assert diagnostic.python_name in ds.data_vars
 
 
+@requires_fv3gfs_wrapper
 def test_radiation_diagnostics_validate(completed_rundir):
     rtol = 1.0e-7
     python_radiation = get_zarr(completed_rundir, "radiation_diagnostics.zarr")

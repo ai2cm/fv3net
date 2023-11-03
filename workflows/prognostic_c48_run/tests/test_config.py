@@ -3,6 +3,7 @@ import pytest
 from runtime.config import get_model_urls, get_wrapper, UserConfig
 from runtime.names import FV3GFS_WRAPPER
 import dataclasses
+from testing_utils import requires_fv3gfs_wrapper
 from types import ModuleType
 
 dummy_prescriber = {"dataset_key": "data_url", "variables": {"a": "a"}}
@@ -42,6 +43,7 @@ def test_get_model_urls(config, model_urls):
     assert set(get_model_urls(validated_config)) == set(model_urls)
 
 
+@requires_fv3gfs_wrapper
 def test_get_wrapper():
     config = UserConfig(wrapper=FV3GFS_WRAPPER)
     wrapper = get_wrapper(config)
