@@ -1,13 +1,17 @@
 from __future__ import annotations
+from dataclasses import asdict
+import fsspec
 import numpy as np
 import os
 import typing
-from typing import Iterable, Hashable, Sequence, Union, Mapping
+from typing import Iterable, Hashable, Sequence, Union, Mapping, Optional
 import xarray as xr
+import yaml
 
 import fv3fit
 from fv3fit import Predictor
 from fv3fit._shared import io
+from fv3fit.reservoir.config import ClipZConfig
 from .model import (
     HybridReservoirComputingModel,
     ReservoirComputingModel,
@@ -66,7 +70,10 @@ class DatasetAdapter:
         ).transpose(*output_dims)
 
     def input_dataset_to_arrays(
-        self, inputs: xr.Dataset, variables: Iterable[Hashable]
+        self,
+        inputs: xr.Dataset,
+        variables: Iterable[Hashable],
+        clip_config: Optional[Mapping[Hashable, ClipZConfig]] = None,
     ) -> Sequence[np.ndarray]:
         # Converts from xr dataset to sequence of variable ndarrays expected by encoder
         # Make sure the xy dimensions match the rank divider
@@ -80,6 +87,10 @@ class DatasetAdapter:
             da = transposed_inputs[variable]
             if "z" not in da.dims:
                 da = da.expand_dims("z", axis=-1)
+            if clip_config is not None and variable in clip_config:
+                da = da.isel(
+                    z=slice(clip_config[variable].start, clip_config[variable].stop)
+                )
             input_arrs.append(da.values)
         return input_arrs
 
@@ -127,7 +138,7 @@ class ReservoirDatasetAdapter(Predictor):
 
     def increment_state(self, inputs: xr.Dataset):
         xy_input_arrs = self.model_adapter.input_dataset_to_arrays(
-            inputs, self.input_variables
+            inputs, self.input_variables,
         )  # x, y, feature dims
         self.model.increment_state(xy_input_arrs)
 
@@ -159,12 +170,14 @@ class ReservoirDatasetAdapter(Predictor):
 @io.register("hybrid-reservoir-adapter")
 class HybridReservoirDatasetAdapter(Predictor):
     MODEL_DIR = "hybrid_reservoir_model"
+    CLIP_CONFIG_FILE = "clip_config.yaml"
 
     def __init__(
         self,
         model: HybridReservoirComputingModel,
         input_variables: Iterable[Hashable],
         output_variables: Iterable[Hashable],
+        clip_config: Optional[Mapping[Hashable, ClipZConfig]] = None,
     ) -> None:
         """Wraps a hybrid reservoir model to take in and return xarray datasets.
         The initialization args for input and output variables are not used and
@@ -183,6 +196,7 @@ class HybridReservoirDatasetAdapter(Predictor):
             input_variables=self.input_variables,
             output_variables=model.output_variables,
         )
+        self.clip_config = clip_config
 
     @property
     def input_overlap(self):
@@ -195,7 +209,7 @@ class HybridReservoirDatasetAdapter(Predictor):
 
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         xy_input_arrs = self.model_adapter.input_dataset_to_arrays(
-            inputs, self.model.hybrid_variables
+            inputs, self.model.hybrid_variables, clip_config=self.clip_config
         )  # x, y, feature dims
 
         prediction_arr = self.model.predict(xy_input_arrs)
@@ -205,7 +219,7 @@ class HybridReservoirDatasetAdapter(Predictor):
 
     def increment_state(self, inputs: xr.Dataset):
         xy_input_arrs = self.model_adapter.input_dataset_to_arrays(
-            inputs, self.model.input_variables
+            inputs, self.model.input_variables, clip_config=self.clip_config
         )  # x, y, feature dims
         self.model.increment_state(xy_input_arrs)
 
@@ -224,14 +238,30 @@ class HybridReservoirDatasetAdapter(Predictor):
 
     def dump(self, path):
         self.model.dump(os.path.join(path, self.MODEL_DIR))
+        if self.clip_config is not None:
+            clip_config_dict = {
+                var: asdict(var_config) for var, var_config in self.clip_config.items()
+            }
+            with fsspec.open(os.path.join(path, self.CLIP_CONFIG_FILE), "w") as f:
+                yaml.dump(clip_config_dict, f)
 
     @classmethod
     def load(cls, path: str) -> "HybridReservoirDatasetAdapter":
         model = HybridReservoirComputingModel.load(os.path.join(path, cls.MODEL_DIR))
+        try:
+            with fsspec.open(os.path.join(path, cls.CLIP_CONFIG_FILE), "r") as f:
+                clip_config_dict = yaml.safe_load(f)
+            clip_config: Optional[Mapping[Hashable, ClipZConfig]] = {
+                var: ClipZConfig(**var_config)
+                for var, var_config in clip_config_dict.items()
+            }
+        except FileNotFoundError:
+            clip_config = None
         adapter = cls(
             input_variables=model.input_variables,
             output_variables=model.output_variables,
             model=model,
+            clip_config=clip_config,
         )
         return adapter
 

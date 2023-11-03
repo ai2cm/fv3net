@@ -1,11 +1,12 @@
 import numpy as np
 from scipy.ndimage import generic_filter
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, Mapping, Hashable
 import xarray as xr
 import tensorflow as tf
 import wandb
 
-from fv3fit.reservoir.utils import get_ordered_X
+from fv3fit.reservoir.utils import get_ordered_X, clip_batch_data
+from fv3fit.reservoir.config import ClipZConfig
 from fv3fit.reservoir import (
     ReservoirComputingModel,
     HybridReservoirComputingModel,
@@ -90,7 +91,10 @@ def _get_states_without_overlap(
 
 
 def validation_prediction(
-    model: ReservoirModel, val_batches: tf.data.Dataset, n_synchronize: int,
+    model: ReservoirModel,
+    val_batches: tf.data.Dataset,
+    n_synchronize: int,
+    clip_config: Optional[Mapping[Hashable, ClipZConfig]],
 ):
     # Initialize hidden state
     model.reset_state()
@@ -99,6 +103,7 @@ def validation_prediction(
     one_step_imperfect_prediction_time_series = []
     target_time_series = []
     for batch_data in val_batches:
+        batch_data = clip_batch_data(batch_data, clip_config)
         states_with_overlap_time_series = get_ordered_X(
             batch_data, model.input_variables  # type: ignore
         )
