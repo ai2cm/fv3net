@@ -3,11 +3,11 @@
 CURRENT_DATE=$(date +%Y%m%d)
 export WANDB_PROJECT=sst-reservoir-training
 export WANDB_ENTITY=ai2cm
-export WANDB_RUN_GROUP=$CURRENT_DATE-v2
+export WANDB_RUN_GROUP=$CURRENT_DATE-v1
 export WANDB_MODE=online
 
 EXPERIMENT="sst-reservoir-training"
-NAME="hybrid-4x4sub-halo0-100state"
+NAME="hybrid-4x4sub-halo0-100state-fixed-coast"
 RANDOM_TAG=$(openssl rand -hex 3)
 OUTPUT_URL="gs://vcm-ml-experiments/${EXPERIMENT}/${CURRENT_DATE}/${NAME}"
 
