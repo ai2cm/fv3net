@@ -1,4 +1,3 @@
-import gc
 import logging
 from mpi4py import MPI
 
@@ -70,16 +69,8 @@ def main():
         diag_file.flush()
 
     loop.log_global_timings()
-    return wrapper
+    wrapper.cleanup()
 
 
 if __name__ == "__main__":
-
-    wrapper = main()
-    # need to cleanup any python objects that may have MPI operations before
-    # calling wrapper.cleanup
-    # this avoids the following error message:
-    #
-    #    Attempting to use an MPI routine after finalizing MPICH
-    gc.collect()
-    wrapper.cleanup()
+    main()
