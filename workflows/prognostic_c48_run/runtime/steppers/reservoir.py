@@ -18,6 +18,7 @@ from typing import (
 import fv3fit
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
+import vcm
 from runtime.names import SST, SPHUM, TEMP, PHYSICS_PRECIP_RATE, TOTAL_PRECIP
 from runtime.tendency import add_tendency, tendencies_from_state_updates
 from runtime.diagnostics import (
@@ -29,6 +30,25 @@ from .machine_learning import rename_dataset_members, NameDict
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclasses.dataclass
+class TaperConfig:
+    cutoff: int
+    rate: float
+    taper_dim: str = "z"
+
+    def blend(self, prediction: xr.DataArray, input: xr.DataArray) -> xr.DataArray:
+        n_levels = len(prediction[self.taper_dim])
+        prediction_scaling = xr.DataArray(
+            vcm.vertical_tapering_scale_factors(
+                n_levels=n_levels, cutoff=self.cutoff, rate=self.rate
+            ),
+            dims=[self.taper_dim],
+        )
+        input_scaling = 1 - prediction_scaling
+
+        return input_scaling * input + prediction_scaling * prediction
 
 
 @dataclasses.dataclass
@@ -65,6 +85,7 @@ class ReservoirConfig:
     hydrostatic: bool = False
     mse_conserving_limiter: bool = False
     interval_average_precipitation: bool = False
+    taper_blending: Optional[Mapping] = None
 
     def __post_init__(self):
         # This handles cases in automatic config writing where json/yaml
@@ -231,6 +252,7 @@ class _ReservoirStepper:
         hydrostatic: bool = False,
         mse_conserving_limiter: bool = False,
         precip_tracker: Optional[PrecipTracker] = None,
+        taper_blending: Optional[TaperConfig] = None,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -243,6 +265,7 @@ class _ReservoirStepper:
         self.hydrostatic = hydrostatic
         self.mse_conserving_limiter = mse_conserving_limiter
         self.precip_tracker = precip_tracker
+        self.taper_blending = taper_blending
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -375,6 +398,8 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         self._state_machine(self._state_machine.PREDICT)
         result = self.model.predict(inputs)
+        if self.taper_blending is not None:
+            result = self.taper_blending.blend(result, inputs)
         output_state = rename_dataset_members(result, self.rename_mapping)
 
         diags = rename_dataset_members(
@@ -559,6 +584,11 @@ def get_reservoir_steppers(
         _precip_tracker_kwargs["precip_tracker"] = PrecipTracker(
             reservoir_timestep_seconds=rc_tdelta.total_seconds(),
         )
+
+    if config.taper_blending is not None:
+        if len({"cutoff", "rate"}.intersection(config.taper_blending.keys())) == 2:
+            taper_blending = TaperConfig(**config.taper_blending)
+
     incrementer = ReservoirIncrementOnlyStepper(
         model,
         init_time,
@@ -583,6 +613,7 @@ def get_reservoir_steppers(
         model_timestep=model_timestep,
         hydrostatic=config.hydrostatic,
         mse_conserving_limiter=config.mse_conserving_limiter,
+        taper_blending=taper_blending,
         **_precip_tracker_kwargs,
     )
     return incrementer, predictor
