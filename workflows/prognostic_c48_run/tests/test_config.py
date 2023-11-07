@@ -1,7 +1,7 @@
 import dacite
 import pytest
 from runtime.config import get_model_urls, get_wrapper, UserConfig
-from runtime.names import FV3GFS
+from runtime.names import FV3GFS_WRAPPER
 import dataclasses
 from types import ModuleType
 
@@ -43,6 +43,6 @@ def test_get_model_urls(config, model_urls):
 
 
 def test_get_wrapper():
-    config = UserConfig(fortran_model=FV3GFS)
+    config = UserConfig(wrapper=FV3GFS_WRAPPER)
     wrapper = get_wrapper(config)
     assert isinstance(wrapper, ModuleType)

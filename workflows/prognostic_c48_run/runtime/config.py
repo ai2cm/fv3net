@@ -57,8 +57,8 @@ class UserConfig:
             from a dataset.
         reservoir_corrector: configuration for using a reservoir computing model to
             correct the final model state
-        fortran_model: fortran_model used for the simulation (default "fv3gfs").
-            Currently only "fv3gfs" is supported.
+        wrapper: Python wrapper used for the simulation (default "fv3gfs.wrapper").
+            Currently only "fv3gfs.wrapper" is supported.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -76,7 +76,7 @@ class UserConfig:
     radiation_scheme: Optional[RadiationStepperConfig] = None
     bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
     reservoir_corrector: Optional[ReservoirConfig] = None
-    fortran_model: Literal["fv3gfs"] = "fv3gfs"
+    wrapper: Literal["fv3gfs.wrapper"] = "fv3gfs.wrapper"
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
@@ -131,11 +131,9 @@ def get_model_urls(config_dict: dict) -> List[str]:
 
 def get_wrapper(config: UserConfig):
     """Import the appropriate wrapper based on the config"""
-    module = f"{config.fortran_model}.wrapper"
     try:
-        return importlib.import_module(module)
+        return importlib.import_module(config.wrapper)
     except ModuleNotFoundError:
         raise ImportError(
-            f"{module}, required for running {config.fortran_model}, is "
-            f"not installed in the environment"
+            f"Required wrapper {config.wrapper!r} not installed in environment"
         )

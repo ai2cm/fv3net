@@ -8,7 +8,6 @@ diagnostics: []
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 fortran_diagnostics: []
-fortran_model: fv3gfs
 initial_conditions:
 - copy_method: copy
   source_location: gs://ic-bucket/20160805.000000
@@ -452,6 +451,7 @@ reservoir_corrector:
   warm_start: false
 scikit_learn: null
 tendency_prescriber: null
+wrapper: fv3gfs.wrapper
 zhao_carr_emulation:
   gscond: null
   model: null
