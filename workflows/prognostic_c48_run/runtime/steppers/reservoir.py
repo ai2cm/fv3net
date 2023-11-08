@@ -589,11 +589,11 @@ def get_reservoir_steppers(
         _precip_tracker_kwargs["precip_tracker"] = PrecipTracker(
             reservoir_timestep_seconds=rc_tdelta.total_seconds(),
         )
-
     if config.taper_blending is not None:
         if len({"cutoff", "rate"}.intersection(config.taper_blending.keys())) == 2:
-            taper_blending = TaperConfig(**config.taper_blending)
-
+            taper_blending: Optional[TaperConfig] = TaperConfig(**config.taper_blending)
+        else:
+            taper_blending = None
     incrementer = ReservoirIncrementOnlyStepper(
         model,
         init_time,
