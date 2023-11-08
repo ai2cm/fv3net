@@ -17,6 +17,18 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class IntervalConfig:
+    """Configuration for interval steppers
+
+    base_config: config for the stepper used at the end of the interval
+    apply_interval_seconds: interval in seconds
+    offset_seconds: offset from the start of the run in seconds to count
+        as start of intervals
+    record_fields_before_update: fields listed here will have their values
+        immediately before the stepper update recorded in diagnostics
+    n_calls: if provided, stop after this many calls to the stepper
+        useful for synchronizing reservoir models at the start of runs
+    """
+
     base_config: Union[PrescriberConfig, MachineLearningConfig, NudgingConfig]
     apply_interval_seconds: int
     offset_seconds: int = 0
