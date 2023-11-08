@@ -69,6 +69,13 @@ def _get_predictions_over_batch(
     return prediction_time_series, imperfect_prediction_time_series
 
 
+def _get_imperfect_prediction(hybrid_inputs_time_series: Sequence[np.ndarray]):
+    imperfect_prediction_time_series = []
+    for ts in hybrid_inputs_time_series:
+        imperfect_prediction_time_series.append(ts)
+    return imperfect_prediction_time_series
+
+
 def _time_mean_dataset(variables, arr, label):
     ds = xr.Dataset()
     time_mean_error = np.mean(arr, axis=0)
@@ -103,30 +110,47 @@ def validation_prediction(
     one_step_imperfect_prediction_time_series = []
     target_time_series = []
     for batch_data in val_batches:
-        batch_data = clip_batch_data(batch_data, clip_config)
-        states_with_overlap_time_series = get_ordered_X(
-            batch_data, model.input_variables  # type: ignore
+        # outputs are not clipped
+        output_states_with_overlap_time_series = get_ordered_X(
+            batch_data, model.output_variables  # type: ignore
         )
-
+        if clip_config is not None:
+            batch_input_data = clip_batch_data(batch_data, clip_config)
+        else:
+            batch_input_data = batch_data
+        input_states_with_overlap_time_series = get_ordered_X(
+            batch_input_data, model.input_variables  # type: ignore
+        )
         if isinstance(model, HybridReservoirComputingModel):
             hybrid_inputs_time_series = get_ordered_X(
-                batch_data, model.hybrid_variables  # type: ignore
+                batch_input_data, model.hybrid_variables  # type: ignore
             )
             hybrid_inputs_time_series = _get_states_without_overlap(
                 hybrid_inputs_time_series, overlap=model.rank_divider.overlap
             )
+            imperfect_prediction_time_series = get_ordered_X(
+                batch_data, model.hybrid_variables  # type: ignore
+            )
+            imperfect_prediction_time_series = _get_states_without_overlap(
+                imperfect_prediction_time_series, overlap=model.rank_divider.overlap
+            )
         else:
             hybrid_inputs_time_series = None
+            imperfect_prediction_time_series = None
 
-        batch_predictions, batch_imperfect_predictions = _get_predictions_over_batch(
-            model, states_with_overlap_time_series, hybrid_inputs_time_series
+        batch_predictions, _ = _get_predictions_over_batch(
+            model, input_states_with_overlap_time_series, hybrid_inputs_time_series
+        )
+        batch_imperfect_predictions = _get_imperfect_prediction(
+            imperfect_prediction_time_series
         )
 
         one_step_prediction_time_series += batch_predictions
         one_step_imperfect_prediction_time_series += batch_imperfect_predictions
         target_time_series.append(
             _get_states_without_overlap(
-                states_with_overlap_time_series, overlap=model.rank_divider.overlap
+                output_states_with_overlap_time_series,
+                overlap=model.rank_divider.overlap,
             )
         )
     target_time_series = np.concatenate(target_time_series, axis=0)[n_synchronize:]
