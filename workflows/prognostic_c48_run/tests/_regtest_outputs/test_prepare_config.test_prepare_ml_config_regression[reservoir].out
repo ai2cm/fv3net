@@ -448,6 +448,7 @@ reservoir_corrector:
   rename_mapping: {}
   reservoir_timestep: 900s
   synchronize_steps: 12
+  taper_blending: null
   time_average_inputs: false
   warm_start: false
 scikit_learn: null
