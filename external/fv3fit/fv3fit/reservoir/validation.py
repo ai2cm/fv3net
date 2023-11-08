@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import generic_filter
 from typing import Union, Optional, Sequence, Mapping, Hashable
 import xarray as xr
 import tensorflow as tf
@@ -19,6 +20,28 @@ logger = logging.getLogger(__name__)
 
 ReservoirModel = Union[ReservoirComputingModel, HybridReservoirComputingModel]
 ReservoirAdapter = Union[HybridReservoirDatasetAdapter, ReservoirDatasetAdapter]
+
+
+def _variance_2d(slice_2d):
+    """Applies the standard deviation over a 2D slice."""
+    return generic_filter(slice_2d, np.var, size=(3, 3), mode="reflect")
+
+
+def _compute_2d_variance_mean_zsum(arr):
+    """
+    Rough estimates for grid-scale spatial variance of column-integrated
+    quantities in the absence of pressure thickness and area information.
+    """
+    variance_2d = xr.apply_ufunc(
+        _variance_2d,
+        arr,
+        input_core_dims=[["x", "y"]],
+        output_core_dims=[["x", "y"]],
+        vectorize=True,
+    )
+    if "z" in variance_2d.dims:
+        variance_2d = variance_2d.sum("z")
+    return variance_2d.mean().item()
 
 
 def _get_predictions_over_batch(
@@ -44,6 +67,13 @@ def _get_predictions_over_batch(
         prediction = model.predict(**predict_kwargs)  # type: ignore
         prediction_time_series.append(prediction)
     return prediction_time_series, imperfect_prediction_time_series
+
+
+def _get_imperfect_prediction(hybrid_inputs_time_series: Sequence[np.ndarray]):
+    imperfect_prediction_time_series = []
+    for ts in hybrid_inputs_time_series:
+        imperfect_prediction_time_series.append(ts)
+    return imperfect_prediction_time_series
 
 
 def _time_mean_dataset(variables, arr, label):
@@ -80,30 +110,47 @@ def validation_prediction(
     one_step_imperfect_prediction_time_series = []
     target_time_series = []
     for batch_data in val_batches:
-        batch_data = clip_batch_data(batch_data, clip_config)
-        states_with_overlap_time_series = get_ordered_X(
-            batch_data, model.input_variables  # type: ignore
+        # outputs are not clipped
+        output_states_with_overlap_time_series = get_ordered_X(
+            batch_data, model.output_variables  # type: ignore
         )
-
+        if clip_config is not None:
+            batch_input_data = clip_batch_data(batch_data, clip_config)
+        else:
+            batch_input_data = batch_data
+        input_states_with_overlap_time_series = get_ordered_X(
+            batch_input_data, model.input_variables  # type: ignore
+        )
         if isinstance(model, HybridReservoirComputingModel):
             hybrid_inputs_time_series = get_ordered_X(
-                batch_data, model.hybrid_variables  # type: ignore
+                batch_input_data, model.hybrid_variables  # type: ignore
             )
             hybrid_inputs_time_series = _get_states_without_overlap(
                 hybrid_inputs_time_series, overlap=model.rank_divider.overlap
             )
+            imperfect_prediction_time_series = get_ordered_X(
+                batch_data, model.hybrid_variables  # type: ignore
+            )
+            imperfect_prediction_time_series = _get_states_without_overlap(
+                imperfect_prediction_time_series, overlap=model.rank_divider.overlap
+            )
         else:
             hybrid_inputs_time_series = None
+            imperfect_prediction_time_series = None
 
-        batch_predictions, batch_imperfect_predictions = _get_predictions_over_batch(
-            model, states_with_overlap_time_series, hybrid_inputs_time_series
+        batch_predictions, _ = _get_predictions_over_batch(
+            model, input_states_with_overlap_time_series, hybrid_inputs_time_series
+        )
+        batch_imperfect_predictions = _get_imperfect_prediction(
+            imperfect_prediction_time_series
         )
 
         one_step_prediction_time_series += batch_predictions
         one_step_imperfect_prediction_time_series += batch_imperfect_predictions
         target_time_series.append(
             _get_states_without_overlap(
-                states_with_overlap_time_series, overlap=model.rank_divider.overlap
+                output_states_with_overlap_time_series,
+                overlap=model.rank_divider.overlap,
             )
         )
     target_time_series = np.concatenate(target_time_series, axis=0)[n_synchronize:]
@@ -115,6 +162,8 @@ def validation_prediction(
     one_step_predictions = np.array(one_step_prediction_time_series)[n_synchronize:-1]
     time_means_to_calculate = {
         "time_mean_prediction": one_step_predictions,
+        "time_mean_persistence": persistence,
+        "time_mean_target": target,
         "time_mean_prediction_error": one_step_predictions - target,
         "time_mean_persistence_error": persistence - target,
         "time_mean_prediction_mse": (one_step_predictions - target) ** 2,
@@ -139,7 +188,6 @@ def validation_prediction(
     diags_ = []
     for key, data in time_means_to_calculate.items():
         diags_.append(_time_mean_dataset(model.input_variables, data, key))
-
     return xr.merge(diags_)
 
 
@@ -157,11 +205,14 @@ def log_rmse_z_plots(ds_val, variables):
     # will need to change this.
     for var in variables:
         rmse = {}
-        for comparison in ["persistence", "prediction", "imperfect_prediction"]:
+        for comparison in [
+            "persistence",
+            "imperfect_prediction",
+            "prediction",
+        ]:
             mse_key = f"time_mean_{comparison}_mse_{var}"
             if mse_key in ds_val:
                 rmse[comparison] = np.sqrt(ds_val[mse_key].mean(["x", "y"])).values
-
         wandb.log(
             {
                 f"val_rmse_zplot_{var}": wandb.plot.line_series(
@@ -173,6 +224,21 @@ def log_rmse_z_plots(ds_val, variables):
                 )
             }
         )
+
+
+def log_variance_scalar_metrics(ds_val, variables):
+    log_data = {}
+    for var in variables:
+        for comparison in [
+            "target",
+            "prediction",
+        ]:
+            key = f"time_mean_{comparison}_{var}"
+            print(f"{key} in ds_val: {key in ds_val}")
+            if key in ds_val:
+                variance_key = f"time_mean_{comparison}_2d_variance_zsum_{var}"
+                log_data[variance_key] = _compute_2d_variance_mean_zsum(ds_val[key])
+    wandb.log(log_data)
 
 
 def log_rmse_scalar_metrics(ds_val, variables):
@@ -207,5 +273,4 @@ def log_rmse_scalar_metrics(ds_val, variables):
         )
     except (KeyError):
         pass
-
     wandb.log(log_data)
