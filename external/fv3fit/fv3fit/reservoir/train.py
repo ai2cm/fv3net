@@ -61,6 +61,10 @@ def _get_transformers(
         )
 
     # Output is not clipped, so use the original sample batch
+    if hyperparameters.zero_fill_clipped_output_levels:
+        sample_batch = zero_fill_clipped_output_levels(
+            sample_batch, hyperparameters.clip_config
+        )
     if "output" not in transformers:
         transformers["output"] = get_standard_normalizing_transformer(
             hyperparameters.output_variables, sample_batch
