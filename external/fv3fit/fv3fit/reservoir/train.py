@@ -20,6 +20,7 @@ from .utils import (
     SynchronziationTracker,
     get_standard_normalizing_transformer,
     clip_batch_data,
+    zero_fill_clipped_output_levels,
 )
 from .transformers import TransformerGroup, Transformer
 from .._shared import register_training_function
@@ -109,6 +110,10 @@ def train_reservoir_model(
         train_batches if isinstance(train_batches, Sequence) else [train_batches]
     )
     sample_batch = next(iter(train_batches_sequence[0]))
+    if hyperparameters.zero_fill_clipped_output_levels:
+        sample_batch = zero_fill_clipped_output_levels(
+            sample_batch, hyperparameters.clip_config
+        )
 
     # Clipping is done inside this function to preserve full length outputs
     transformers = _get_transformers(sample_batch, hyperparameters,)
@@ -173,6 +178,10 @@ def train_reservoir_model(
                 z_feature_size=transformers.output.n_latent_dims
             )
             # don't pass in clipped data here, as clipping is not enabled for outputs
+            if hyperparameters.zero_fill_clipped_output_levels:
+                batch_data = zero_fill_clipped_output_levels(
+                    batch_data, hyperparameters.clip_config
+                )
             output_time_series = process_batch_data(
                 variables=hyperparameters.output_variables,
                 batch_data=batch_data,

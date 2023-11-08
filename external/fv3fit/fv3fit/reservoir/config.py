@@ -67,6 +67,10 @@ class TransformerConfig:
 
 @dataclass
 class ClipZConfig:
+    """ Vertical levels **between** start and stop are kept,
+    levels outside start/stop are clipped off.
+    """
+
     start: Optional[int] = None
     stop: Optional[int] = None
 
@@ -107,6 +111,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_timesteps_synchronize: int
     input_noise: float
     seed: int = 0
+    zero_fill_clipped_output_levels: bool = False
     transformers: Optional[TransformerConfig] = None
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False

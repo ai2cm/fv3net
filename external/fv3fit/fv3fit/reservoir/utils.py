@@ -154,3 +154,34 @@ def clip_batch_data(
                 clipped_batch[var] = tensor
 
         return clipped_batch
+
+
+def _zero_fill_last_dim_tensor(tensor, start, stop):
+    _start = start if start else 0
+    _stop = stop if stop else tensor.shape[-1]
+    return tf.concat(
+        [
+            tf.zeros_like(tensor[..., :_start]),
+            tensor[..., _start:_stop],
+            tf.zeros_like(tensor[..., _stop:]),
+        ],
+        axis=-1,
+    )
+
+
+def zero_fill_clipped_output_levels(batch, clip_config):
+    """ Zero-fills output levels that have been clipped out of the training data.
+    """
+    if clip_config is None:
+        return batch
+    else:
+        zero_filled_batch = {}
+        for var, tensor in batch.items():
+            if var in clip_config:
+                zero_filled_batch[var] = _zero_fill_last_dim_tensor(
+                    tensor, clip_config[var].start, clip_config[var].stop
+                )
+            else:
+                zero_filled_batch[var] = tensor
+
+        return zero_filled_batch
