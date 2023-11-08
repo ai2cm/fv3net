@@ -398,14 +398,19 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         self._state_machine(self._state_machine.PREDICT)
         result = self.model.predict(inputs)
-        if self.taper_blending is not None:
-            result = self.taper_blending.blend(result, inputs)
+
         output_state = rename_dataset_members(result, self.rename_mapping)
 
         diags = rename_dataset_members(
             output_state, {k: f"{k}_{self.DIAGS_OUTPUT_SUFFIX}" for k in output_state}
         )
-
+        if self.taper_blending is not None:
+            input_renaming = {
+                k: v for k, v in self.rename_mapping.items() if k in inputs
+            }
+            output_state = self.taper_blending.blend(
+                output_state, inputs.rename(input_renaming)
+            )
         for k, v in output_state.items():
             v.attrs["units"] = state[k].attrs.get("units", "unknown")
 
