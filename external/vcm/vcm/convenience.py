@@ -159,3 +159,10 @@ def gsrm_name_from_resolution_string(res: str):
             f"This resolution {res} can not be mapped to either scream or fv3."
         )
     return gsrm
+
+
+def check_if_scream_dataset(ds: xr.Dataset) -> bool:
+    if "ncol" in ds.sizes:
+        return True
+    else:
+        return False
