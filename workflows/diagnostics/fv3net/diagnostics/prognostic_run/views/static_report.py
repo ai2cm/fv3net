@@ -137,7 +137,10 @@ def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
-            long_name = v.long_name
+            if hasattr(v, "long_name"):
+                long_name = v.long_name
+            else:
+                long_name = varname
             hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                 line_dash=style, color=color
             )
@@ -160,10 +163,17 @@ def plot_1d_min_max_with_region_bar(
             vmax = run_diags.get_variable(run, max_var).rename("max")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
-            long_name = vmin.long_name
+            if hasattr(vmin, "long_name"):
+                long_name = vmin.long_name
+            else:
+                long_name = min_var
+            if hasattr(vmin, "units"):
+                units = vmin.units
+            else:
+                units = "unknown"
             region = min_var.split("_")[-1]
             # Area plot doesn't automatically add correct y label
-            ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
+            ylabel = f"{long_name} {units}"
             hmap[(long_name, region, run)] = hv.Area(
                 (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
             ).options(line_dash=style, color=color, alpha=0.6, ylabel=ylabel)
@@ -181,7 +191,10 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
-            long_name = v.long_name
+            if hasattr(v, "long_name"):
+                long_name = v.long_name
+            else:
+                long_name = varname
             region = varname.split("_")[-1]
             hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
                 line_dash=style, color=color
@@ -325,18 +338,19 @@ def deep_tropical_meridional_mean_hovmoller_plots(
 
 
 def time_mean_cubed_sphere_maps(
-    diagnostics: RunDiagnostics, metrics: pd.DataFrame
+    diagnostics: RunDiagnostics, metrics: pd.DataFrame, gsrm: str = "fv3gfs"
 ) -> HVPlot:
     return plot_cubed_sphere_map(
         diagnostics,
         metrics,
         "time_mean_value",
         metrics_for_title={"Mean": "time_and_global_mean_value"},
+        gsrm=gsrm,
     )
 
 
 def time_mean_bias_cubed_sphere_maps(
-    diagnostics: RunDiagnostics, metrics: pd.DataFrame
+    diagnostics: RunDiagnostics, metrics: pd.DataFrame, gsrm: str = "fv3gfs"
 ) -> HVPlot:
     return plot_cubed_sphere_map(
         diagnostics,
@@ -346,6 +360,7 @@ def time_mean_bias_cubed_sphere_maps(
             "Mean": "time_and_global_mean_bias",
             "RMSE": "rmse_of_time_mean",
         },
+        gsrm=gsrm,
     )
 
 
@@ -537,13 +552,13 @@ def render_hovmollers(metadata, diagnostics):
     )
 
 
-def render_maps(metadata, diagnostics, metrics):
+def render_maps(metadata, diagnostics, metrics, gsrm: str = "fv3gfs"):
     # the plotting functions here require two inputs so can't use a PlotManager
     sections = {
         "Links": navigation,
         "Time-mean maps": [
-            time_mean_cubed_sphere_maps(diagnostics, metrics),
-            time_mean_bias_cubed_sphere_maps(diagnostics, metrics),
+            time_mean_cubed_sphere_maps(diagnostics, metrics, gsrm),
+            time_mean_bias_cubed_sphere_maps(diagnostics, metrics, gsrm),
         ],
     }
     return create_html(
@@ -649,7 +664,7 @@ def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
     return public_links
 
 
-def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
+def make_report(computed_diagnostics: ComputedDiagnosticsList, output, gsrm):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
     movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
@@ -661,7 +676,7 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, public_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
-        "maps.html": render_maps(metadata, diagnostics, metrics),
+        "maps.html": render_maps(metadata, diagnostics, metrics, gsrm),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
         "process_diagnostics.html": render_process_diagnostics(
             metadata, diagnostics, metrics
@@ -708,6 +723,13 @@ def _register_report_from_json(subparsers):
     )
     parser.add_argument("output", help="Location to save report html files.")
     parser.add_argument(
+        "--gsrm",
+        type=str,
+        help="The type of GSRM used to generate the prognostic run,\
+              either `fv3gfs` or `scream`",
+        default="fv3gfs",
+    )
+    parser.add_argument(
         "-r",
         "--urls-are-rundirs",
         action="store_true",
@@ -725,16 +747,16 @@ def register_parser(subparsers):
 
 def main(args):
     computed_diagnostics = ComputedDiagnosticsList.from_directory(args.input)
-    make_report(computed_diagnostics, args.output)
+    make_report(computed_diagnostics, args.output, args.gsrm)
 
 
 def main_new(args):
     computed_diagnostics = ComputedDiagnosticsList.from_urls(args.inputs)
-    make_report(computed_diagnostics, args.output)
+    make_report(computed_diagnostics, args.output, args.gsrm)
 
 
 def main_json(args):
     computed_diagnostics = ComputedDiagnosticsList.from_json(
         args.input, args.urls_are_rundirs
     )
-    make_report(computed_diagnostics, args.output)
+    make_report(computed_diagnostics, args.output, args.gsrm)
