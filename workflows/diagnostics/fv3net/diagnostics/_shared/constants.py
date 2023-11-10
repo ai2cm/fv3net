@@ -1,6 +1,6 @@
 import xarray as xr
-from typing import Optional, List
-from dataclasses import dataclass, field
+from typing import Optional
+from dataclasses import dataclass
 import numpy as np
 
 HORIZONTAL_DIMS_FV3 = ["x", "y", "tile"]
@@ -29,5 +29,15 @@ class DiagArg:
     verification: xr.Dataset
     grid: xr.Dataset
     delp: Optional[xr.DataArray] = None
-    horizontal_dims: List[str] = field(default_factory=lambda: HORIZONTAL_DIMS_FV3)
+    gsrm: str = "fv3gfs"
     vertical_dim: str = VERTICAL_DIM
+
+    def __post_init__(self):
+        if self.gsrm == "fv3gfs":
+            self.horizontal_dims = HORIZONTAL_DIMS_FV3
+        elif self.gsrm == "scream":
+            self.horizontal_dims = HORIZONTAL_DIMS_SCREAM
+        else:
+            raise ValueError(
+                f"gsrm must be one of {['fv3gfs', 'scream']}, got {self.gsrm}"
+            )

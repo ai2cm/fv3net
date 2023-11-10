@@ -81,6 +81,7 @@ def _merge_diag_computes(
     input_data: Mapping[str, Tuple[xr.Dataset, xr.Dataset, xr.Dataset]],
     registries: Mapping[str, Registry],
     n_jobs: int,
+    gsrm: str,
 ) -> Mapping[str, xr.DataArray]:
     # Flattens list of all computations across registries before
     # parallelizing the computation.
@@ -101,7 +102,7 @@ def _merge_diag_computes(
             )
             continue
 
-        diag_arg = DiagArg(prog, verif, grid)
+        diag_arg = DiagArg(prog, verif, grid, gsrm=gsrm)
         merged_input_data += [
             (func_name, func, registry_key, diag_arg)
             for func_name, func in registries[registry_key].funcs.items()
@@ -631,12 +632,24 @@ def register_parser(subparsers):
         "access data concurrently.",
         default=-1,
     )
+    parser.add_argument(
+        "--gsrm",
+        type=str,
+        help="The type of GSRM used to generate the prognostic run,\
+              either `fv3gfs` or `scream`",
+        default="fv3gfs",
+    )
     parser.set_defaults(func=main)
 
 
 def get_verification(args, catalog, join_2d="outer"):
     if args.verification_url:
-        return load_diags.SegmentedRun(args.verification_url, catalog, join_2d=join_2d)
+        if args.gsrm == "scream":
+            return load_diags.ScreamSimulation(args.verification_url)
+        else:
+            return load_diags.SegmentedRun(
+                args.verification_url, catalog, join_2d=join_2d
+            )
     else:
         return load_diags.CatalogSimulation(args.verification, catalog, join_2d=join_2d)
 
@@ -650,16 +663,23 @@ def main(args):
     # begin constructing diags
     diags = {}
     catalog = intake.open_catalog(args.catalog)
-    prognostic = load_diags.SegmentedRun(args.url, catalog)
+    if args.gsrm == "scream":
+        prognostic = load_diags.ScreamSimulation(args.url)
+    elif args.gsrm == "fv3gfs":
+        prognostic = load_diags.SegmentedRun(args.url, catalog)
+    else:
+        raise ValueError(f"gsrm must be either `fv3gfs` or `scream`")
     verification = get_verification(args, catalog)
     attrs["verification"] = str(verification)
 
-    grid = load_diags.load_grid(catalog)
+    grid = load_diags.load_grid(catalog, args.gsrm)
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, verification, grid
     )
 
-    computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
+    computed_diags = _merge_diag_computes(
+        input_data, registries, args.n_jobs, args.gsrm
+    )
     diags.update(computed_diags)
 
     # add grid vars
