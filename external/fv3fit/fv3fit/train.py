@@ -58,6 +58,11 @@ def get_parser():
         ),
         action="store_true",
     )
+    parser.add_argument(
+        "--Livermore-Computing",
+        help=("This is a run on Livermore Computing HPC such as Quartz or Ruby."),
+        action="store_true",
+    )
     return parser
 
 
@@ -102,7 +107,8 @@ def load_data(
 
 
 def main(args, unknown_args=None):
-
+    if args.Livermore_Computing:
+        wandb.init(mode="disabled")
     with open(args.training_config, "r") as f:
         config_dict = yaml.safe_load(f)
         if unknown_args is not None:
@@ -211,6 +217,6 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     main(args, unknown_args)
-
-    with put_dir(args.output_path) as path:
-        shutil.move("artifacts", os.path.join(path, "artifacts"))
+    if args.Livermore_Computing is False:
+        with put_dir(args.output_path) as path:
+            shutil.move("artifacts", os.path.join(path, "artifacts"))
