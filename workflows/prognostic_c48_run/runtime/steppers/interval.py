@@ -4,13 +4,15 @@ from datetime import timedelta
 from typing import Tuple, Union, Optional, List
 import xarray as xr
 import logging
+import vcm
 
 from runtime.types import Diagnostics
 from runtime.steppers.stepper import Stepper
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.nudging import NudgingConfig
-
+from runtime.diagnostics.compute import precipitation_sum, precipitation_rate
+from runtime.names import SPHUM, DELP, TOTAL_PRECIP, TOTAL_PRECIP_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class IntervalConfig:
     offset_seconds: int = 0
     record_fields_before_update: Optional[List[str]] = None
     n_calls: Optional[int] = None
+    do_total_precip_update: bool = True
 
 
 class IntervalStepper:
@@ -44,6 +47,7 @@ class IntervalStepper:
         offset_seconds: float = 0,
         n_calls: Optional[int] = None,
         record_fields_before_update: Optional[List[str]] = None,
+        do_total_precip_update: bool = True,
     ):
         self.start_time = None
         self.interval = timedelta(seconds=apply_interval_seconds)
@@ -52,6 +56,7 @@ class IntervalStepper:
         self._record_fields_before_update = record_fields_before_update or []
         self.n_calls = n_calls
         self._call_count = 0
+        self._do_total_precip_update = do_total_precip_update
 
     @property
     def label(self):
@@ -96,7 +101,31 @@ class IntervalStepper:
             tendencies, diagnostics, state_updates = self.stepper(time, state)
             diagnostics.update(self.get_diagnostics_prior_to_update(state))
             self._call_count += 1
+
+            if self._do_total_precip_update and SPHUM in state_updates:
+                logger.info(f"updating total precip at time {time}")
+                net_moistening = self._net_moistening(
+                    sphum_before_update=state[SPHUM],
+                    sphum_after_update=state_updates[SPHUM],
+                    delp=state[DELP],
+                )
+                diagnostics[f"net_moistening_due_to_{self.label}"] = net_moistening
+                total_precipitation_update = precipitation_sum(
+                    state[TOTAL_PRECIP], net_moistening, self.interval.total_seconds()
+                )
+                diagnostics[TOTAL_PRECIP_RATE] = precipitation_rate(
+                    total_precipitation_update, self.interval.total_seconds()
+                )
+                state_updates[TOTAL_PRECIP] = total_precipitation_update
+            else:
+                logger.info(f"Not updating total precip  ")
             return tendencies, diagnostics, state_updates
+
+    def _net_moistening(self, sphum_before_update, sphum_after_update, delp):
+        _dQ2 = (
+            sphum_after_update - sphum_before_update
+        ) / self.interval.total_seconds()
+        return vcm.mass_integrate(_dQ2, delp, "z")
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         diags, moistening = self.stepper.get_diagnostics(state, tendency)
