@@ -122,7 +122,7 @@ def decode_columns(
     leading_shape = encoded_output.shape[:-1]
     encoded_output = encoded_output.reshape(-1, feature_size)
     decoded = transformer.decode(encoded_output)
-    var_arrays = [arr.reshape(*leading_shape, -1) for arr in decoded]
+    var_arrays = [tf.reshape(arr, (*leading_shape, -1)) for arr in decoded]
     return var_arrays
 
 
@@ -138,4 +138,4 @@ def encode_columns(
     original_sample_shape = input_arrs[0].shape[:-1]
     reshaped = [stack_array_preserving_last_dim(var) for var in input_arrs]
     encoded_reshaped = transformer.encode(reshaped)
-    return encoded_reshaped.reshape(*original_sample_shape, -1)
+    return tf.reshape(encoded_reshaped, (*original_sample_shape, -1))
