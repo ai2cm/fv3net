@@ -479,6 +479,7 @@ scikit_learn:
   scaling: {}
   use_mse_conserving_humidity_limiter: true
 tendency_prescriber: null
+wrapper: fv3gfs.wrapper
 zhao_carr_emulation:
   gscond: null
   model: null

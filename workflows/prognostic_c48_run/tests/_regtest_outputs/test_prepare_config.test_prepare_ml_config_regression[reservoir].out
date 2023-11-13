@@ -453,6 +453,7 @@ reservoir_corrector:
   warm_start: false
 scikit_learn: null
 tendency_prescriber: null
+wrapper: fv3gfs.wrapper
 zhao_carr_emulation:
   gscond: null
   model: null

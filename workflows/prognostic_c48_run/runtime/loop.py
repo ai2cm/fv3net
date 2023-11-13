@@ -275,6 +275,7 @@ class TimeLoop(
                 offset_seconds=stepper_config.offset_seconds,
                 record_fields_before_update=stepper_config.record_fields_before_update,
                 n_calls=stepper_config.n_calls,
+                do_total_precip_update=stepper_config.do_total_precip_update,
             )
         else:
             return stepper
@@ -567,11 +568,17 @@ class TimeLoop(
                 "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
                     "cnvprcp"
                 ).data_array,
-                TOTAL_PRECIP_RATE: precipitation_rate(
-                    self._state[TOTAL_PRECIP], self._timestep
-                ),
             }
         )
+        if not (TOTAL_PRECIP_RATE in diagnostics):
+            diagnostics.update(
+                {
+                    TOTAL_PRECIP_RATE: precipitation_rate(
+                        self._state[TOTAL_PRECIP], self._timestep
+                    )
+                }
+            )
+        self._log_info(f"diags keys: {list(diagnostics.keys())} ")
         return diagnostics
 
     def _increment_reservoir(self) -> Diagnostics:

@@ -1,5 +1,6 @@
-from typing import List, Optional, Union, Iterable
+from typing import List, Literal, Optional, Union, Iterable
 import dataclasses
+import importlib
 import yaml
 import f90nml
 
@@ -56,6 +57,8 @@ class UserConfig:
             from a dataset.
         reservoir_corrector: configuration for using a reservoir computing model to
             correct the final model state
+        wrapper: Python wrapper used for the simulation (default "fv3gfs.wrapper").
+            Currently only "fv3gfs.wrapper" is supported.
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -73,6 +76,7 @@ class UserConfig:
     radiation_scheme: Optional[RadiationStepperConfig] = None
     bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
     reservoir_corrector: Optional[ReservoirConfig] = None
+    wrapper: Literal["fv3gfs.wrapper"] = "fv3gfs.wrapper"
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
@@ -123,3 +127,13 @@ def get_model_urls(config_dict: dict) -> List[str]:
         for entry in prephysics_config:
             urls += entry.get("model", [])
     return urls
+
+
+def get_wrapper(config: UserConfig):
+    """Import the appropriate wrapper based on the config"""
+    try:
+        return importlib.import_module(config.wrapper)
+    except ModuleNotFoundError:
+        raise ImportError(
+            f"Required wrapper {config.wrapper!r} not installed in environment"
+        )
