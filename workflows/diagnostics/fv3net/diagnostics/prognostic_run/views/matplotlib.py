@@ -17,7 +17,6 @@ import fv3viz
 from report import MatplotlibFigure, RawHTML
 from vcm.cubedsphere import GridMetadataScream
 
-COORD_VARS = ["lon", "lat", "lonb", "latb"]
 IGNORE_POLES_LATITUDE = 75.0
 OverlaidPlotData = MutableMapping[str, MutableMapping[str, MatplotlibFigure]]
 
@@ -150,7 +149,9 @@ def plot_cubed_sphere_map(
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
-            if gsrm == "scream":
+            if gsrm == "fv3gfs":
+                COORD_VARS = ["lon", "lat", "lonb", "latb"]
+            elif gsrm == "scream":
                 COORD_VARS = ["lon", "lat"]
             ds = run_diags.get_variables(run, COORD_VARS + [varname])
             plot_title = _render_map_title(

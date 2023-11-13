@@ -691,6 +691,13 @@ def _register_report(subparsers):
     parser = subparsers.add_parser("report", help="Generate a static html report.")
     parser.add_argument("input", help="Directory containing multiple run diagnostics.")
     parser.add_argument("output", help="Location to save report html files.")
+    parser.add_argument(
+        "--gsrm",
+        type=str,
+        help="The type of GSRM used to generate the prognostic run,\
+              either `fv3gfs` or `scream`",
+        default="fv3gfs",
+    )
     parser.set_defaults(func=main)
 
 
@@ -704,6 +711,13 @@ def _register_report_from_urls(subparsers):
         help="Folders containing diags.nc. Will be labeled with "
         "increasing numbers in report.",
         nargs="+",
+    )
+    parser.add_argument(
+        "--gsrm",
+        type=str,
+        help="The type of GSRM used to generate the prognostic run,\
+              either `fv3gfs` or `scream`",
+        default="fv3gfs",
     )
     parser.add_argument(
         "-o", "--output", help="Location to save report html files.", required=True
