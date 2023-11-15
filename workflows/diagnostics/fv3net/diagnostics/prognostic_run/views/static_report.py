@@ -338,19 +338,18 @@ def deep_tropical_meridional_mean_hovmoller_plots(
 
 
 def time_mean_cubed_sphere_maps(
-    diagnostics: RunDiagnostics, metrics: pd.DataFrame, gsrm: str = "fv3gfs"
+    diagnostics: RunDiagnostics, metrics: pd.DataFrame
 ) -> HVPlot:
     return plot_cubed_sphere_map(
         diagnostics,
         metrics,
         "time_mean_value",
         metrics_for_title={"Mean": "time_and_global_mean_value"},
-        gsrm=gsrm,
     )
 
 
 def time_mean_bias_cubed_sphere_maps(
-    diagnostics: RunDiagnostics, metrics: pd.DataFrame, gsrm: str = "fv3gfs"
+    diagnostics: RunDiagnostics, metrics: pd.DataFrame
 ) -> HVPlot:
     return plot_cubed_sphere_map(
         diagnostics,
@@ -360,7 +359,6 @@ def time_mean_bias_cubed_sphere_maps(
             "Mean": "time_and_global_mean_bias",
             "RMSE": "rmse_of_time_mean",
         },
-        gsrm=gsrm,
     )
 
 
@@ -552,13 +550,13 @@ def render_hovmollers(metadata, diagnostics):
     )
 
 
-def render_maps(metadata, diagnostics, metrics, gsrm: str = "fv3gfs"):
+def render_maps(metadata, diagnostics, metrics):
     # the plotting functions here require two inputs so can't use a PlotManager
     sections = {
         "Links": navigation,
         "Time-mean maps": [
-            time_mean_cubed_sphere_maps(diagnostics, metrics, gsrm),
-            time_mean_bias_cubed_sphere_maps(diagnostics, metrics, gsrm),
+            time_mean_cubed_sphere_maps(diagnostics, metrics),
+            time_mean_bias_cubed_sphere_maps(diagnostics, metrics),
         ],
     }
     return create_html(
@@ -664,7 +662,7 @@ def _get_public_links(movie_urls: MovieUrls, output: str) -> PublicLinks:
     return public_links
 
 
-def make_report(computed_diagnostics: ComputedDiagnosticsList, output, gsrm):
+def make_report(computed_diagnostics: ComputedDiagnosticsList, output):
     metrics = computed_diagnostics.load_metrics_from_diagnostics()
     movie_urls = computed_diagnostics.find_movie_urls()
     metadata, diagnostics = computed_diagnostics.load_diagnostics()
@@ -676,7 +674,7 @@ def make_report(computed_diagnostics: ComputedDiagnosticsList, output, gsrm):
     pages = {
         "index.html": render_index(metadata, diagnostics, metrics, public_links),
         "hovmoller.html": render_hovmollers(metadata, diagnostics),
-        "maps.html": render_maps(metadata, diagnostics, metrics, gsrm),
+        "maps.html": render_maps(metadata, diagnostics, metrics),
         "zonal_pressure.html": render_zonal_pressures(metadata, diagnostics),
         "process_diagnostics.html": render_process_diagnostics(
             metadata, diagnostics, metrics
@@ -691,13 +689,6 @@ def _register_report(subparsers):
     parser = subparsers.add_parser("report", help="Generate a static html report.")
     parser.add_argument("input", help="Directory containing multiple run diagnostics.")
     parser.add_argument("output", help="Location to save report html files.")
-    parser.add_argument(
-        "--gsrm",
-        type=str,
-        help="The type of GSRM used to generate the prognostic run,\
-              either `fv3gfs` or `scream`",
-        default="fv3gfs",
-    )
     parser.set_defaults(func=main)
 
 
@@ -711,13 +702,6 @@ def _register_report_from_urls(subparsers):
         help="Folders containing diags.nc. Will be labeled with "
         "increasing numbers in report.",
         nargs="+",
-    )
-    parser.add_argument(
-        "--gsrm",
-        type=str,
-        help="The type of GSRM used to generate the prognostic run,\
-              either `fv3gfs` or `scream`",
-        default="fv3gfs",
     )
     parser.add_argument(
         "-o", "--output", help="Location to save report html files.", required=True
@@ -737,13 +721,6 @@ def _register_report_from_json(subparsers):
     )
     parser.add_argument("output", help="Location to save report html files.")
     parser.add_argument(
-        "--gsrm",
-        type=str,
-        help="The type of GSRM used to generate the prognostic run,\
-              either `fv3gfs` or `scream`",
-        default="fv3gfs",
-    )
-    parser.add_argument(
         "-r",
         "--urls-are-rundirs",
         action="store_true",
@@ -761,16 +738,16 @@ def register_parser(subparsers):
 
 def main(args):
     computed_diagnostics = ComputedDiagnosticsList.from_directory(args.input)
-    make_report(computed_diagnostics, args.output, args.gsrm)
+    make_report(computed_diagnostics, args.output)
 
 
 def main_new(args):
     computed_diagnostics = ComputedDiagnosticsList.from_urls(args.inputs)
-    make_report(computed_diagnostics, args.output, args.gsrm)
+    make_report(computed_diagnostics, args.output)
 
 
 def main_json(args):
     computed_diagnostics = ComputedDiagnosticsList.from_json(
         args.input, args.urls_are_rundirs
     )
-    make_report(computed_diagnostics, args.output, args.gsrm)
+    make_report(computed_diagnostics, args.output)

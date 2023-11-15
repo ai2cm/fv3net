@@ -123,7 +123,6 @@ def plot_cubed_sphere_map(
     run_metrics: RunMetrics,
     varfilter: str,
     metrics_for_title: Mapping[str, str] = None,
-    gsrm: str = "fv3gfs",
 ) -> str:
     """Plot horizontal maps of cubed-sphere data for diagnostics which match varfilter.
 
@@ -149,9 +148,9 @@ def plot_cubed_sphere_map(
         for run in run_diags.runs:
             logging.info(f"plotting {varname} in {run}")
             shortname = varname.split(varfilter)[0][:-1]
-            if gsrm == "fv3gfs":
+            if "lonb" and "latb" in run_diags.variables:
                 COORD_VARS = ["lon", "lat", "lonb", "latb"]
-            elif gsrm == "scream":
+            else:
                 COORD_VARS = ["lon", "lat"]
             ds = run_diags.get_variables(run, COORD_VARS + [varname])
             plot_title = _render_map_title(
@@ -160,7 +159,7 @@ def plot_cubed_sphere_map(
             fig, ax = plt.subplots(
                 figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
             )
-            if gsrm == "scream":
+            if "ncol" in ds.sizes:
                 grid_metadata = GridMetadataScream("ncol", "lon", "lat")
                 fv3viz.plot_cube(
                     ds,
