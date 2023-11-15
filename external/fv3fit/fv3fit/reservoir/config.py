@@ -91,6 +91,8 @@ class ReservoirTrainingConfig(Hyperparameters):
     mask_variable: if specified, save mask array that is multiplied to the input array
         before multiplication with W_in. This applies a mask using the
         mask_variable field.
+    mask_readout: if mask_variable is specified, apply that mask to the hybrid inputs
+        as well
     """
 
     input_variables: Sequence[str]
@@ -106,6 +108,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     square_half_hidden_state: bool = False
     hybrid_variables: Optional[Sequence[str]] = None
     mask_variable: Optional[str] = None
+    mask_readout: bool = True
     validate_sst_only: bool = False
     _METADATA_NAME = "reservoir_training_config.yaml"
 
