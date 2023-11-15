@@ -95,7 +95,15 @@ class IntervalStepper:
         if self._need_to_update(time) is False:
             # Diagnostic must be available at all timesteps, not just when
             # the base stepper is called
-            return {}, self.get_diagnostics_prior_to_update(state), {}
+            diags = self.get_diagnostics_prior_to_update(state)
+            diags.update(
+                {
+                    f"net_moistening_due_to_{self.label}": xr.zeros_like(
+                        state[TOTAL_PRECIP]
+                    )
+                }
+            )
+            return {}, diags, {}
         else:
             logger.info(f"applying interval stepper at time {time}")
             tendencies, diagnostics, state_updates = self.stepper(time, state)
