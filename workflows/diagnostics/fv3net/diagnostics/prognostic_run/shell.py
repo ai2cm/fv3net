@@ -65,16 +65,18 @@ class ItermTape:
 
 
 class State:
-    def __init__(self):
+    def __init__(self, catalog_path=vcm.catalog.catalog_path):
         self.data_3d = None
         self.data_2d = None
         self.tape = OneFileTape()
         self.state = {}
+        self.catalog = intake.open_catalog(catalog_path)
+        self.grid = load_run_data.load_grid(self.catalog)
 
     def load(self, url):
-        self.prognostic = load_run_data.SegmentedRun(url, catalog)
-        self.data_3d = self.prognostic.data_3d.merge(grid)
-        self.data_2d = grid.merge(self.prognostic.data_2d, compat="override")
+        self.prognostic = load_run_data.SegmentedRun(url, self.catalog)
+        self.data_3d = self.prognostic.data_3d.merge(self.grid)
+        self.data_2d = self.grid.merge(self.prognostic.data_2d, compat="override")
 
     def get_time(self):
         i = int(self.state.get("time", "0"))
@@ -88,7 +90,7 @@ class State:
 
     def get_3d_snapshot(self):
         time = self.get_time()
-        return self.data_3d.sel(time=time, method="nearest").merge(grid)
+        return self.data_3d.sel(time=time, method="nearest").merge(self.grid)
 
     def get_2d_snapshot(self):
         time = self.get_time()
@@ -106,11 +108,6 @@ class State:
     def list_artifacts(self):
         for art in self.prognostic.artifacts:
             print(art)
-
-
-catalog_path = vcm.catalog.catalog_path
-catalog = intake.open_catalog(catalog_path)
-grid = load_run_data.load_grid(catalog)
 
 
 def avg2d(state: State, variable):
@@ -274,6 +271,15 @@ def register_parser(subparsers):
     )
     parser.set_defaults(func=main)
     parser.add_argument(
+        "--catalog_path",
+        type=str,
+        default=vcm.catalog.catalog_path,
+        help=(
+            "Path to a catalog-defining YAML file (defaults to the vcm catalog); "
+            "catalog must contain 'grid/c48' and 'landseamask/c48' entries."
+        ),
+    )
+    parser.add_argument(
         "script",
         default="",
         nargs="?",
@@ -283,9 +289,10 @@ def register_parser(subparsers):
 
 
 def main(args):
+    catalog_path = args.catalog_path
     if args.script:
-        shell = ProgShell(State(), raise_errors=True)
+        shell = ProgShell(State(catalog_path=catalog_path), raise_errors=True)
         shell.do_eval(args.script)
     else:
-        shell = ProgShell(State())
+        shell = ProgShell(State(catalog_path=catalog_path))
         shell.cmdloop()
