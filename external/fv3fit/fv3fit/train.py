@@ -1,5 +1,6 @@
 import argparse
 import logging
+import tempfile
 import os
 from typing import Optional, Sequence, Tuple
 import tensorflow as tf
@@ -58,11 +59,6 @@ def get_parser():
         ),
         action="store_true",
     )
-    parser.add_argument(
-        "--Livermore-Computing",
-        help=("This is a run on Livermore Computing HPC such as Quartz or Ruby."),
-        action="store_true",
-    )
     return parser
 
 
@@ -107,8 +103,6 @@ def load_data(
 
 
 def main(args, unknown_args=None):
-    if args.Livermore_Computing:
-        wandb.init(mode="disabled")
     with open(args.training_config, "r") as f:
         config_dict = yaml.safe_load(f)
         if unknown_args is not None:
@@ -206,17 +200,19 @@ if __name__ == "__main__":
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
     disable_tensorflow_gpu_preallocation()
-    os.makedirs("artifacts", exist_ok=True)
+    dir_ = tempfile.TemporaryDirectory()
+    os.makedirs(os.path.join(dir_.name, "artifacts"), exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d : %(message)s",
         handlers=[
-            logging.FileHandler("artifacts/training.log"),
+            logging.FileHandler(f"{dir_.name}/artifacts/training.log"),
             logging.StreamHandler(),
         ],
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     main(args, unknown_args)
-    if args.Livermore_Computing is False:
-        with put_dir(args.output_path) as path:
-            shutil.move("artifacts", os.path.join(path, "artifacts"))
+    with put_dir(args.output_path) as path:
+        shutil.move(
+            os.path.join(dir_.name, "artifacts"), os.path.join(path, "artifacts")
+        )

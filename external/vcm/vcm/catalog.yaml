@@ -1236,27 +1236,3 @@ sources:
     args:
       urlpath: "gs://vcm-scream/latLonArea/ne30/land_sea_mask_elm.zarr/"
       consolidated: true
-
-  grid/ne30_LC:
-    description: Lat, lon, and area of NE30 data
-    driver: zarr
-    metadata:
-      grid: ne30
-      variables:
-        - area
-        - lat
-        - lon
-    args:
-      urlpath: "/usr/gdata/climdat/eamxx-ml/vcm-scream/latLonArea/ne30/ne30.zarr/"
-      consolidated: true
-
-  landseamask/ne30_LC:
-    description: land_sea_mask of NE30 data
-    driver: zarr
-    metadata:
-      grid: ne30
-      variables:
-        - land_sea_mask
-    args:
-      urlpath: "/usr/gdata/climdat/eamxx-ml/vcm-scream/latLonArea/ne30/land_sea_mask_elm.zarr/"
-      consolidated: true
