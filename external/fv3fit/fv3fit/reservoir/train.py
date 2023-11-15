@@ -221,7 +221,10 @@ def train_reservoir_model(
                     trim_halo=True,
                 )
 
-                if hyperparameters.mask_variable is not None:
+                if (
+                    hyperparameters.mask_variable is not None
+                    and hyperparameters.mask_readout
+                ):
                     hybrid_input_mask_array = _get_input_mask_array(
                         hyperparameters.mask_variable,
                         batch_data,
