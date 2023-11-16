@@ -60,7 +60,7 @@ def _get_area(ds: xr.Dataset, catalog: intake.catalog.Catalog) -> xr.DataArray:
         48: "grid/c48",
         96: "grid/c96",
         384: "grid/c384",
-        21600: "grid/ne30_LC",
+        21600: "grid/ne30",
     }
     if check_if_scream_dataset(ds):
         input_res = ds.sizes["ncol"]
@@ -126,9 +126,9 @@ def load_grid(catalog, gsrm="fv3gfs"):
         ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
         return xr.merge([grid_c48, ls_mask])
     elif gsrm == "scream":
-        grid_ne30 = standardize_scream_diagnostics(catalog["grid/ne30_LC"].to_dask())
+        grid_ne30 = standardize_scream_diagnostics(catalog["grid/ne30"].to_dask())
         ls_mask_ne30 = standardize_scream_diagnostics(
-            catalog["landseamask/ne30_LC"].to_dask()
+            catalog["landseamask/ne30"].to_dask()
         )
         return xr.merge([grid_ne30, ls_mask_ne30])
     else:

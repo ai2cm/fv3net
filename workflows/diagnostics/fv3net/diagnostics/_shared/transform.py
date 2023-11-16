@@ -111,7 +111,7 @@ def resample_time(
     prognostic = prognostic.isel(time=time_slice)
     if inner_join:
         prognostic, verification = _inner_join_time(prognostic, verification)
-    return DiagArg(prognostic, verification, grid, gsrm=arg.gsrm)
+    return DiagArg(prognostic, verification, grid)
 
 
 def _downsample_only(ds: xr.Dataset, freq_label: str, method: str) -> xr.Dataset:
@@ -145,7 +145,7 @@ def skip_if_3d_output_absent(arg: DiagArg) -> DiagArg:
     prog = prognostic if len(prognostic) > 0 else dummy_ds
     verif = verification if len(verification) > 0 else dummy_ds
 
-    return DiagArg(prog, verif, grid, gsrm=arg.gsrm)
+    return DiagArg(prog, verif, grid)
 
 
 @add_to_input_transform_fns
@@ -162,9 +162,9 @@ def daily_mean(split: timedelta, arg: DiagArg) -> DiagArg:
         split_time = prognostic.time.values[0] + split
         prognostic = _resample_end(prognostic, split_time, "1D")
         verification = _resample_end(verification, split_time, "1D")
-        return DiagArg(prognostic, verification, grid, gsrm=arg.gsrm)
+        return DiagArg(prognostic, verification, grid)
     else:
-        return DiagArg(xr.Dataset(), xr.Dataset(), grid, gsrm=arg.gsrm)
+        return DiagArg(xr.Dataset(), xr.Dataset(), grid)
 
 
 def _resample_end(ds: xr.Dataset, split: datetime, freq_label: str) -> xr.Dataset:
@@ -241,7 +241,7 @@ def mask_to_sfc_type(surface_type: str, arg: DiagArg) -> DiagArg:
         verification, surface_type, grid.lat, grid.land_sea_mask, arg.horizontal_dims
     )
 
-    return DiagArg(masked_prognostic, masked_verification, grid, gsrm=arg.gsrm,)
+    return DiagArg(masked_prognostic, masked_verification, grid,)
 
 
 @add_to_input_transform_fns
@@ -273,12 +273,7 @@ def mask_area(region: str, arg: DiagArg) -> DiagArg:
     )
 
     grid_copy = grid.copy()
-    return DiagArg(
-        prognostic,
-        verification,
-        grid_copy.update({"area": masked_area}),
-        gsrm=arg.gsrm,
-    )
+    return DiagArg(prognostic, verification, grid_copy.update({"area": masked_area}),)
 
 
 def _get_net_precipitation(
@@ -334,11 +329,7 @@ def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
     prognostic_vars = [var for var in variables if var in prognostic]
     verification_vars = [var for var in variables if var in verification]
     return DiagArg(
-        prognostic[prognostic_vars],
-        verification[verification_vars],
-        grid,
-        arg.delp,
-        gsrm=arg.gsrm,
+        prognostic[prognostic_vars], verification[verification_vars], grid, arg.delp,
     )
 
 
@@ -355,9 +346,7 @@ def select_3d_variables(arg: DiagArg) -> DiagArg:
         arg.delp,
     )
     prediction_vars = [var for var in prediction if _is_3d(prediction[var])]
-    return DiagArg(
-        prediction[prediction_vars], target[prediction_vars], grid, delp, gsrm=arg.gsrm,
-    )
+    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp,)
 
 
 @add_to_input_transform_fns
@@ -369,9 +358,7 @@ def select_2d_variables(arg: DiagArg) -> DiagArg:
         arg.delp,
     )
     prediction_vars = [var for var in prediction if not _is_3d(prediction[var])]
-    return DiagArg(
-        prediction[prediction_vars], target[prediction_vars], grid, delp, gsrm=arg.gsrm,
-    )
+    return DiagArg(prediction[prediction_vars], target[prediction_vars], grid, delp,)
 
 
 @add_to_input_transform_fns
@@ -393,4 +380,4 @@ def regrid_zdim_to_pressure_levels(arg: DiagArg) -> DiagArg:
         target_regridded[var] = interpolate_to_pressure_levels(
             delp=delp, field=target[var], dim=arg.vertical_dim,
         )
-    return DiagArg(prediction_regridded, target_regridded, grid, delp, gsrm=arg.gsrm,)
+    return DiagArg(prediction_regridded, target_regridded, grid, delp,)

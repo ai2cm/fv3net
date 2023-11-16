@@ -60,11 +60,10 @@ def compute_diagnostics(
     target: xr.Dataset,
     grid: xr.Dataset,
     delp: xr.DataArray,
-    gsrm: str = "fv3gfs",
     n_jobs: int = -1,
 ):
     return diagnostics_registry.compute(
-        DiagArg(prediction, target, grid, delp, gsrm), n_jobs=n_jobs,
+        DiagArg(prediction, target, grid, delp), n_jobs=n_jobs,
     )
 
 

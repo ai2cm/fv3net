@@ -81,7 +81,6 @@ def _merge_diag_computes(
     input_data: Mapping[str, Tuple[xr.Dataset, xr.Dataset, xr.Dataset]],
     registries: Mapping[str, Registry],
     n_jobs: int,
-    gsrm: str,
 ) -> Mapping[str, xr.DataArray]:
     # Flattens list of all computations across registries before
     # parallelizing the computation.
@@ -102,7 +101,7 @@ def _merge_diag_computes(
             )
             continue
 
-        diag_arg = DiagArg(prog, verif, grid, gsrm=gsrm)
+        diag_arg = DiagArg(prog, verif, grid)
         merged_input_data += [
             (func_name, func, registry_key, diag_arg)
             for func_name, func in registries[registry_key].funcs.items()
@@ -677,9 +676,7 @@ def main(args):
         prognostic, verification, grid
     )
 
-    computed_diags = _merge_diag_computes(
-        input_data, registries, args.n_jobs, args.gsrm
-    )
+    computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
     diags.update(computed_diags)
 
     # add grid vars

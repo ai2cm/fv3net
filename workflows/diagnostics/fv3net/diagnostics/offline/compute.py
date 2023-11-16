@@ -141,11 +141,7 @@ def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
 
 
 def _compute_diagnostics(
-    ds: xr.Dataset,
-    grid: xr.Dataset,
-    predicted_vars: List[str],
-    n_jobs: int,
-    gsrm: str = "fv3gfs",
+    ds: xr.Dataset, grid: xr.Dataset, predicted_vars: List[str], n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     timesteps = []
 
@@ -162,9 +158,7 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
-    ds_summary = compute_diagnostics(
-        prediction, target, grid, ds[DELP], gsrm=gsrm, n_jobs=n_jobs,
-    )
+    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs,)
 
     timesteps.append(ds["time"])
 
@@ -355,7 +349,6 @@ def main(args):
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         ds_predicted,
         evaluation_grid,
-        gsrm=gsrm,
         predicted_vars=model.output_variables,
         n_jobs=args.n_jobs,
     )
