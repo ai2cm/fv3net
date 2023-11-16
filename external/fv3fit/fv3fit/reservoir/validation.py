@@ -380,11 +380,11 @@ def validate_model(
     post_sync_hybrid = (
         hybrid_inputs.isel(time=slice(n_sync_steps, -1)) if hybrid_inputs else None
     )
-    persistence = targets.isel(time=slice(n_sync_steps, -1))
+    persistence = targets.isel(time=slice(n_sync_steps, -1)).drop("time")
     targets = targets.isel(time=slice(n_sync_steps + 1, None))
 
     # for baseline comparison
-    persistence.assign_coords(time=targets.time)
+    persistence = persistence.assign_coords(time=targets.time)
     persistence_errors = (persistence - targets).compute()
 
     def _run_validation_experiment(_step_func, prefix):
@@ -448,6 +448,8 @@ def validate_model(
         log_metrics(metrics)
         log_metric_plots(spatial_metrics)
         log_tile_time_avgs(field_tile_avgs)
+
+    return metrics, spatial_metrics, temporal_metrics, field_tile_avgs
 
 
 @curry
