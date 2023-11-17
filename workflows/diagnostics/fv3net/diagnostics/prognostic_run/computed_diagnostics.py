@@ -414,7 +414,8 @@ def _get_verification_diagnostics(ds: xr.Dataset) -> xr.Dataset:
     for var in bin_width_vars:
         verif_diagnostics[var] = ds[var]
     verif_dataset = xr.Dataset(verif_diagnostics)
-    return xr.merge([ds[GRID_VARS], verif_dataset]).assign_attrs(verif_attrs)
+    present_grid_vars = [var for var in GRID_VARS if var in ds.variables]
+    return xr.merge([ds[present_grid_vars], verif_dataset]).assign_attrs(verif_attrs)
 
 
 def get_metadata(diags):

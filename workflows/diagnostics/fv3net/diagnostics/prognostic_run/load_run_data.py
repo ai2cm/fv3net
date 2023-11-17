@@ -13,6 +13,8 @@ import vcm
 import xarray as xr
 from vcm.cloud import get_fs
 from vcm.fv3 import standardize_fv3_diagnostics
+from vcm.scream import standardize_scream_diagnostics
+from vcm import check_if_scream_dataset
 
 from fv3net.diagnostics.prognostic_run import config
 from fv3net.diagnostics.prognostic_run import derived_variables
@@ -54,15 +56,26 @@ def _load_standardized(path):
 
 
 def _get_area(ds: xr.Dataset, catalog: intake.catalog.Catalog) -> xr.DataArray:
-    grid_entries = {48: "grid/c48", 96: "grid/c96", 384: "grid/c384"}
-    input_res = ds.sizes["x"]
+    grid_entries = {
+        48: "grid/c48",
+        96: "grid/c96",
+        384: "grid/c384",
+        21600: "grid/ne30",
+    }
+    if check_if_scream_dataset(ds):
+        input_res = ds.sizes["ncol"]
+    else:
+        input_res = ds.sizes["x"]
     if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
     return catalog[grid_entries[input_res]].to_dask().area
 
 
 def _get_factor(ds: xr.Dataset, target_resolution: int) -> int:
-    input_res = ds.sizes["x"]
+    if check_if_scream_dataset(ds):
+        input_res = ds.sizes["ncol"]
+    else:
+        input_res = ds.sizes["x"]
     if input_res % target_resolution != 0:
         raise ValueError("Target resolution must evenly divide input resolution")
     return int(input_res / target_resolution)
@@ -106,11 +119,20 @@ def _load_3d(url: str, catalog: intake.catalog.Catalog) -> xr.Dataset:
     return ds_interp
 
 
-def load_grid(catalog):
+def load_grid(catalog, gsrm="fv3gfs"):
     logger.info("Opening Grid Spec")
-    grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
-    ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
-    return xr.merge([grid_c48, ls_mask])
+    if gsrm == "fv3gfs":
+        grid_c48 = standardize_fv3_diagnostics(catalog["grid/c48"].to_dask())
+        ls_mask = standardize_fv3_diagnostics(catalog["landseamask/c48"].to_dask())
+        return xr.merge([grid_c48, ls_mask])
+    elif gsrm == "scream":
+        grid_ne30 = standardize_scream_diagnostics(catalog["grid/ne30"].to_dask())
+        ls_mask_ne30 = standardize_scream_diagnostics(
+            catalog["landseamask/ne30"].to_dask()
+        )
+        return xr.merge([grid_ne30, ls_mask_ne30])
+    else:
+        raise ValueError(f"Grid spec {gsrm} not supported")
 
 
 def load_coarse_data(path, catalog) -> xr.Dataset:
@@ -134,6 +156,20 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
             ds, target_resolution=48, catalog=catalog
         )
 
+    return ds
+
+
+def load_scream_data(path) -> xr.Dataset:
+    logger.info(f"Opening prognostic run data at {path}")
+
+    try:
+        logger.info(f"Loading and standardizing {path}")
+        m = fsspec.get_mapper(path)
+        ds = xr.open_zarr(m, consolidated=True, decode_times=False)
+        ds = standardize_scream_diagnostics(ds)
+    except (FileNotFoundError, KeyError):
+        warnings.warn(UserWarning(f"{path} not found. Returning empty dataset."))
+        ds = xr.Dataset()
     return ds
 
 
@@ -255,18 +291,54 @@ class SegmentedRun:
         return self.url
 
 
+@dataclass
+class ScreamSimulation:
+    url: str
+
+    @property
+    def data_2d(self) -> xr.Dataset:
+        url = self.url
+        path = os.path.join(url, "data_2d.zarr")
+
+        return load_scream_data(path)
+
+    @property
+    def data_3d(self) -> xr.Dataset:
+        logger.info(f"Processing 3d data from run directory at {self.url}")
+        path = os.path.join(self.url, "data_3d.zarr")
+        ds = load_scream_data(path)
+
+        # interpolate 3d prognostic fields to pressure levels
+        ds_interp = xr.Dataset()
+        pressure_vars = [var for var in ds.data_vars if "z" in ds[var].dims]
+        for var in pressure_vars:
+            ds_interp[var] = vcm.interpolate_to_pressure_levels(
+                field=ds[var],
+                delp=ds["pressure_thickness_of_atmospheric_layer"],
+                dim="z",
+            )
+
+        return ds_interp
+
+    def __str__(self) -> str:
+        return self.url
+
+
 def evaluation_pair_to_input_data(
     prognostic: Simulation, verification: Simulation, grid: xr.Dataset
 ):
     # 3d data special handling
     data_3d = prognostic.data_3d
     verif_3d = verification.data_3d
-
+    if check_if_scream_dataset(data_3d):
+        dropped_grid_vars = ["land_sea_mask"]
+    else:
+        dropped_grid_vars = ["tile", "land_sea_mask"]
     return {
         "3d": (
             derived_variables.derive_3d_variables(data_3d),
             derived_variables.derive_3d_variables(verif_3d),
-            grid.drop(["tile", "land_sea_mask"]),
+            grid.drop(dropped_grid_vars),
         ),
         "2d": (
             derived_variables.derive_2d_variables(prognostic.data_2d),

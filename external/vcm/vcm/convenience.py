@@ -153,9 +153,16 @@ def gsrm_name_from_resolution_string(res: str):
     if res.startswith("ne"):
         gsrm = "scream"
     elif res.startswith("c"):
-        gsrm = "fv3"
+        gsrm = "fv3gfs"
     else:
         raise ValueError(
             f"This resolution {res} can not be mapped to either scream or fv3."
         )
     return gsrm
+
+
+def check_if_scream_dataset(ds: xr.Dataset) -> bool:
+    if "ncol" in ds.sizes:
+        return True
+    else:
+        return False

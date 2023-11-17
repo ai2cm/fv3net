@@ -63,6 +63,7 @@ def test_get_verification_from_catalog(url, expected_cls):
     class Args:
         verification = "hello"
         verification_url = url
+        gsrm = "fv3gfs"
 
     verification = savediags.get_verification(Args, catalog=None)
     assert isinstance(verification, expected_cls), verification
