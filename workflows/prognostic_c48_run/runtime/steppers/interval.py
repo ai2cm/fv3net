@@ -96,9 +96,6 @@ class IntervalStepper:
             # Diagnostic must be available at all timesteps, not just when
             # the base stepper is called
             diags = self.get_diagnostics_prior_to_update(state)
-            _zeros_2d = xr.zeros_like(state[TOTAL_PRECIP])
-            _zeros_2d.attrs = {}
-            diags.update({f"net_moistening_due_to_{self.label}": _zeros_2d})
             return {}, diags, {}
         else:
             logger.info(f"applying interval stepper at time {time}")
