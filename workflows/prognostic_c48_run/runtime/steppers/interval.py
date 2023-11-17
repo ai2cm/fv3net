@@ -11,8 +11,8 @@ from runtime.steppers.stepper import Stepper
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.nudging import NudgingConfig
-from runtime.diagnostics.compute import precipitation_sum, precipitation_rate
-from runtime.names import SPHUM, DELP, TOTAL_PRECIP, TOTAL_PRECIP_RATE
+from runtime.diagnostics.compute import KG_PER_M2_PER_M
+from runtime.names import SPHUM, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
 
@@ -96,13 +96,9 @@ class IntervalStepper:
             # Diagnostic must be available at all timesteps, not just when
             # the base stepper is called
             diags = self.get_diagnostics_prior_to_update(state)
-            diags.update(
-                {
-                    f"net_moistening_due_to_{self.label}": xr.zeros_like(
-                        state[TOTAL_PRECIP]
-                    )
-                }
-            )
+            _zeros_2d = xr.zeros_like(state[TOTAL_PRECIP])
+            _zeros_2d.attrs = {}
+            diags.update({f"net_moistening_due_to_{self.label}": _zeros_2d})
             return {}, diags, {}
         else:
             logger.info(f"applying interval stepper at time {time}")
@@ -111,29 +107,29 @@ class IntervalStepper:
             self._call_count += 1
 
             if self._do_total_precip_update and SPHUM in state_updates:
-                logger.info(f"updating total precip at time {time}")
-                net_moistening = self._net_moistening(
-                    sphum_before_update=state[SPHUM],
-                    sphum_after_update=state_updates[SPHUM],
-                    delp=state[DELP],
+                logger.info(f"Updating total precip at time {time}")
+                state_updates[TOTAL_PRECIP] = self._get_precipitation_update(
+                    state, state_updates
                 )
-                diagnostics[f"net_moistening_due_to_{self.label}"] = net_moistening
-                total_precipitation_update = precipitation_sum(
-                    state[TOTAL_PRECIP], net_moistening, self.interval.total_seconds()
-                )
-                diagnostics[TOTAL_PRECIP_RATE] = precipitation_rate(
-                    total_precipitation_update, self.interval.total_seconds()
-                )
-                state_updates[TOTAL_PRECIP] = total_precipitation_update
             else:
-                logger.info(f"Not updating total precip  ")
+                logger.info(f"Not updating total precip at time {time} ")
             return tendencies, diagnostics, state_updates
 
-    def _net_moistening(self, sphum_before_update, sphum_after_update, delp):
-        _dQ2 = (
-            sphum_after_update - sphum_before_update
-        ) / self.interval.total_seconds()
-        return vcm.mass_integrate(_dQ2, delp, "z")
+    def _get_precipitation_update(
+        self, state, state_updates,
+    ):
+        corrective_moistening_integral = (
+            vcm.mass_integrate(state_updates[SPHUM] - state[SPHUM], state[DELP], "z")
+            / KG_PER_M2_PER_M
+        )
+        total_precip_before_limiter = (
+            state[TOTAL_PRECIP] - corrective_moistening_integral
+        )
+        total_precip = total_precip_before_limiter.where(
+            total_precip_before_limiter >= 0, 0
+        )
+        total_precip.attrs["units"] = "m"
+        return total_precip
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         diags, moistening = self.stepper.get_diagnostics(state, tendency)

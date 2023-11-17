@@ -490,7 +490,6 @@ class TimeLoop(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
         )
         self._state.update_mass_conserving(state_updates)
-
         return diagnostics
 
     def _compute_postphysics(self) -> Diagnostics:
@@ -531,6 +530,10 @@ class TimeLoop(
                 self._state, self._tendencies
             )
             diagnostics.update(stepper_diags)
+            if net_moistening.size <= 1:
+                net_moistening = xr.zeros_like(self._state[TOTAL_PRECIP])
+                net_moistening.attrs["units"] = "kg/m^2/s"
+
             if self._postphysics_only_diagnostic_ml:
                 rename_diagnostics(diagnostics)
             else:
@@ -568,16 +571,12 @@ class TimeLoop(
                 "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
                     "cnvprcp"
                 ).data_array,
+                TOTAL_PRECIP_RATE: precipitation_rate(
+                    self._state[TOTAL_PRECIP], self._timestep
+                ),
             }
         )
-        if not (TOTAL_PRECIP_RATE in diagnostics):
-            diagnostics.update(
-                {
-                    TOTAL_PRECIP_RATE: precipitation_rate(
-                        self._state[TOTAL_PRECIP], self._timestep
-                    )
-                }
-            )
+
         self._log_info(f"diags keys: {list(diagnostics.keys())} ")
         return diagnostics
 
