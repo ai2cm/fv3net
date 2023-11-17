@@ -195,24 +195,39 @@ def disable_tensorflow_gpu_preallocation():
         logging.info("%d physical gpus, %d logical gpus", len(gpus), len(logical_gpus))
 
 
+def copy_configs_to_tempdir(tempdir, args):
+    """
+    Copy config files to temporary directory and update args to point to them.
+    """
+    temp_training_config = shutil.copy(args.training_config, tempdir)
+    args.training_config = temp_training_config
+    temp_training_data_config = shutil.copy(args.training_data_config, tempdir)
+    args.training_data_config = temp_training_data_config
+    if args.validation_data_config is not None:
+        temp_val_data_config = shutil.copy(args.validation_data_config, tempdir)
+        args.validation_data_config = temp_val_data_config
+
+
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
     disable_tensorflow_gpu_preallocation()
-    dir_ = tempfile.TemporaryDirectory()
-    os.makedirs(os.path.join(dir_.name, "artifacts"), exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d : %(message)s",
-        handlers=[
-            logging.FileHandler(f"{dir_.name}/artifacts/training.log"),
-            logging.StreamHandler(),
-        ],
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    main(args, unknown_args)
-    with put_dir(args.output_path) as path:
-        shutil.move(
-            os.path.join(dir_.name, "artifacts"), os.path.join(path, "artifacts")
+    with tempfile.TemporaryDirectory() as tempdir:
+        copy_configs_to_tempdir(tempdir, args)
+        os.chdir(tempdir)
+        os.makedirs(os.path.join(tempdir, "artifacts"), exist_ok=True)
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d: %(message)s",
+            handlers=[
+                logging.FileHandler(f"{tempdir}/artifacts/training.log"),
+                logging.StreamHandler(),
+            ],
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
+        main(args, unknown_args)
+        with put_dir(args.output_path) as path:
+            shutil.move(
+                os.path.join(tempdir, "artifacts"), os.path.join(path, "artifacts")
+            )
