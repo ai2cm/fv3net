@@ -195,17 +195,14 @@ def disable_tensorflow_gpu_preallocation():
         logging.info("%d physical gpus, %d logical gpus", len(gpus), len(logical_gpus))
 
 
-def copy_configs_to_tempdir(tempdir, args):
+def ensure_configs_in_abs_path(args):
     """
-    Copy config files to temporary directory and update args to point to them.
+    We need to change to a temporary directory, ensure config paths are absolute.
     """
-    temp_training_config = shutil.copy(args.training_config, tempdir)
-    args.training_config = temp_training_config
-    temp_training_data_config = shutil.copy(args.training_data_config, tempdir)
-    args.training_data_config = temp_training_data_config
+    args.training_config = os.path.abspath(args.training_config)
+    args.training_data_config = os.path.abspath(args.training_data_config)
     if args.validation_data_config is not None:
-        temp_val_data_config = shutil.copy(args.validation_data_config, tempdir)
-        args.validation_data_config = temp_val_data_config
+        args.validation_data_config = os.path.abspath(args.validation_data_config)
 
 
 if __name__ == "__main__":
@@ -214,7 +211,7 @@ if __name__ == "__main__":
     args, unknown_args = parser.parse_known_args()
     disable_tensorflow_gpu_preallocation()
     with tempfile.TemporaryDirectory() as tempdir:
-        copy_configs_to_tempdir(tempdir, args)
+        ensure_configs_in_abs_path(args)
         os.chdir(tempdir)
         os.makedirs(os.path.join(tempdir, "artifacts"), exist_ok=True)
         logging.basicConfig(
