@@ -12,7 +12,7 @@ hyperparameters:
   output_variables:
     - sst
   subdomain:
-    layout: [1,1]
+    layout: [2,2]
     overlap: 0
     rank_dims:
       - x
@@ -30,3 +30,4 @@ hyperparameters:
   input_noise: 0.001
   square_half_hidden_state: False
   validate_sst_only: True
+  mask_readout: False
