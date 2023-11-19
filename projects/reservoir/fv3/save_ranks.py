@@ -125,7 +125,11 @@ if __name__ == "__main__":
             _hybrid_data = intake.open_zarr(path).to_dask()
             _hybrid_data = _hybrid_data.shift(time=args.hybrid_data_time_shift)
             rename_hybrid_time_shifted_vars.update(
-                {var: f"{var}_at_next_time_step" for var in _hybrid_data.data_vars}
+                {
+                    var: f"{var}_at_next_time_step"
+                    for var in _hybrid_data.data_vars
+                    if var in args.variables
+                }
             )
             data = data.merge(_hybrid_data)
 
