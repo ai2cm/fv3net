@@ -5,11 +5,17 @@ import os
 import tensorflow as tf
 from typing import Union, Sequence, cast
 import yaml
+
 import fv3fit
 from fv3fit._shared.predictor import Reloadable
-from fv3fit.reservoir._reshaping import stack_array_preserving_last_dim
-
 from fv3fit._shared import io
+
+# from fv3fit.emulation.layers.normalization import (
+#     NormFactory,
+#     NormLayer,
+#     MeanMethod,
+#     StdDevMethod,
+# )
 
 
 ArrayLike = Union[np.ndarray, tf.Tensor]
@@ -33,6 +39,22 @@ class BaseTransformer(abc.ABC):
 class Transformer(BaseTransformer, Reloadable):
     def __init__(self, **kwargs):
         self.super().__init__(**kwargs)
+
+    def encode_txyz(self, input_arrs: Sequence[np.ndarray]) -> np.ndarray:
+        """Handle non-2D inputs during runtime/training"""
+        leading_shape = input_arrs[0].shape[:-1]
+        collapsed_arrs = [np.reshape(arr, (-1, arr.shape[-1])) for arr in input_arrs]
+        encoded = self.encode(collapsed_arrs)
+        return np.reshape(encoded, (*leading_shape, -1))
+
+    def decode_txyz(self, encoded: np.ndarray) -> Sequence[np.ndarray]:
+        """Handle non-2D inputs during runtime/training"""
+        feature_size = encoded.shape[-1]
+        leading_shape = encoded.shape[:-1]
+        encoded = encoded.reshape(-1, feature_size)
+        decoded = self.decode(encoded)
+        var_arrays = [tf.reshape(arr, (*leading_shape, -1)) for arr in decoded]
+        return var_arrays
 
 
 @io.register("do-nothing-transformer")
@@ -101,41 +123,3 @@ class TransformerGroup:
         output = cast(Transformer, fv3fit.load(os.path.join(path, cls.OUTPUT_DIR)))
         hybrid = cast(Transformer, fv3fit.load(os.path.join(path, cls.HYBRID_DIR)))
         return cls(input=input, output=output, hybrid=hybrid)
-
-
-def decode_columns(
-    encoded_output: np.ndarray, transformer: Transformer
-) -> Sequence[np.ndarray]:
-    """
-    Differs from encode_columns as the decoder expects a single input array
-    (not a list of one array per variable) and
-    can predict multiple outputs rather than a single latent vector.
-    Expand a sequnence of N x M x L dim data into i variables
-    to one or more N x M x Vi dim array, where Vi is number of features
-    (usually vertical levels) of each variable and L << V is a smaller number
-    of latent dimensions
-    """
-    if encoded_output.ndim > 3:
-        raise ValueError("Unexpected dimension size in decoding operation.")
-
-    feature_size = encoded_output.shape[-1]
-    leading_shape = encoded_output.shape[:-1]
-    encoded_output = encoded_output.reshape(-1, feature_size)
-    decoded = transformer.decode(encoded_output)
-    var_arrays = [tf.reshape(arr, (*leading_shape, -1)) for arr in decoded]
-    return var_arrays
-
-
-def encode_columns(
-    input_arrs: Sequence[tf.Tensor], transformer: Transformer
-) -> np.ndarray:
-    """
-    Reduces a sequnence of N x M x Vi dim data over i variables
-    to a single N x M x Z dim array, where Vi is original number of features
-    (usually vertical levels) of each variable and Z << V is a smaller number
-    of latent dimensions
-    """
-    original_sample_shape = input_arrs[0].shape[:-1]
-    reshaped = [stack_array_preserving_last_dim(var) for var in input_arrs]
-    encoded_reshaped = transformer.encode(reshaped)
-    return tf.reshape(encoded_reshaped, (*original_sample_shape, -1))
