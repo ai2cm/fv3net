@@ -4,9 +4,7 @@ import tensorflow as tf
 from typing import Iterable, Mapping, Optional
 
 from fv3fit.reservoir.transformers import (
-    # ReloadableTransformer,
     Transformer,
-    encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
 from fv3fit.reservoir.domain2 import RankXYDivider
@@ -108,7 +106,7 @@ def process_batch_data(
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     if autoencoder is not None:
-        data_encoded = encode_columns(data, autoencoder)
+        data_encoded = autoencoder.encode_txyz(data)
 
     if trim_halo:
         data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
