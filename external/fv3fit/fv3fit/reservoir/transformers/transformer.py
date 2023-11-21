@@ -4,7 +4,7 @@ import numpy as np
 from numpy import ndarray
 import os
 import tensorflow as tf
-from typing import Union, Sequence, cast
+from typing import Union, Sequence, cast, Optional
 import yaml
 
 import fv3fit
@@ -38,7 +38,7 @@ class BaseTransformer(abc.ABC):
 
 class Transformer(BaseTransformer, Reloadable):
     def __init__(self, **kwargs):
-        self.super().__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def encode_txyz(self, input_arrs: Sequence[np.ndarray]) -> np.ndarray:
         """Handle non-2D inputs during runtime/training"""
@@ -57,10 +57,12 @@ class Transformer(BaseTransformer, Reloadable):
         return var_arrays
 
 
+@io.register("scale-spatial-concat-z-transformer")
 class ScaleSpatialConcatZTransformer(Transformer):
     _CONFIG_NAME = "scale_spatial_concat_z_transformer.yaml"
-    _SCALE_NDARRAY = "scale.npz"
-    _CENTER_NDARRAY = "center.npz"
+    _SCALE_NDARRAY = "scale.npy"
+    _CENTER_NDARRAY = "center.npy"
+    _MASK_NDARRAY = "mask.npy"
     _EPSILON = 1.0e-7
 
     def __init__(
@@ -69,16 +71,30 @@ class ScaleSpatialConcatZTransformer(Transformer):
         scale: np.ndarray,
         spatial_features: Sequence[int],
         num_variables: int,
+        mask: Optional[np.ndarray] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self._spatial_features = spatial_features
         self._num_variables = num_variables
         self._norm_layer = NormLayer(center=center, scale=scale, epsilon=self._EPSILON)
+        self._mask = mask
 
     @property
     def n_latent_dims(self):
         return len(self._norm_layer) * self._spatial_features[-1]
+
+    @property
+    def _flat_spatial_len(self):
+        return np.product(self._spatial_features)
+
+    @property
+    def _stacked_flat_spatial_split_idxs(self):
+        return [self._flat_spatial_len * i for i in range(1, self._num_variables)]
+
+    @property
+    def _z_dim_split_idxs(self):
+        return [self._spatial_features[-1] * i for i in range(1, self._num_variables)]
 
     def _check_consistent_xyz(self, input_arrs: Sequence[np.ndarray]):
         if len(input_arrs) != self._num_variables:
@@ -100,7 +116,6 @@ class ScaleSpatialConcatZTransformer(Transformer):
         leading_dims = input_arrs[0].shape[:-3]
         # stack xyz
         spatial_last_dim = [arr.reshape(*leading_dims, -1) for arr in input_arrs]
-        last_dim_len = spatial_last_dim[0].shape[-1]
 
         # stack all xyz-flattened variables
         stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
@@ -109,8 +124,9 @@ class ScaleSpatialConcatZTransformer(Transformer):
         normalized = self.encode(stacked_feature)
 
         # split xyz-flattened variables
-        split_idx = [last_dim_len * i for i in range(1, len(input_arrs))]
-        normalized_arrs = np.split(normalized, split_idx, axis=-1)
+        normalized_arrs = np.split(
+            normalized, self._stacked_flat_spatial_split_idxs, axis=-1
+        )
 
         # reshape to xyz and then stack z
         normalized_unstacked = [
@@ -119,29 +135,32 @@ class ScaleSpatialConcatZTransformer(Transformer):
         ]
         normalized_stacked_z = np.concatenate(normalized_unstacked, axis=-1)
 
+        if self._mask is not None:
+            normalized_stacked_z = normalized_stacked_z * self._mask
+
         return normalized_stacked_z
 
     def decode_txyz(self, encoded: ndarray) -> Sequence[ndarray]:
-        leading_dims = encoded.shape[:-1]
+        leading_dims = encoded.shape[:-3]
+
+        if self._mask is not None:
+            encoded = encoded * self._mask
 
         # unstack z
-        split_idx = [
-            self._spatial_features[-1] * i for i in range(1, self._num_variables)
-        ]
-        normalized_arrs = np.split(encoded, split_idx, axis=-1)
+        normalized_arrs = np.split(encoded, self._z_dim_split_idxs, axis=-1)
         self._check_consistent_xyz(normalized_arrs)
 
         # stack all xyz-flattened variables
         spatial_last_dim = [arr.reshape(*leading_dims, -1) for arr in normalized_arrs]
-        last_dim_len = spatial_last_dim[0].shape[-1]
         stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
 
         # denormalize
         unnormalized = self.decode(stacked_feature)
 
         # split xyz-flattened variables
-        split_idx = [last_dim_len * i for i in range(1, self._num_variables)]
-        unnormalized_arrs = np.split(unnormalized, split_idx, axis=-1)
+        unnormalized_arrs = np.split(
+            unnormalized, self._stacked_flat_spatial_split_idxs, axis=-1
+        )
 
         # reshape spatial
         original = [
@@ -171,6 +190,7 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         np.save(os.path.join(path, self._SCALE_NDARRAY), self._norm_layer.scale)
         np.save(os.path.join(path, self._CENTER_NDARRAY), self._norm_layer.center)
+        np.save(os.path.join(path, self._MASK_NDARRAY), self._mask)
 
     @classmethod
     def load(cls, path: str) -> "ScaleSpatialConcatZTransformer":
@@ -179,10 +199,13 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         scale = np.load(os.path.join(path, cls._SCALE_NDARRAY))
         center = np.load(os.path.join(path, cls._CENTER_NDARRAY))
-        return cls(center=center, scale=scale, **config)
+        mask = np.load(os.path.join(path, cls._MASK_NDARRAY))
+        return cls(center=center, scale=scale, mask=mask, **config)
 
 
-def build_scale_spatial_concat_z_transformer(self, sample_data: Sequence[np.ndarray]):
+def build_scale_spatial_concat_z_transformer(
+    sample_data: Sequence[np.ndarray], mask: Optional[np.ndarray] = None,
+):
     """
     Take in a sequence of time xyz data and form a standard normalizer
     over each xyz element
@@ -196,7 +219,7 @@ def build_scale_spatial_concat_z_transformer(self, sample_data: Sequence[np.ndar
     factory = NormFactory(
         center=MeanMethod.per_feature,
         scale=StdDevMethod.per_feature,
-        epsilon=self._EPSILON,
+        epsilon=ScaleSpatialConcatZTransformer._EPSILON,
     )
     norm_layer = factory.build(joined_feature,)
 
@@ -205,6 +228,7 @@ def build_scale_spatial_concat_z_transformer(self, sample_data: Sequence[np.ndar
         scale=norm_layer.scale,
         spatial_features=spatial_features,
         num_variables=num_variables,
+        mask=mask,
     )
 
     # also include a mask mapping? that will selectively apply the mask to the fields
