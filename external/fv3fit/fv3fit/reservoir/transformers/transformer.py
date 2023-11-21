@@ -1,6 +1,7 @@
 import abc
 import fsspec
 import numpy as np
+from numpy import ndarray
 import os
 import tensorflow as tf
 from typing import Union, Sequence, cast
@@ -9,13 +10,12 @@ import yaml
 import fv3fit
 from fv3fit._shared.predictor import Reloadable
 from fv3fit._shared import io
-
-# from fv3fit.emulation.layers.normalization import (
-#     NormFactory,
-#     NormLayer,
-#     MeanMethod,
-#     StdDevMethod,
-# )
+from fv3fit.emulation.layers.normalization import (
+    NormFactory,
+    NormLayer,
+    MeanMethod,
+    StdDevMethod,
+)
 
 
 ArrayLike = Union[np.ndarray, tf.Tensor]
@@ -55,6 +55,161 @@ class Transformer(BaseTransformer, Reloadable):
         decoded = self.decode(encoded)
         var_arrays = [tf.reshape(arr, (*leading_shape, -1)) for arr in decoded]
         return var_arrays
+
+
+class ScaleSpatialConcatZTransformer(Transformer):
+    _CONFIG_NAME = "scale_spatial_concat_z_transformer.yaml"
+    _SCALE_NDARRAY = "scale.npz"
+    _CENTER_NDARRAY = "center.npz"
+    _EPSILON = 1.0e-7
+
+    def __init__(
+        self,
+        center: np.ndarray,
+        scale: np.ndarray,
+        spatial_features: Sequence[int],
+        num_variables: int,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self._spatial_features = spatial_features
+        self._num_variables = num_variables
+        self._norm_layer = NormLayer(center=center, scale=scale, epsilon=self._EPSILON)
+
+    @property
+    def n_latent_dims(self):
+        return len(self._norm_layer) * self._spatial_features[-1]
+
+    def _check_consistent_xyz(self, input_arrs: Sequence[np.ndarray]):
+        if len(input_arrs) != self._num_variables:
+            raise ValueError(
+                f"Expected {self._num_variables} input arrays but got {len(input_arrs)}"
+            )
+
+        for i, arr in enumerate(input_arrs):
+            if arr.shape[-3:] != self._spatial_features:
+                raise ValueError(
+                    "All arrays must have the same x,y,z features. "
+                    f"Expected {self._spatial_features} but got {arr.shape[-3:]} "
+                    f"for array {i}."
+                )
+
+    def encode_txyz(self, input_arrs: Sequence[ndarray]) -> ndarray:
+        self._check_consistent_xyz(input_arrs)
+
+        leading_dims = input_arrs[0].shape[:-3]
+        # stack xyz
+        spatial_last_dim = [arr.reshape(*leading_dims, -1) for arr in input_arrs]
+        last_dim_len = spatial_last_dim[0].shape[-1]
+
+        # stack all xyz-flattened variables
+        stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
+
+        # normalize
+        normalized = self.encode(stacked_feature)
+
+        # split xyz-flattened variables
+        split_idx = [last_dim_len * i for i in range(1, len(input_arrs))]
+        normalized_arrs = np.split(normalized, split_idx, axis=-1)
+
+        # reshape to xyz and then stack z
+        normalized_unstacked = [
+            arr.reshape(*leading_dims, *self._spatial_features)
+            for arr in normalized_arrs
+        ]
+        normalized_stacked_z = np.concatenate(normalized_unstacked, axis=-1)
+
+        return normalized_stacked_z
+
+    def decode_txyz(self, encoded: ndarray) -> Sequence[ndarray]:
+        leading_dims = encoded.shape[:-1]
+
+        # unstack z
+        split_idx = [
+            self._spatial_features[-1] * i for i in range(1, self._num_variables)
+        ]
+        normalized_arrs = np.split(encoded, split_idx, axis=-1)
+        self._check_consistent_xyz(normalized_arrs)
+
+        # stack all xyz-flattened variables
+        spatial_last_dim = [arr.reshape(*leading_dims, -1) for arr in normalized_arrs]
+        last_dim_len = spatial_last_dim[0].shape[-1]
+        stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
+
+        # denormalize
+        unnormalized = self.decode(stacked_feature)
+
+        # split xyz-flattened variables
+        split_idx = [last_dim_len * i for i in range(1, self._num_variables)]
+        unnormalized_arrs = np.split(unnormalized, split_idx, axis=-1)
+
+        # reshape spatial
+        original = [
+            arr.reshape(*leading_dims, *self._spatial_features)
+            for arr in unnormalized_arrs
+        ]
+        return original
+
+    def encode(self, input_arr: ndarray) -> ndarray:
+        return self._norm_layer.forward(input_arr)
+
+    def decode(self, input_arr: ndarray) -> ndarray:
+        return self._norm_layer.backward(input_arr)
+
+    def dump(self, path: str) -> None:
+        if self._norm_layer is None:
+            raise ValueError("Cannot dump an unbuilt ScaleSpatialConcatZTransformer")
+
+        with fsspec.open(os.path.join(path, self._CONFIG_NAME), "w") as f:
+            yaml.dump(
+                {
+                    "num_variables": self._num_variables,
+                    "spatial_features": self._spatial_features,
+                },
+                f,
+            )
+
+        np.save(os.path.join(path, self._SCALE_NDARRAY), self._norm_layer.scale)
+        np.save(os.path.join(path, self._CENTER_NDARRAY), self._norm_layer.center)
+
+    @classmethod
+    def load(cls, path: str) -> "ScaleSpatialConcatZTransformer":
+        with fsspec.open(os.path.join(path, cls._CONFIG_NAME), "r") as f:
+            config = yaml.safe_load(f)
+
+        scale = np.load(os.path.join(path, cls._SCALE_NDARRAY))
+        center = np.load(os.path.join(path, cls._CENTER_NDARRAY))
+        return cls(center=center, scale=scale, **config)
+
+
+def build_scale_spatial_concat_z_transformer(self, sample_data: Sequence[np.ndarray]):
+    """
+    Take in a sequence of time xyz data and form a standard normalizer
+    over each xyz element
+    """
+    leading_dims = sample_data[0].shape[:-3]
+    spatial_features = sample_data[0].shape[-3:]
+    num_variables = len(sample_data)
+
+    spatial_stacked = [arr.reshape(*leading_dims, -1) for arr in sample_data]
+    joined_feature = np.concatenate(spatial_stacked, axis=-1)
+    factory = NormFactory(
+        center=MeanMethod.per_feature,
+        scale=StdDevMethod.per_feature,
+        epsilon=self._EPSILON,
+    )
+    norm_layer = factory.build(joined_feature,)
+
+    return ScaleSpatialConcatZTransformer(
+        center=norm_layer.center,
+        scale=norm_layer.scale,
+        spatial_features=spatial_features,
+        num_variables=num_variables,
+    )
+
+    # also include a mask mapping? that will selectively apply the mask to the fields
+    # that way I can mask the SST data and/or the atmospheric data
+    # I need a way to turn off the mask application on the encoded output in training
 
 
 @io.register("do-nothing-transformer")
