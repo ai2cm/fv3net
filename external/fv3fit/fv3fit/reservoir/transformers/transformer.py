@@ -82,7 +82,7 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
     @property
     def n_latent_dims(self):
-        return len(self._norm_layer) * self._spatial_features[-1]
+        return self._num_variables * self._spatial_features[-1]
 
     @property
     def _flat_spatial_len(self):
@@ -115,7 +115,7 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         leading_dims = input_arrs[0].shape[:-3]
         # stack xyz
-        spatial_last_dim = [arr.reshape(*leading_dims, -1) for arr in input_arrs]
+        spatial_last_dim = [tf.reshape(arr, (*leading_dims, -1)) for arr in input_arrs]
 
         # stack all xyz-flattened variables
         stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
@@ -130,7 +130,7 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         # reshape to xyz and then stack z
         normalized_unstacked = [
-            arr.reshape(*leading_dims, *self._spatial_features)
+            tf.reshape(arr, (*leading_dims, *self._spatial_features))
             for arr in normalized_arrs
         ]
         normalized_stacked_z = np.concatenate(normalized_unstacked, axis=-1)
@@ -151,7 +151,9 @@ class ScaleSpatialConcatZTransformer(Transformer):
         self._check_consistent_xyz(normalized_arrs)
 
         # stack all xyz-flattened variables
-        spatial_last_dim = [arr.reshape(*leading_dims, -1) for arr in normalized_arrs]
+        spatial_last_dim = [
+            tf.reshape(arr, (*leading_dims, -1)) for arr in normalized_arrs
+        ]
         stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
 
         # denormalize
@@ -164,7 +166,7 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         # reshape spatial
         original = [
-            arr.reshape(*leading_dims, *self._spatial_features)
+            tf.reshape(arr, (*leading_dims, *self._spatial_features))
             for arr in unnormalized_arrs
         ]
         return original

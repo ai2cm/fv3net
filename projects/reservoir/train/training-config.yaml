@@ -2,15 +2,16 @@ model_type: reservoir
 hyperparameters:
   n_jobs: 1
   seed: 0
-  mask_variable: mask_field
-  hybrid_variables:
+  input_variables:
+    - sst
     - t2m_at_next_timestep
     - u10_at_next_timestep
     - v10_at_next_timestep
-  input_variables:
-    - sst
   output_variables:
     - sst
+  transformers:
+    input: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231120/pure-inputs/scale-xyz-concat-z-tile${TILE}"
+    output: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231120/sst-out/scale-xyz-concat-z-tile${TILE}"
   subdomain:
     layout: [2,2]
     overlap: 0

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from toolz import curry
 from io import BytesIO
 from PIL import Image
+import logging
 
 from fv3fit.reservoir.adapters import ReservoirAdapterType
 
@@ -14,6 +15,8 @@ from fv3fit.reservoir.adapters import ReservoirAdapterType
 UNITS = {
     "sst": "K",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _run_one_step_predictions(synced_model, inputs, hybrid):
@@ -380,11 +383,12 @@ def validate_model(
     post_sync_hybrid = (
         hybrid_inputs.isel(time=slice(n_sync_steps, -1)) if hybrid_inputs else None
     )
-    persistence = targets.isel(time=slice(n_sync_steps, -1)).drop("time")
+
+    persistence = targets.isel(time=slice(n_sync_steps, -1))
     targets = targets.isel(time=slice(n_sync_steps + 1, None))
 
-    # for baseline comparison
-    persistence = persistence.assign_coords(time=targets.time)
+    if "time" in targets:
+        persistence = persistence.drop("time").assign_coords(time=targets.time)
     persistence_errors = (persistence - targets).compute()
 
     def _run_validation_experiment(_step_func, prefix):
