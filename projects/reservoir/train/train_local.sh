@@ -16,14 +16,15 @@ training_data=training-data.yaml
 validation_data=validation-data.yaml
 
 # Loop through each tile and submit the specified number of jobs
-for tile in {0..5}; do
+for tile in {0..0}; do
   # Create a temporary directory for the updated configuration files
   export TILE=$tile
 
   tmpdir=$(mktemp -d)
   envsubst < $training_data > $tmpdir/$training_data
   envsubst < $validation_data > $tmpdir/$validation_data
-  cp $train_config $tmpdir/$train_config
+  envsubst < $train_config > $tmpdir/$train_config
+  # cp $train_config $tmpdir/$train_config
 
   export WANDB_NAME="${NAME}-tile${tile}-${RANDOM_TAG}"
   export SUBMIT_DIR=$(pwd)

@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import os
 import typing
-from typing import Iterable, Hashable, Sequence, Union, Mapping
+from typing import Iterable, Hashable, Sequence, Union, Mapping, Optional
 import xarray as xr
 
 import fv3fit
@@ -55,7 +55,7 @@ class DatasetAdapter:
         return xr.DataArray(data=arr, dims=dims)
 
     def output_array_to_ds(
-        self, outputs: Sequence[np.ndarray], output_dims: Sequence[str]
+        self, outputs: Sequence[np.ndarray], output_dims: Optional[Sequence[str]] = None
     ) -> xr.Dataset:
 
         ds = xr.Dataset(
@@ -64,6 +64,9 @@ class DatasetAdapter:
                 for var, output in zip(self.output_variables, outputs)
             }
         )
+        if output_dims is None:
+            output_dims = self.DIM_ORDER
+
         return ds.transpose(*[dim for dim in output_dims if dim in ds.dims])
 
     def input_dataset_to_arrays(
@@ -122,9 +125,8 @@ class ReservoirDatasetAdapter(Predictor):
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # inputs arg is not used, but is required by Predictor signature and prog run
         prediction_arr = self.model.predict()
-        return self.model_adapter.output_array_to_ds(
-            prediction_arr, output_dims=list(inputs.dims)
-        )
+        dims = list(inputs.dims) if inputs else None
+        return self.model_adapter.output_array_to_ds(prediction_arr, output_dims=dims)
 
     def increment_state(self, inputs: xr.Dataset):
         xy_input_arrs = self.model_adapter.input_dataset_to_arrays(
