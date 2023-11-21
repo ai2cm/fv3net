@@ -10,7 +10,6 @@ import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
 import wandb
 
-
 from .. import Predictor
 from .utils import (
     square_even_terms,
@@ -21,7 +20,7 @@ from .utils import (
     get_standard_normalizing_transformer,
 )
 from .transformers import TransformerGroup, Transformer
-from .._shared import register_training_function
+from .._shared import register_training_function, get_dir
 from . import (
     ReservoirComputingModel,
     HybridReservoirComputingModel,
@@ -45,6 +44,11 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
+def _load_transformer(path: str) -> Transformer:
+    with get_dir(path) as f:
+        return cast(Transformer, fv3fit.load(f))
+
+
 def _get_transformers(
     sample_batch: Mapping[str, tf.Tensor], hyperparameters: ReservoirTrainingConfig
 ) -> TransformerGroup:
@@ -53,7 +57,7 @@ def _get_transformers(
     for variable_group in ["input", "output", "hybrid"]:
         path = getattr(hyperparameters.transformers, variable_group, None)
         if path is not None:
-            transformers[variable_group] = cast(Transformer, fv3fit.load(path))
+            transformers[variable_group] = cast(Transformer, _load_transformer(path))
 
     # If input transformer not specified, always create a standard norm transform
     if "input" not in transformers:
