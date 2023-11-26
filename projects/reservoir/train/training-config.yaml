@@ -19,12 +19,12 @@ hyperparameters:
       - x
       - y
   reservoir_hyperparameters:
-    state_size: 500
+    state_size: 1000
     adjacency_matrix_sparsity: 0.999
     spectral_radius: 0.99
     seed: 0
-    input_coupling_sparsity: 0
-    input_coupling_scaling: 0.3
+    input_coupling_sparsity: 0.001
+    input_coupling_scaling: 0.1
   readout_hyperparameters:
     l2: 10
   n_timesteps_synchronize: 52

@@ -14,7 +14,7 @@ spec:
   templates:
   - name: sweep-agent
     container:
-      image: us.gcr.io/vcm-ml/fv3fit:b901b0b27deedd144eb86e9168e5138d27419a87
+      image: us.gcr.io/vcm-ml/fv3fit:c84d6ce40b5cbefdd5b4172d29e28b4b33a4ea79
       command: ["bash", "-c"]
       args:
         - |
