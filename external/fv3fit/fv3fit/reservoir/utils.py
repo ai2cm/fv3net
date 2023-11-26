@@ -1,12 +1,11 @@
 import logging
 import numpy as np
 import tensorflow as tf
-from typing import Iterable, Mapping, Optional
+import xarray as xr
+from typing import Iterable, Hashable, Mapping, Optional
 
 from fv3fit.reservoir.transformers import (
-    # ReloadableTransformer,
     Transformer,
-    encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
 from fv3fit.reservoir.domain2 import RankXYDivider
@@ -26,10 +25,14 @@ def assure_txyz_dims(var_data: tf.Tensor) -> tf.Tensor:
     elif len(var_data.shape) == 3:
         orig_shape = var_data.shape
         reshaped_tensor = tf.reshape(var_data, shape=(*orig_shape, 1))
+    elif len(var_data.shape) == 2:
+        orig_shape = var_data.shape
+        reshaped_tensor = tf.reshape(var_data, shape=(1, *orig_shape, 1))
     else:
         raise ValueError(
             f"Tensor data has {len(var_data.shape)} dims, must either "
-            "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)."
+            "have either 4 dims (t, x, y, z) or 3 dims (t, x, y)"
+            " or 2 dims (x, y)."
         )
     return reshaped_tensor
 
@@ -85,15 +88,15 @@ def square_even_terms(v: np.ndarray, axis=1) -> np.ndarray:
     return np.apply_along_axis(func1d=_square_evens, axis=axis, arr=v)
 
 
-def get_ordered_X(X: Mapping[str, tf.Tensor], variables: Iterable[str]):
+def get_ordered_X(X: Mapping[Hashable, tf.Tensor], variables: Iterable[Hashable]):
     ordered_tensors = [X[v] for v in variables]
     reshaped_tensors = [assure_txyz_dims(var_tensor) for var_tensor in ordered_tensors]
     return reshaped_tensors
 
 
 def process_batch_data(
-    variables: Iterable[str],
-    batch_data: Mapping[str, tf.Tensor],
+    variables: Iterable[Hashable],
+    batch_data: Mapping[Hashable, tf.Tensor],
     rank_divider: RankXYDivider,
     autoencoder: Optional[Transformer],
     trim_halo: bool,
@@ -108,7 +111,7 @@ def process_batch_data(
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     if autoencoder is not None:
-        data_encoded = encode_columns(data, autoencoder)
+        data_encoded = autoencoder.encode_txyz(data)
 
     if trim_halo:
         data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
@@ -119,6 +122,30 @@ def process_batch_data(
     else:
         data_trimmed = data_encoded
         return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
+
+
+def process_validation_batch_data_to_dataset(
+    batch_data: Mapping[Hashable, tf.Tensor],
+    variables: Iterable[Hashable],
+    trim_divider: Optional[RankXYDivider] = None,
+):
+    # get_orderd_X assures txyz dims
+    ordered_data = get_ordered_X(batch_data, variables)
+
+    if trim_divider is not None:
+        trimmed_data = []
+        for arr in ordered_data:
+            curr_divider = trim_divider.get_new_zdim_rank_divider(arr.shape[-1])
+            trimmed_data.append(curr_divider.trim_halo_from_rank_data(arr))
+        ordered_data = trimmed_data
+
+    ds = xr.Dataset(
+        {
+            varname: xr.DataArray(data, dims=["time", "x", "y", "z"])
+            for varname, data in zip(variables, ordered_data)
+        }
+    )
+    return ds
 
 
 def get_standard_normalizing_transformer(variables, sample_batch):

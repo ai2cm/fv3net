@@ -1,20 +1,21 @@
 import logging
 from joblib import Parallel, delayed
 import fv3fit
-from fv3fit.reservoir.readout import (
-    BatchLinearRegressor,
-    combine_readouts_from_subdomain_regressors,
-)
 import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
 import wandb
 
-
+from fv3fit._shared import get_dir
+from fv3fit.reservoir.readout import (
+    BatchLinearRegressor,
+    combine_readouts_from_subdomain_regressors,
+)
 from .. import Predictor
 from .utils import (
     square_even_terms,
     process_batch_data,
+    process_validation_batch_data_to_dataset,
     get_ordered_X,
     assure_txyz_dims,
     SynchronziationTracker,
@@ -30,6 +31,7 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
+from .validation import validate_model
 from .validation import (
     validation_prediction,
     log_rmse_z_plots,
@@ -45,6 +47,11 @@ def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
 
 
+def _load_transformer(path: str) -> Transformer:
+    with get_dir(path) as f:
+        return cast(Transformer, fv3fit.load(f))
+
+
 def _get_transformers(
     sample_batch: Mapping[str, tf.Tensor], hyperparameters: ReservoirTrainingConfig
 ) -> TransformerGroup:
@@ -53,7 +60,7 @@ def _get_transformers(
     for variable_group in ["input", "output", "hybrid"]:
         path = getattr(hyperparameters.transformers, variable_group, None)
         if path is not None:
-            transformers[variable_group] = cast(Transformer, fv3fit.load(path))
+            transformers[variable_group] = cast(Transformer, _load_transformer(path))
 
     # If input transformer not specified, always create a standard norm transform
     if "input" not in transformers:
@@ -83,10 +90,23 @@ def _get_transformers(
     return TransformerGroup(**transformers)
 
 
+def _expand_mask_zdim(mask: tf.Tensor, z_dim_len: int) -> tf.Tensor:
+    if mask.shape[-1] != z_dim_len and mask.shape[-1] == 1:
+        mask = mask * tf.ones(shape=(*mask.shape[:-1], z_dim_len))
+    else:
+        raise ValueError(
+            f"Mask variable must have trailing dim of 1 or {z_dim_len}",
+            f"but has len {mask.shape[-1]}.",
+        )
+
+    return mask
+
+
 def _get_input_mask_array(
     mask_variable: str,
     sample_batch: Mapping[str, tf.Tensor],
     rank_divider: RankXYDivider,
+    trim_halo: bool = False,
 ) -> np.ndarray:
     if mask_variable not in sample_batch:
         raise KeyError(
@@ -97,11 +117,17 @@ def _get_input_mask_array(
     mask = mask * np.ones(
         rank_divider._rank_extent_all_features
     )  # broadcast feature dim
+
+    if trim_halo:
+        mask = rank_divider.trim_halo_from_rank_data(mask)
+        rank_divider = rank_divider.get_no_overlap_rank_divider()
+
     mask = rank_divider.get_all_subdomains_with_flat_feature(mask[0])
     if set(np.unique(mask)) != {0, 1}:
         raise ValueError(
             f"Mask variable values in field {mask_variable} are not " "all in {0, 1}."
         )
+
     return mask
 
 
@@ -202,11 +228,15 @@ def train_reservoir_model(
                     trim_halo=True,
                 )
 
-                if hyperparameters.mask_variable is not None:
+                if (
+                    hyperparameters.mask_variable is not None
+                    and hyperparameters.mask_readout
+                ):
                     hybrid_input_mask_array = _get_input_mask_array(
                         hyperparameters.mask_variable,
                         batch_data,
                         _hybrid_rank_divider_w_overlap,
+                        trim_halo=True,
                     )
                     hybrid_time_series = hybrid_time_series * hybrid_input_mask_array
                 else:
@@ -247,6 +277,7 @@ def train_reservoir_model(
     readout = combine_readouts_from_subdomain_regressors(subdomain_regressors)
 
     model: Union[ReservoirComputingModel, HybridReservoirComputingModel]
+    adapter_model: Union[ReservoirDatasetAdapter, HybridReservoirDatasetAdapter]
 
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
@@ -258,7 +289,7 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
         )
-        adapter = ReservoirDatasetAdapter(
+        adapter_model = ReservoirDatasetAdapter(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
@@ -275,25 +306,66 @@ def train_reservoir_model(
             transformers=transformers,
             hybrid_input_mask=hybrid_input_mask_array,
         )
-        adapter = HybridReservoirDatasetAdapter(  # type: ignore
+        adapter_model = HybridReservoirDatasetAdapter(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
         )
 
-    if validation_batches is not None and wandb.run is not None:
-        try:
-            ds_val = validation_prediction(
-                model,
-                val_batches=validation_batches,
-                n_synchronize=hyperparameters.n_timesteps_synchronize,
+    if wandb.run is not None and validation_batches is not None:
+        if not hyperparameters.validate_sst_only:
+            try:
+                ds_val = validation_prediction(
+                    model,
+                    val_batches=validation_batches,
+                    n_synchronize=hyperparameters.n_timesteps_synchronize,
+                )
+                log_rmse_z_plots(ds_val, model.output_variables)
+                log_rmse_scalar_metrics(ds_val, model.output_variables)
+                log_variance_scalar_metrics(ds_val, model.output_variables)
+            except Exception as e:
+                logging.error("Error logging validation metrics to wandb", exc_info=e)
+        else:
+            data = next(iter(validation_batches))
+            input_data = process_validation_batch_data_to_dataset(
+                data, adapter_model.nonhybrid_input_variables
             )
-            log_rmse_z_plots(ds_val, model.output_variables)
-            log_rmse_scalar_metrics(ds_val, model.output_variables)
-            log_variance_scalar_metrics(ds_val, model.output_variables)
-        except Exception as e:
-            logging.error("Error logging validation metrics to wandb", exc_info=e)
-    return adapter
+
+            if adapter_model.is_hybrid:
+                adapter_model = cast(HybridReservoirDatasetAdapter, adapter_model)
+                hybrid_data = process_validation_batch_data_to_dataset(
+                    data, adapter_model.hybrid_variables, trim_divider=rank_divider
+                )
+            else:
+                hybrid_data = None
+
+            output_vars = list(adapter_model.output_variables)
+            if "mask_field" in data:
+                output_vars.append("mask_field")
+            if "area" in data:
+                output_vars.append("area")
+
+            target_data = process_validation_batch_data_to_dataset(
+                data, output_vars, trim_divider=rank_divider
+            ).squeeze()
+
+            output_mask = target_data.isel(time=0).get("mask_field", None)
+            area = target_data.isel(time=0).get("area", None)
+            target_data = target_data.drop_vars(["mask_field", "area"], errors="ignore")
+
+            logger.info(str(target_data))
+            logger.info(f"sync steps {hyperparameters.n_timesteps_synchronize}")
+            validate_model(
+                adapter_model,
+                input_data,
+                hybrid_data,
+                hyperparameters.n_timesteps_synchronize,
+                target_data,
+                mask=output_mask,
+                area=area,
+            )
+
+    return adapter_model
 
 
 def _get_reservoir_state_time_series(
