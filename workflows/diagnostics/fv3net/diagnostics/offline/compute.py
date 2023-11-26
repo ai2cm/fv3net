@@ -141,11 +141,7 @@ def _coord_to_var(coord: xr.DataArray, new_var_name: str) -> xr.DataArray:
 
 
 def _compute_diagnostics(
-    ds: xr.Dataset,
-    grid: xr.Dataset,
-    horizontal_dims: List[str],
-    predicted_vars: List[str],
-    n_jobs: int,
+    ds: xr.Dataset, grid: xr.Dataset, predicted_vars: List[str], n_jobs: int,
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     timesteps = []
 
@@ -162,9 +158,7 @@ def _compute_diagnostics(
     target = safe.get_variables(
         ds.sel({DERIVATION_DIM_NAME: TARGET_COORD}), full_predicted_vars
     )
-    ds_summary = compute_diagnostics(
-        prediction, target, grid, ds[DELP], horizontal_dims, n_jobs=n_jobs,
-    )
+    ds_summary = compute_diagnostics(prediction, target, grid, ds[DELP], n_jobs=n_jobs,)
 
     timesteps.append(ds["time"])
 
@@ -291,7 +285,7 @@ def get_prediction(
     batches = config.load_batches(model_variables)
 
     transforms = [_get_predict_function(model, model_variables)]
-    if vcm.gsrm_name_from_resolution_string(config.res) == "fv3":
+    if vcm.gsrm_name_from_resolution_string(config.res) == "fv3gfs":
         prediction_resolution = res_from_string(config.res)
         if prediction_resolution != evaluation_resolution:
             transforms.append(
@@ -310,11 +304,11 @@ def get_prediction(
 
 
 def _daskify_sequence(batches):
-    temp_data_dir = temporary_directory()
-    for i, batch in enumerate(batches):
-        logger.info(f"Locally caching batch {i+1}/{len(batches)+1}")
-        batch.to_netcdf(os.path.join(temp_data_dir.name, f"{i}.nc"))
-    dask_ds = xr.open_mfdataset(os.path.join(temp_data_dir.name, "*.nc"))
+    with temporary_directory() as td:
+        for i, batch in enumerate(batches):
+            logger.info(f"Locally caching batch {i+1}/{len(batches)+1}")
+            batch.to_netcdf(os.path.join(td, f"{i}.nc"))
+        dask_ds = xr.open_mfdataset(os.path.join(td, "*.nc"))
     return dask_ds
 
 
@@ -333,9 +327,10 @@ def main(args):
     # add Q2 and total water path for PW-Q2 scatterplots and net precip domain averages
     if any(["Q2" in v for v in model.output_variables]):
         model = fv3fit.DerivedModel(model, derived_output_variables=["Q2"])
-    if vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "fv3":
+    gsrm = vcm.gsrm_name_from_resolution_string(args.evaluation_grid)
+    if gsrm == "fv3gfs":
         horizontal_dims = ["x", "y", "tile"]
-    elif vcm.gsrm_name_from_resolution_string(args.evaluation_grid) == "scream":
+    elif gsrm == "scream":
         horizontal_dims = ["ncol"]
     ds_predicted = get_prediction(
         config=config,
@@ -354,7 +349,6 @@ def main(args):
     ds_diagnostics, ds_scalar_metrics = _compute_diagnostics(
         ds_predicted,
         evaluation_grid,
-        horizontal_dims=horizontal_dims,
         predicted_vars=model.output_variables,
         n_jobs=args.n_jobs,
     )

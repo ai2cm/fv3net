@@ -128,6 +128,7 @@ def test_nonhybrid_adapter_predict(regtest):
     print(result, file=regtest)
 
 
+@pytest.mark.filterwarnings("ignore:Model type is not located at")
 def test_adapter_dump_and_load(tmpdir):
     predictor = get_8x8_overlapped_model(hybrid=False)
     data = get_single_rank_xarray_data()
@@ -203,6 +204,7 @@ def test_generate_subdomain_models_for_all_class_types(is_hybrid, use_adapter):
     assert len(split_models) == 4
 
 
+@pytest.mark.filterwarnings("ignore:Model type is not located at")
 def test_generate_subdomain_models_for_saved_single_tile(tmpdir):
     model = get_8x8_overlapped_model(hybrid=True)
     save_path = str(tmpdir.join("model0"))
@@ -215,6 +217,7 @@ def test_generate_subdomain_models_for_saved_single_tile(tmpdir):
         fv3fit.load(str(tmpdir.join("new_models").join(f"subdomain_{i}")))
 
 
+@pytest.mark.filterwarnings("ignore:Model type is not located at")
 def test_generate_subdomain_models_for_saved_all_tiles(tmpdir):
     model = get_8x8_overlapped_model(hybrid=True)
     model_map = {}

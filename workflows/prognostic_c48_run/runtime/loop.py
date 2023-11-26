@@ -16,7 +16,6 @@ from typing import (
 )
 import cftime
 import pace.util
-import fv3gfs.wrapper
 import numpy as np
 import vcm
 import xarray as xr
@@ -34,15 +33,14 @@ from runtime.diagnostics.compute import (
 import runtime.diagnostics.tracers
 from runtime.monitor import Monitor
 from runtime.names import (
-    TENDENCY_TO_STATE_NAME,
     TOTAL_PRECIP_RATE,
     PREPHYSICS_OVERRIDES,
-    A_GRID_WIND_TENDENCIES,
-    D_GRID_WIND_TENDENCIES,
-    EASTWARD_WIND_TENDENCY,
-    NORTHWARD_WIND_TENDENCY,
-    X_WIND_TENDENCY,
-    Y_WIND_TENDENCY,
+    SURFACE_FLUX_OVERRIDES,
+)
+from runtime.tendency import (
+    add_tendency,
+    prepare_tendencies_for_dynamical_core,
+    state_updates_from_tendency,
 )
 from runtime.steppers.machine_learning import (
     MachineLearningConfig,
@@ -78,126 +76,6 @@ def _replace_precip_rate_with_accumulation(  # type: ignore
         state_updates.pop(TOTAL_PRECIP_RATE)
 
 
-def fillna_tendency(tendency: xr.DataArray) -> Tuple[xr.DataArray, xr.DataArray]:
-    tendency_filled = tendency.fillna(0.0)
-    tendency_filled_frac = (
-        xr.where(tendency != tendency_filled, 1, 0).sum("z") / tendency.sizes["z"]
-    )
-    tendency_filled_frac_name = f"{tendency_filled.name}_filled_frac"
-    tendency_filled_frac = tendency_filled_frac.rename(tendency_filled_frac_name)
-    return tendency_filled, tendency_filled_frac
-
-
-def fillna_tendencies(tendencies: State) -> Tuple[State, State]:
-    filled_tendencies: State = {}
-    filled_fractions: State = {}
-
-    for name, tendency in tendencies.items():
-        (
-            filled_tendencies[name],
-            filled_fractions[f"{name}_filled_frac"],
-        ) = fillna_tendency(tendency)
-
-    return filled_tendencies, filled_fractions
-
-
-def prepare_agrid_wind_tendencies(
-    tendencies: State,
-) -> Tuple[xr.DataArray, xr.DataArray]:
-    """Ensure A-grid wind tendencies are defined, have the proper units, and
-    data type before being passed to the wrapper.
-
-    Assumes that at least one of dQu or dQv appears in the tendencies input
-    dictionary.
-    """
-    dQu = tendencies.get(EASTWARD_WIND_TENDENCY)
-    dQv = tendencies.get(NORTHWARD_WIND_TENDENCY)
-
-    if dQu is None:
-        dQu = xr.zeros_like(dQv)
-    if dQv is None:
-        dQv = xr.zeros_like(dQu)
-
-    dQu = dQu.assign_attrs(units="m/s/s").astype(np.float64, casting="same_kind")
-    dQv = dQv.assign_attrs(units="m/s/s").astype(np.float64, casting="same_kind")
-    return dQu, dQv
-
-
-def transform_agrid_wind_tendencies(tendencies: State) -> State:
-    """Transforms available A-grid wind tendencies to the D-grid.
-
-    Currently this does not support the case that both A-grid and D-grid
-    tendencies are provided and will raise an error in that situation.  It would
-    be straightforward to enable support of that, however.
-    """
-    if contains_dgrid_tendencies(tendencies):
-        raise ValueError(
-            "Simultaneously updating A-grid and D-grid winds is currently not "
-            "supported."
-        )
-
-    dQu, dQv = prepare_agrid_wind_tendencies(tendencies)
-    dQx_wind, dQy_wind = transform_from_agrid_to_dgrid(dQu, dQv)
-    tendencies[X_WIND_TENDENCY] = dQx_wind
-    tendencies[Y_WIND_TENDENCY] = dQy_wind
-    return dissoc(tendencies, *A_GRID_WIND_TENDENCIES)
-
-
-def contains_agrid_tendencies(tendencies):
-    return any(k in tendencies for k in A_GRID_WIND_TENDENCIES)
-
-
-def contains_dgrid_tendencies(tendencies):
-    return any(k in tendencies for k in D_GRID_WIND_TENDENCIES)
-
-
-def prepare_tendencies_for_dynamical_core(tendencies: State) -> Tuple[State, State]:
-    # Filled fraction diagnostics are recorded on the original grid, since that
-    # is where the na-filling occurs.
-    filled_tendencies, tendencies_filled_frac = fillna_tendencies(tendencies)
-    if contains_agrid_tendencies(filled_tendencies):
-        filled_tendencies = transform_agrid_wind_tendencies(filled_tendencies)
-    return filled_tendencies, tendencies_filled_frac
-
-
-def transform_from_agrid_to_dgrid(
-    u: xr.DataArray, v: xr.DataArray
-) -> Tuple[xr.DataArray, xr.DataArray]:
-    """Transform a vector field on the A-grid in latitude-longitude coordinates
-    to the D-grid in cubed-sphere coordinates.
-
-    u and v must have double precision and contain units attributes.
-    """
-    u_quantity = pace.util.Quantity.from_data_array(u)
-    v_quantity = pace.util.Quantity.from_data_array(v)
-    (
-        x_wind_quantity,
-        y_wind_quantity,
-    ) = fv3gfs.wrapper.transform_agrid_winds_to_dgrid_winds(u_quantity, v_quantity)
-    return x_wind_quantity.data_array, y_wind_quantity.data_array
-
-
-def add_tendency(state: Any, tendencies: State, dt: float) -> State:
-    """Given state and tendency prediction, return updated state, which only includes
-    variables updated by tendencies.  Tendencies cannot contain null values.
-    """
-    with xr.set_options(keep_attrs=True):
-        updated: State = {}
-        for name, tendency in tendencies.items():
-            try:
-                state_name = str(TENDENCY_TO_STATE_NAME[name])
-            except KeyError:
-                raise KeyError(
-                    f"Tendency variable '{name}' does not have an entry mapping it "
-                    "to a corresponding state variable to add to. "
-                    "Existing tendencies with mappings to state are "
-                    f"{list(TENDENCY_TO_STATE_NAME.keys())}"
-                )
-
-            updated[state_name] = state[state_name] + tendency * dt
-    return updated
-
-
 class LoggingMixin:
 
     rank: int
@@ -215,16 +93,14 @@ class LoggingMixin:
             print(message)
 
 
-def state_updates_from_tendency(tendency_updates):
-    # Prescriber can overwrite the state updates predicted by ML tendencies
-    # Sometimes this is desired and we want to save both the overwritten updated state
-    # as well as the ML-predicted state that was overwritten, ex. reservoir updates.
-
-    updates = {
-        f"{k}_state_from_postphysics_tendency": v for k, v in tendency_updates.items()
-    }
-
-    return updates
+def _check_surface_flux_overrides_exist(namelist_override_flag, state_update_keys):
+    if namelist_override_flag is True:
+        if not set(SURFACE_FLUX_OVERRIDES).issubset(state_update_keys):
+            raise ValueError(
+                "Namelist flag 'override_surface_radiative_fluxes' is set to True."
+                f"Surface flux overrides {SURFACE_FLUX_OVERRIDES} must be in "
+                "prephysics updates."
+            )
 
 
 class TimeLoop(
@@ -250,15 +126,16 @@ class TimeLoop(
     ``TimeLoop`` controls when and how to apply these updates to the FV3 state.
     """
 
-    def __init__(
-        self, config: UserConfig, comm: Any = None, wrapper: Any = fv3gfs.wrapper,
-    ) -> None:
+    def __init__(self, config: UserConfig, wrapper: Any, comm: Any = None,) -> None:
 
         if comm is None:
             comm = MPI.COMM_WORLD
 
-        self._fv3gfs = wrapper
-        self._state: DerivedFV3State = MergedState(DerivedFV3State(self._fv3gfs), {})
+        self._wrapper = wrapper
+        self._tracer_metadata = self._wrapper.get_tracer_metadata()
+        self._state: DerivedFV3State = MergedState(
+            DerivedFV3State(self._wrapper, self._tracer_metadata), {}
+        )
         self.comm = comm
         self._timer = pace.util.Timer()
         self.rank: int = comm.rank
@@ -300,7 +177,7 @@ class TimeLoop(
             self._reservior_increment_stepper,
             self._reservoir_predict_stepper,
         ] = self._get_reservoir_stepper(config, init_time)
-        self._log_info(self._fv3gfs.get_tracer_metadata())
+        self._log_info(self._tracer_metadata)
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
     def _use_diagnostic_ml_prephysics(self, prephysics_config):
@@ -377,7 +254,10 @@ class TimeLoop(
         elif isinstance(base_stepper_config, NudgingConfig):
             self._log_info(f"Using NudgingStepper for step {step}")
             stepper = PureNudger(
-                base_stepper_config, self._get_communicator(), hydrostatic
+                self._tracer_metadata,
+                base_stepper_config,
+                self._get_communicator(),
+                hydrostatic,
             )
         else:
             self._log_info(
@@ -394,6 +274,7 @@ class TimeLoop(
                 stepper=stepper,
                 offset_seconds=stepper_config.offset_seconds,
                 record_fields_before_update=stepper_config.record_fields_before_update,
+                n_calls=stepper_config.n_calls,
             )
         else:
             return stepper
@@ -449,7 +330,7 @@ class TimeLoop(
                 namelist,
                 self._timestep,
                 self._state["initialization_time"].item(),
-                self._fv3gfs.get_tracer_metadata(),
+                self._tracer_metadata,
                 radiation_input_generator,
             )
         else:
@@ -461,11 +342,13 @@ class TimeLoop(
     ) -> Tuple[Optional[Stepper], Optional[Stepper]]:
         if config.reservoir_corrector is not None:
             res_config = config.reservoir_corrector
+            self._log_info("Getting reservoir steppers")
             incrementer, predictor = get_reservoir_steppers(
                 res_config,
                 MPI.COMM_WORLD.Get_rank(),
                 init_time=init_time,
                 communicator=self._get_communicator(),
+                model_timestep=self._timestep,
             )
         else:
             incrementer, predictor = None, None
@@ -493,13 +376,13 @@ class TimeLoop(
 
     def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
-        self._fv3gfs.step_dynamics()
+        self._wrapper.step_dynamics()
         # no diagnostics are computed by default
         return {}
 
     def _step_pre_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Pre-radiation Physics Step")
-        self._fv3gfs.step_pre_radiation()
+        self._wrapper.step_pre_radiation()
         return {
             f"{name}_pre_radiation": self._state[name]
             for name in self._states_to_output
@@ -511,24 +394,24 @@ class TimeLoop(
             _, diagnostics, _ = self._radiation_stepper(self.time, self._state,)
         else:
             diagnostics = {}
-        self._fv3gfs.step_radiation()
+        self._wrapper.step_radiation()
         return diagnostics
 
     def _step_post_radiation_physics(self) -> Diagnostics:
         self._log_debug(f"Post-radiation Physics Step")
-        self._fv3gfs.step_post_radiation_physics()
+        self._wrapper.step_post_radiation_physics()
         return {}
 
     @property
     def _water_species(self) -> List[str]:
-        a = self._fv3gfs.get_tracer_metadata()
+        a = self._tracer_metadata
         return [name for name in a if a[name]["is_water"]]
 
     def _apply_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step (apply)")
-        self._fv3gfs.apply_physics()
+        self._wrapper.apply_physics()
 
-        micro = self._fv3gfs.get_diagnostic_by_name(
+        micro = self._wrapper.get_diagnostic_by_name(
             "tendency_of_specific_humidity_due_to_microphysics"
         ).data_array
         delp = self._state[DELP]
@@ -537,7 +420,7 @@ class TimeLoop(
                 micro, delp, "z"
             ),
             "evaporation": self._state["evaporation"],
-            "cnvprcp_after_physics": self._fv3gfs.get_diagnostic_by_name(
+            "cnvprcp_after_physics": self._wrapper.get_diagnostic_by_name(
                 "cnvprcp"
             ).data_array,
             "total_precip_after_physics": self._state[TOTAL_PRECIP],
@@ -598,6 +481,10 @@ class TimeLoop(
         state_updates = {
             k: v for k, v in self._state_updates.items() if k in PREPHYSICS_OVERRIDES
         }
+        _check_surface_flux_overrides_exist(
+            self._wrapper.flags.override_surface_radiative_fluxes,
+            list(state_updates.keys()),
+        )
         self._state_updates = dissoc(self._state_updates, *PREPHYSICS_OVERRIDES)
         self._log_debug(
             f"Applying prephysics state updates for: {list(state_updates.keys())}"
@@ -650,7 +537,9 @@ class TimeLoop(
                 (
                     filled_tendencies,
                     tendencies_filled_frac,
-                ) = prepare_tendencies_for_dynamical_core(self._tendencies)
+                ) = prepare_tendencies_for_dynamical_core(
+                    self._wrapper, self._tendencies
+                )
                 updated_state_from_tendency = add_tendency(
                     self._state, filled_tendencies, dt=self._timestep
                 )
@@ -676,7 +565,7 @@ class TimeLoop(
         diagnostics.update(
             {
                 "area": self._state[AREA],
-                "cnvprcp_after_python": self._fv3gfs.get_diagnostic_by_name(
+                "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
                     "cnvprcp"
                 ).data_array,
                 TOTAL_PRECIP_RATE: precipitation_rate(
@@ -696,32 +585,63 @@ class TimeLoop(
             return {}
 
     def _apply_reservoir_update_to_state(self) -> Diagnostics:
-        # TODO: handle tendencies
+        # TODO: handle tendencies. Currently the returned tendencies
+        # are only used for diagnostics and are not used in updating state
         if self._reservoir_predict_stepper is not None:
-            [_, diags, state] = self._reservoir_predict_stepper(
-                self._state.time, self._state
+            (
+                tendencies_from_state_prediction,
+                diags,
+                state_updates,
+            ) = self._reservoir_predict_stepper(self._state.time, self._state)
+            (
+                stepper_diags,
+                net_moistening,
+            ) = self._reservoir_predict_stepper.get_diagnostics(
+                self._state, tendencies_from_state_prediction
             )
-            self._state.update_mass_conserving(state)
+            diags.update(stepper_diags)
+            if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
+                rename_diagnostics(diags, label="reservoir_predictor")
+
+            state_updates[TOTAL_PRECIP] = precipitation_sum(
+                self._state[TOTAL_PRECIP], net_moistening, self._timestep,
+            )
+
+            self._state.update_mass_conserving(state_updates)
+
+            diags.update({name: self._state[name] for name in self._states_to_output})
+            diags.update(
+                {
+                    "area": self._state[AREA],
+                    "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
+                        "cnvprcp"
+                    ).data_array,
+                    TOTAL_PRECIP_RATE: precipitation_rate(
+                        self._state[TOTAL_PRECIP], self._timestep
+                    ),
+                }
+            )
+
             return diags
         else:
             return {}
 
     def _intermediate_restarts(self) -> Diagnostics:
         self._log_info("Saving intermediate restarts if enabled.")
-        self._fv3gfs.save_intermediate_restart_if_enabled()
+        self._wrapper.save_intermediate_restart_if_enabled()
         return {}
 
     def __iter__(
         self,
     ) -> Iterator[Tuple[cftime.DatetimeJulian, Dict[str, xr.DataArray]]]:
 
-        for i in range(self._fv3gfs.get_step_count()):
+        for i in range(self._wrapper.get_step_count()):
             diagnostics: Diagnostics = {}
             # clear the state updates in case some updates are on intervals
             self._state_updates = {}
             for substep in [
                 lambda: runtime.diagnostics.tracers.compute_column_integrated_tracers(
-                    self._state
+                    self._tracer_metadata, self._state
                 ),
                 self._increment_reservoir,
                 self.monitor("dynamics", self._step_dynamics),

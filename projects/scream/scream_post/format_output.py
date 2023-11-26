@@ -5,31 +5,6 @@ import os
 import cftime
 import pandas as pd
 
-output_variables = [
-    "T_mid",
-    "qv",
-    "omega",
-    "horiz_winds",  # this will be changed to u and v in the future
-    "surf_sens_flux",
-    "surf_evap",
-    "SW_clrsky_flux_up@bot",
-    "SW_clrsky_flux_dn@bot",
-    "LW_clrsky_flux_dn@bot",
-    "LW_clrsky_flux_up@bot",
-    "SW_clrsky_flux_up@tom",
-    "LW_clrsky_flux_up@tom",
-    "VerticalLayerInterface",
-    "p_mid",
-    "ps",
-    "VerticalLayerInterface",
-    # "pseudo_density",  # this is pressure thickness
-    "area",
-    "lat",
-    "lon",
-    "hyai",
-    "hybi",
-]
-
 
 def make_placeholder_data(
     sample: xr.DataArray, generate_variable: str, scaled_factor: float = 1.0
@@ -71,17 +46,6 @@ def make_new_date(dates, year_offset=2015):
             )
         )
     return new_dates
-
-
-def split_horiz_winds(ds: xr.Dataset):
-    u = ds.horiz_winds.isel(dim2=0).rename({"x_wind"})
-    v = ds.horiz_winds.isel(dim2=1).rename({"y_wind"})
-
-    ds = ds[output_variables]
-    ds = ds.drop("horiz_winds")
-    ds["x_wind"] = u
-    ds["y_wind"] = v
-    return ds
 
 
 def compute_tendencies_due_to_scream_physics(ds: xr.Dataset, nudging_variables: list):
@@ -150,6 +114,7 @@ def _get_parser() -> argparse.ArgumentParser:
         type=str,
         help="List of nudging variables deliminated with commas",
     )
+    parser.add_argument("chunk_size", type=int, help="Chunk size for output zarrs.")
     parser.add_argument(
         "--split-horiz-winds",
         type=bool,
@@ -203,8 +168,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ds = xr.open_mfdataset(args.input_data)
     nudging_vars = [str(item) for item in args.nudging_variables.split(",")]
-    if args.split_horiz_winds:
-        ds = split_horiz_winds(ds)
     if args.calc_physics_tend:
         ds = compute_tendencies_due_to_scream_physics(ds, nudging_vars)
     if args.rename_nudging_tend:
@@ -220,15 +183,16 @@ if __name__ == "__main__":
     nudging_variables_tendencies = [
         f"{var}_tendency_due_to_nudging" for var in nudging_vars
     ]
-    ds[nudging_variables_tendencies].to_zarr(
+    ds[nudging_variables_tendencies].chunk({"time": args.chunk_size}).to_zarr(
         os.path.join(args.output_path, "nudging_tendencies.zarr"), consolidated=True
     )
     physics_tendencies = [
         f"tendency_of_{var}_due_to_scream_physics" for var in nudging_vars
     ]
-    ds[physics_tendencies].to_zarr(
+    ds[physics_tendencies].chunk({"time": args.chunk_size}).to_zarr(
         os.path.join(args.output_path, "physics_tendencies.zarr"), consolidated=True
     )
-    ds.drop(nudging_variables_tendencies).drop(physics_tendencies).to_zarr(
+    ds_remaining = ds.drop(nudging_variables_tendencies).drop(physics_tendencies)
+    ds_remaining.chunk({"time": args.chunk_size}).to_zarr(
         os.path.join(args.output_path, "state_after_timestep.zarr"), consolidated=True
     )

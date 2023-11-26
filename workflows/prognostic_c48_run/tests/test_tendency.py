@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from runtime.loop import (
+from runtime.tendency import (
     add_tendency,
     fillna_tendencies,
     prepare_agrid_wind_tendencies,
@@ -90,9 +90,10 @@ def test_prepare_agrid_wind_tendencies(tendencies, expected_dQu, expected_dQv):
 
 
 def test_transform_agrid_wind_tendencies_mixed_coordinates_error():
+    wrapper = None  # This test does not depend on having a functional wrapper.
     tendencies = {
         EASTWARD_WIND_TENDENCY: xr.DataArray([1.0, np.nan, 2.0], dims=["z"]),
         X_WIND_TENDENCY: xr.DataArray([1.0, np.nan, 3.0], dims=["z"]),
     }
     with pytest.raises(ValueError, match="Simultaneously"):
-        transform_agrid_wind_tendencies(tendencies)
+        transform_agrid_wind_tendencies(wrapper, tendencies)

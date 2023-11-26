@@ -1,7 +1,7 @@
 import functools
 
 import pace.util
-import fv3gfs.wrapper
+from typing import Any, Mapping
 from runtime.nudging import (
     NudgingConfig,
     get_nudging_tendency,
@@ -19,6 +19,7 @@ class PureNudger:
 
     def __init__(
         self,
+        tracer_metadata: Mapping[str, Mapping[str, Any]],
         config: NudgingConfig,
         communicator: pace.util.CubedSphereCommunicator,
         hydrostatic: bool,
@@ -34,7 +35,7 @@ class PureNudger:
         self._get_reference_state = setup_get_reference_state(
             config,
             variables_to_nudge + [SST, TSFC, MASK],
-            fv3gfs.wrapper.get_tracer_metadata(),
+            tracer_metadata,
             communicator,
         )
 

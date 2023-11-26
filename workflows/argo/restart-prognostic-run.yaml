@@ -32,6 +32,8 @@ spec:
             parameters:
               - {name: cpu-request, value: "{{inputs.parameters.cpu}}"}
               - {name: cpu-cutoff, value: "24"}
+              - {name: memory-request, value: "{{inputs.parameters.memory}}"}
+              - {name: memory-cutoff, value: "30"}
       - - name: restart-run
           templateRef:
             name: run-fv3gfs

@@ -2,7 +2,7 @@ from __future__ import annotations
 import fsspec
 import numpy as np
 import os
-from typing import Iterable, Hashable, Sequence, Union
+from typing import Iterable, Hashable, Sequence, Union, Optional
 import xarray as xr
 import yaml
 
@@ -36,6 +36,7 @@ def _transpose_xy_dims(ds: xr.Dataset):
 @io.register("hybrid-reservoir")
 class HybridReservoirComputingModel(Predictor):
     _HYBRID_VARIABLES_NAME = "hybrid_variables.yaml"
+    _HYBRID_MASK_NAME = "hybrid_input_mask.npy"
 
     def __init__(
         self,
@@ -47,6 +48,7 @@ class HybridReservoirComputingModel(Predictor):
         rank_divider: RankXYDivider,
         transformers: TransformerGroup,
         square_half_hidden_state: bool = False,
+        hybrid_input_mask: Optional[np.ndarray] = None,
     ):
         self.reservoir_model = ReservoirComputingModel(
             input_variables=input_variables,
@@ -72,6 +74,7 @@ class HybridReservoirComputingModel(Predictor):
         self._hybrid_rank_divider = no_overlap_divider.get_new_zdim_rank_divider(
             z_feature_size=transformers.hybrid.n_latent_dims
         )
+        self._hybrid_input_mask = hybrid_input_mask
 
     @classmethod
     def from_reservoir_model(
@@ -98,6 +101,10 @@ class HybridReservoirComputingModel(Predictor):
         flat_hybrid_in = self._hybrid_rank_divider.get_all_subdomains_with_flat_feature(
             encoded_hybrid_input
         )
+
+        if self._hybrid_input_mask is not None:
+            flat_hybrid_in = flat_hybrid_in * self._hybrid_input_mask
+
         readout_input = self._concatenate_readout_inputs(
             self.reservoir_model.reservoir.state, flat_hybrid_in
         )
@@ -145,12 +152,20 @@ class HybridReservoirComputingModel(Predictor):
         self.reservoir_model.dump(path)
         with fsspec.open(os.path.join(path, self._HYBRID_VARIABLES_NAME), "w") as f:
             f.write(yaml.dump({"hybrid_variables": self.hybrid_variables}))
+        if self._hybrid_input_mask is not None:
+            np.save(os.path.join(path, self._HYBRID_MASK_NAME), self._hybrid_input_mask)
 
     @classmethod
     def load(cls, path: str) -> HybridReservoirComputingModel:
         pure_reservoir_model = ReservoirComputingModel.load(path)
         with fsspec.open(os.path.join(path, cls._HYBRID_VARIABLES_NAME), "r") as f:
             hybrid_variables = yaml.safe_load(f)["hybrid_variables"]
+
+        if os.path.exists(os.path.join(path, cls._HYBRID_MASK_NAME)):
+            hybrid_input_mask = np.load(os.path.join(path, cls._HYBRID_MASK_NAME))
+        else:
+            hybrid_input_mask = None
+
         return cls(
             input_variables=pure_reservoir_model.input_variables,
             output_variables=pure_reservoir_model.output_variables,
@@ -160,6 +175,7 @@ class HybridReservoirComputingModel(Predictor):
             rank_divider=pure_reservoir_model.rank_divider,
             transformers=pure_reservoir_model.transformers,
             hybrid_variables=hybrid_variables,
+            hybrid_input_mask=hybrid_input_mask,
         )
 
 

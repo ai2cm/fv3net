@@ -443,6 +443,7 @@ radiation_scheme: null
 reservoir_corrector: null
 scikit_learn: null
 tendency_prescriber: null
+wrapper: fv3gfs.wrapper
 zhao_carr_emulation:
   gscond: null
   model: null

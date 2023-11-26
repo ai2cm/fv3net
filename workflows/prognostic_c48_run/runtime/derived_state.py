@@ -2,8 +2,6 @@ from typing import Hashable, Mapping, MutableMapping, Set
 
 import cftime
 import pace.util
-import fv3gfs.wrapper
-import fv3gfs.wrapper._properties
 import numpy as np
 import xarray as xr
 from runtime.names import DELP, PHYSICS_PRECIP_RATE, TIME_KEYS
@@ -19,8 +17,11 @@ class FV3StateMapper(Mapping):
     By default adds mapping {"lon": "longitude", "lat": "latitude"}
     """
 
-    def __init__(self, getter, alternate_keys: Mapping[str, str] = None):
+    def __init__(
+        self, getter, tracer_metadata, alternate_keys: Mapping[str, str] = None
+    ):
         self._getter = getter
+        self._tracer_metadata = tracer_metadata
         self._alternate_keys = alternate_keys or {
             "lon": "longitude",
             "lat": "latitude",
@@ -63,18 +64,18 @@ class FV3StateMapper(Mapping):
 
     def keys(self):
         dynamics_names = set(
-            v["name"] for v in fv3gfs.wrapper._properties.DYNAMICS_PROPERTIES
+            v["name"] for v in self._getter._properties.DYNAMICS_PROPERTIES
         )
         physics_names = set(
-            v["name"] for v in fv3gfs.wrapper._properties.PHYSICS_PROPERTIES
+            v["name"] for v in self._getter._properties.PHYSICS_PROPERTIES
         )
-        tracer_names = set(v for v in self._getter.get_tracer_metadata())
+        tracer_names = set(v for v in self._tracer_metadata)
         # see __getitem__
         local_names = {"latent_heat_flux", "total_water"}
         return dynamics_names | physics_names | tracer_names | local_names
 
     def _total_water(self):
-        a = self._getter.get_tracer_metadata()
+        a = self._tracer_metadata
         water_species = [name for name in a if a[name]["is_water"]]
         return sum(self[name] for name in water_species)
 
@@ -89,13 +90,15 @@ class DerivedFV3State(MutableMapping):
 
     """
 
-    def __init__(self, getter):
+    def __init__(self, getter, tracer_metadata):
         """
         Args:
             getter: the fv3gfs object or a mock of it.
         """
         self._getter = getter
-        self._mapper = DerivedMapping(FV3StateMapper(getter, alternate_keys=None))
+        self._mapper = DerivedMapping(
+            FV3StateMapper(getter, tracer_metadata, alternate_keys=None)
+        )
 
     @property
     def time(self) -> cftime.DatetimeJulian:

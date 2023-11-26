@@ -435,6 +435,7 @@ prephysics: null
 radiation_scheme: null
 reservoir_corrector:
   diagnostic_only: false
+  hydrostatic: false
   models:
     0: gs://vcm-ml-scratch/rc-model-tile-0
     1: gs://vcm-ml-scratch/rc-model-tile-1
@@ -442,6 +443,7 @@ reservoir_corrector:
     3: gs://vcm-ml-scratch/rc-model-tile-3
     4: gs://vcm-ml-scratch/rc-model-tile-4
     5: gs://vcm-ml-scratch/rc-model-tile-5
+  mse_conserving_limiter: false
   rename_mapping: {}
   reservoir_timestep: 900s
   synchronize_steps: 12
@@ -449,6 +451,7 @@ reservoir_corrector:
   warm_start: false
 scikit_learn: null
 tendency_prescriber: null
+wrapper: fv3gfs.wrapper
 zhao_carr_emulation:
   gscond: null
   model: null

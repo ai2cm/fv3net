@@ -103,6 +103,7 @@ class ReservoirDatasetAdapter(Predictor):
         self.model = model
         self.input_variables = model.input_variables
         self.output_variables = model.output_variables
+        self.nonhybrid_input_variables = model.input_variables
         self.model_adapter = DatasetAdapter(
             input_variables=self.input_variables,
             output_variables=self.output_variables,
@@ -175,6 +176,8 @@ class HybridReservoirDatasetAdapter(Predictor):
         self.input_variables = list(
             set(model.input_variables).union(model.hybrid_variables)
         )
+        self.nonhybrid_input_variables = model.input_variables
+        self.hybrid_variables = model.hybrid_variables
         self.output_variables = model.output_variables
         self.model_adapter = DatasetAdapter(
             input_variables=self.input_variables,

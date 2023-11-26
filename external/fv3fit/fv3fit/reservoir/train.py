@@ -8,6 +8,9 @@ from fv3fit.reservoir.readout import (
 import numpy as np
 import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
+import wandb
+
+
 from .. import Predictor
 from .utils import (
     square_even_terms,
@@ -27,7 +30,12 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-
+from .validation import (
+    validation_prediction,
+    log_rmse_z_plots,
+    log_rmse_scalar_metrics,
+    log_variance_scalar_metrics,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -85,9 +93,11 @@ def _get_input_mask_array(
             f"'{mask_variable}' must be included in training data if "
             "the mask_variable is specified in training configuration."
         )
-    mask = rank_divider.get_all_subdomains_with_flat_feature(
-        assure_txyz_dims(sample_batch[mask_variable])[0]
-    )
+    mask = assure_txyz_dims(sample_batch[mask_variable])
+    mask = mask * np.ones(
+        rank_divider._rank_extent_all_features
+    )  # broadcast feature dim
+    mask = rank_divider.get_all_subdomains_with_flat_feature(mask[0])
     if set(np.unique(mask)) != {0, 1}:
         raise ValueError(
             f"Mask variable values in field {mask_variable} are not " "all in {0, 1}."
@@ -145,6 +155,7 @@ def train_reservoir_model(
         sync_tracker = SynchronziationTracker(
             n_synchronize=hyperparameters.n_timesteps_synchronize
         )
+
         for b, batch_data in enumerate(train_batches):
             input_time_series = process_batch_data(
                 variables=hyperparameters.input_variables,
@@ -153,6 +164,8 @@ def train_reservoir_model(
                 autoencoder=transformers.input,
                 trim_halo=False,
             )
+            if b == 0:
+                reservoir.reset_state(input_shape=input_time_series[0].shape)
             # If the output variables differ from inputs, use the transformer specific
             # to the output set to transform the output data
             _output_rank_divider_with_overlap = rank_divider.get_new_zdim_rank_divider(
@@ -168,7 +181,7 @@ def train_reservoir_model(
 
             # reservoir increment occurs in this call, so always call this
             # function even if X, Y are not used for readout training.
-            reservoir.reset_state(input_shape=input_time_series[0].shape)
+
             reservoir_state_time_series = _get_reservoir_state_time_series(
                 input_time_series, hyperparameters.input_noise, reservoir
             )
@@ -188,8 +201,19 @@ def train_reservoir_model(
                     autoencoder=transformers.hybrid,
                     trim_halo=True,
                 )
+
+                if hyperparameters.mask_variable is not None:
+                    hybrid_input_mask_array = _get_input_mask_array(
+                        hyperparameters.mask_variable,
+                        batch_data,
+                        _hybrid_rank_divider_w_overlap,
+                    )
+                    hybrid_time_series = hybrid_time_series * hybrid_input_mask_array
+                else:
+                    hybrid_input_mask_array = None
             else:
                 hybrid_time_series = None
+                hybrid_input_mask_array = None
 
             readout_input, readout_output = _construct_readout_inputs_outputs(
                 reservoir_state_time_series,
@@ -234,7 +258,7 @@ def train_reservoir_model(
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
         )
-        return ReservoirDatasetAdapter(
+        adapter = ReservoirDatasetAdapter(
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
@@ -249,12 +273,27 @@ def train_reservoir_model(
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
             rank_divider=rank_divider,  # type: ignore
             transformers=transformers,
+            hybrid_input_mask=hybrid_input_mask_array,
         )
-        return HybridReservoirDatasetAdapter(
+        adapter = HybridReservoirDatasetAdapter(  # type: ignore
             model=model,
             input_variables=model.input_variables,
             output_variables=model.output_variables,
         )
+
+    if validation_batches is not None and wandb.run is not None:
+        try:
+            ds_val = validation_prediction(
+                model,
+                val_batches=validation_batches,
+                n_synchronize=hyperparameters.n_timesteps_synchronize,
+            )
+            log_rmse_z_plots(ds_val, model.output_variables)
+            log_rmse_scalar_metrics(ds_val, model.output_variables)
+            log_variance_scalar_metrics(ds_val, model.output_variables)
+        except Exception as e:
+            logging.error("Error logging validation metrics to wandb", exc_info=e)
+    return adapter
 
 
 def _get_reservoir_state_time_series(

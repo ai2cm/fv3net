@@ -2,6 +2,7 @@ import xarray as xr
 from typing import Optional, List
 from dataclasses import dataclass, field
 import numpy as np
+from vcm import check_if_scream_dataset
 
 HORIZONTAL_DIMS_FV3 = ["x", "y", "tile"]
 HORIZONTAL_DIMS_SCREAM = ["ncol"]
@@ -31,3 +32,7 @@ class DiagArg:
     delp: Optional[xr.DataArray] = None
     horizontal_dims: List[str] = field(default_factory=lambda: HORIZONTAL_DIMS_FV3)
     vertical_dim: str = VERTICAL_DIM
+
+    def __post_init__(self):
+        if check_if_scream_dataset(self.grid):
+            self.horizontal_dims = HORIZONTAL_DIMS_SCREAM
