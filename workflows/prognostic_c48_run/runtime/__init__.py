@@ -1,4 +1,4 @@
-from .config import get_namelist, get_config, write_chunks
+from .config import get_namelist, get_config, get_wrapper, write_chunks
 from .diagnostics import (
     get_chunks,
     get_diagnostic_files,

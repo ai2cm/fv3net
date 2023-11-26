@@ -932,9 +932,7 @@ def test__compute_blending_weights_agrid():
     expected = (ps_coarse - pfull_coarse) / (ps_coarse - blending_pressure)
     expected = xr.where(expected < 1, expected, 1.0).expand_dims(DIMS)
 
-    result = _compute_blending_weights_agrid(
-        delp_fine, area_fine, 2, toa_pressure=TOA_PRESSURE
-    )
+    result = _compute_blending_weights_agrid(delp_fine, area_fine, TOA_PRESSURE, 2)
     xr.testing.assert_allclose(result, expected)
 
 
@@ -980,7 +978,7 @@ def test__compute_blending_weights_dgrid(dgrid_dims, edge_lengths_shape, edge):
 
     edge_lengths_fine = xr.DataArray(np.ones(edge_lengths_shape), dims=dgrid_dims)
     result = _compute_blending_weights_dgrid(
-        delp_fine, edge_lengths_fine, 4, edge, *dgrid_dims, toa_pressure=TOA_PRESSURE
+        delp_fine, edge_lengths_fine, TOA_PRESSURE, 4, edge, *dgrid_dims,
     )
 
     ps_min = TOA_PRESSURE + MIN_FACTOR * (np.exp(LEVELS) - np.exp(0))

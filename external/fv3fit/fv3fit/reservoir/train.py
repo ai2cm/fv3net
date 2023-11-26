@@ -31,9 +31,13 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-from .validation import validation_prediction, log_rmse_z_plots, log_rmse_scalar_metrics
 from .validation import validate_model
-
+from .validation import (
+    validation_prediction,
+    log_rmse_z_plots,
+    log_rmse_scalar_metrics,
+    log_variance_scalar_metrics,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -318,6 +322,7 @@ def train_reservoir_model(
                 )
                 log_rmse_z_plots(ds_val, model.output_variables)
                 log_rmse_scalar_metrics(ds_val, model.output_variables)
+                log_variance_scalar_metrics(ds_val, model.output_variables)
             except Exception as e:
                 logging.error("Error logging validation metrics to wandb", exc_info=e)
         else:

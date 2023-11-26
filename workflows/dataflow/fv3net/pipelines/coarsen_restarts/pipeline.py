@@ -43,12 +43,13 @@ def coarsen_timestep(
     arg: Tuple[str, Mapping[str, xr.Dataset]],
     coarsen_factor: int,
     grid_spec: xr.Dataset,
+    toa_pressure: float,
     coarsen_agrid_winds: bool = False,
 ) -> Iterable[Tuple[Tuple[str, str], Mapping[str, xr.Dataset]]]:
 
     time, source = arg
     for category, data in vcm.cubedsphere.coarsen_restarts_on_pressure(
-        coarsen_factor, grid_spec, source, coarsen_agrid_winds
+        coarsen_factor, grid_spec, toa_pressure, source, coarsen_agrid_winds
     ).items():
         yield (time, category), data
 
@@ -69,6 +70,7 @@ def load(kv: Tuple[T, xr.Dataset]) -> Tuple[T, xr.Dataset]:
 
 def run(
     gridspec_path: str,
+    toa_pressure: float,
     src_dir: str,
     output_dir: str,
     factor: int,
@@ -96,6 +98,7 @@ def run(
                 coarsen_timestep,
                 coarsen_factor=factor,
                 grid_spec=beam.pvalue.AsSingleton(grid_spec),
+                toa_pressure=toa_pressure,
                 coarsen_agrid_winds=coarsen_agrid_winds,
             )
             # Reduce problem size by splitting by tiles
@@ -123,6 +126,11 @@ def main(argv):
             "Full path to directory containing files matching 'grid_spec.tile*.nc' to "
             "select grid specfiles with same resolution as the source data."
         ),
+    )
+    parser.add_argument(
+        "toa_pressure",
+        type=float,
+        help="Pressure at the top of the atmosphere in units of Pascals.",
     )
     parser.add_argument(
         "source_resolution", type=int, help="Source data cubed-sphere grid resolution.",
@@ -170,6 +178,7 @@ def main(argv):
 
     run(
         gridspec_path,
+        args.toa_pressure,
         args.src_dir,
         output_dir_prefix,
         factor,

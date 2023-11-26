@@ -36,6 +36,43 @@ prognostic_run_diags shell $tmpdir/report.script
 [[ -f image.png ]]
 rm image.png  # cleanup
 
+# Test providing a custom catalog.yaml to prognostic_run_diags shell
+cat << EOF > $tmpdir/catalog.yaml
+plugins:
+  source:
+    - module: intake_xarray
+sources:
+  grid/c48:
+    description: Lat, lon, and area of C48 data
+    driver: zarr
+    metadata:
+      grid: c48
+      variables:
+        - area
+        - lat
+        - latb
+        - lon
+        - lonb
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/c48.zarr/"
+      consolidated: true
+
+  landseamask/c48:
+    description: land_sea_mask of C48 data
+    driver: zarr
+    metadata:
+      grid: c48
+      variables:
+        - land_sea_mask
+    args:
+      urlpath: "gs://vcm-ml-intermediate/latLonArea/c48/land_sea_mask.zarr/"
+      consolidated: true
+EOF
+prognostic_run_diags shell --catalog_path=$tmpdir/catalog.yaml $tmpdir/report.script
+# assert an image has been output
+[[ -f image.png ]]
+rm image.png  # cleanup
+
 # compute diagnostics/mterics for a short sample prognostic run
 prognostic_run_diags save $RUN $tmpdir/diags.nc --n-jobs=4
 prognostic_run_diags metrics $tmpdir/diags.nc > $tmpdir/metrics.json

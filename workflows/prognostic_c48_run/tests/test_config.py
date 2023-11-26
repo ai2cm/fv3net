@@ -1,7 +1,9 @@
 import dacite
 import pytest
-from runtime.config import get_model_urls, UserConfig
+from runtime.config import get_model_urls, get_wrapper, UserConfig
+from runtime.names import FV3GFS_WRAPPER
 import dataclasses
+from types import ModuleType
 
 dummy_prescriber = {"dataset_key": "data_url", "variables": {"a": "a"}}
 
@@ -38,3 +40,9 @@ def test_get_model_urls(config, model_urls):
         dacite.from_dict(UserConfig, config, dacite.Config(strict=True))
     )
     assert set(get_model_urls(validated_config)) == set(model_urls)
+
+
+def test_get_wrapper():
+    config = UserConfig(wrapper=FV3GFS_WRAPPER)
+    wrapper = get_wrapper(config)
+    assert isinstance(wrapper, ModuleType)

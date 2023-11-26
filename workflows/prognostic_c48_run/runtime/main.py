@@ -1,12 +1,5 @@
-import gc
 import logging
 from mpi4py import MPI
-
-import fv3gfs.wrapper as wrapper
-
-# To avoid very strange NaN errors this needs to happen before runtime import
-# with openmpi
-wrapper.initialize()  # noqa: E402
 
 import tensorflow as tf
 from runtime.loop import TimeLoop
@@ -22,8 +15,6 @@ logging.getLogger("pace.util").setLevel(logging.WARN)
 logging.getLogger("fsspec").setLevel(logging.WARN)
 logging.getLogger("urllib3").setLevel(logging.WARN)
 
-# Fortran logs are output as python DEBUG level
-runtime.capture_fv3gfs_funcs(wrapper)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +23,12 @@ def main():
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
+    wrapper = runtime.get_wrapper(config)
+
+    # Fortran logs are output as python DEBUG level
+    runtime.capture_fv3gfs_funcs(wrapper)
+    wrapper.initialize()
+
     partitioner = util.CubedSpherePartitioner.from_namelist(runtime.get_namelist())
     for name in [STATISTICS_LOG_NAME, PROFILES_LOG_NAME]:
         runtime.setup_file_logger(name)
@@ -72,15 +69,8 @@ def main():
         diag_file.flush()
 
     loop.log_global_timings()
+    wrapper.cleanup()
 
 
 if __name__ == "__main__":
-
     main()
-    # need to cleanup any python objects that may have MPI operations before
-    # calling wrapper.cleanup
-    # this avoids the following error message:
-    #
-    #    Attempting to use an MPI routine after finalizing MPICH
-    gc.collect()
-    wrapper.cleanup()
