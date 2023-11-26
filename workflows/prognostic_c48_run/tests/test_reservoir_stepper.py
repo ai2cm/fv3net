@@ -113,7 +113,7 @@ def get_mock_reservoir_model():
     mock_model.nonhybrid_input_variables = ["a"]
     mock_model.model.input_variables = ["a"]
     mock_model.hybrid_variables = ["a"]
-    mock_model.is_hybrid.return_value = True
+    mock_model.is_hybrid = True
     mock_model.input_overlap = 1
     out_data = xr.DataArray(np.ones(1), dims=["x"])
     mock_model.predict.return_value = xr.Dataset({"a": out_data})
@@ -308,9 +308,13 @@ def test_reservoir_steppers_renaming(patched_reservoir_module):
 
 def test_model_paths_and_rank_index_mismatch_on_load():
     config = ReservoirConfig({1: "model"}, 0, reservoir_timestep="10m")
+    mock_comm = MagicMock()
+    mock_comm.partitioner = MagicMock()
+    mock_comm.partitioner.total_ranks = 1
+
     with pytest.raises(KeyError):
         reservoir.get_reservoir_steppers(
-            config, 1, datetime(2020, 1, 1), MODEL_TIMESTEP
+            config, 1, datetime(2020, 1, 1), mock_comm, MODEL_TIMESTEP
         )
 
 

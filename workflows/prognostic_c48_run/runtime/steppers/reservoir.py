@@ -436,9 +436,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
 
         if self.model.is_hybrid:
             hybrid_inputs = self._rename_inputs_for_reservoir(retrieved_state)
-            hybrid_inputs = hybrid_inputs[
-                [k for k in self.model.model.hybrid_variables]
-            ]
+            hybrid_inputs = hybrid_inputs[[k for k in self.model.hybrid_variables]]
         else:
             hybrid_inputs = xr.Dataset()
 
