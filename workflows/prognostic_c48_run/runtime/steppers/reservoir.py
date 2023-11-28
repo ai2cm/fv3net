@@ -14,10 +14,12 @@ from typing import (
     Sequence,
     Dict,
     Union,
+    Any,
 )
 
 import pace.util
 import fv3fit
+from fv3fit._shared import get_dir
 from fv3fit._shared.halos import append_halos_using_mpi
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 from runtime.names import SST, TSFC, MASK, SPHUM, TEMP
@@ -56,6 +58,11 @@ class ReservoirConfig:
             For net heating diagnostic. Defaults to false.
         mse_conserving_limiter (optional): whether to use MSE-conserving humidity
             limiter. Defaults to false.
+        incrementer_offset (optional): time offset to control when the increment
+            step is called.  Useful for delaying the increment until time averaged
+            inputs are available.
+        reservoir_input_offset (optional): time offset to control when
+            requested variables are stored to use in the increment step
     """
 
     models: Mapping[Union[int, str], str]
@@ -67,6 +74,8 @@ class ReservoirConfig:
     rename_mapping: NameDict = dataclasses.field(default_factory=dict)
     hydrostatic: bool = False
     mse_conserving_limiter: bool = False
+    incrementer_offset: Optional[str] = None
+    reservoir_input_offset: Optional[Mapping[str, str]] = None
 
     def __post_init__(self):
         # This handles cases in automatic config writing where json/yaml
@@ -132,7 +141,7 @@ class TimeAverageInputs:
     def __init__(self, variables: Sequence[str]):
         self.variables = variables
         self._running_total: Dict[str, xr.DataArray] = {}
-        self._n = 0
+        self._n: Dict[str, int] = {}
         self._recorded_units: Dict[str, str] = {}
 
     def increment_running_average(self, inputs: Mapping[str, xr.DataArray]):
@@ -142,33 +151,40 @@ class TimeAverageInputs:
         for key in self.variables:
             if key in self._running_total:
                 self._running_total[key] += inputs[key]
+                self._n[key] += 1
             else:
                 self._running_total[key] = inputs[key].copy()
+                self._n[key] = 1
 
-        self._n += 1
+    def _reset_running_average(self, key: str):
+        del self._running_total[key]
+        del self._n[key]
 
-    def _reset_running_average(self):
-        self._running_total = {}
-        self._n = 0
-
-    def get_averages(self):
-        if not self._running_total and self.variables:
+    def get_average(self, key: str):
+        if key not in self.variables or key not in self._running_total:
             raise ValueError(
-                f"Average called when no fields ({self.variables})"
-                " present in running average."
+                f"Variable {key} not present in time averaged inputs"
+                f" {self._running_total.keys()} [set: {self.variables}]"
             )
 
-        averaged_data = {key: val / self._n for key, val in self._running_total.items()}
-        for key in averaged_data:
-            averaged_data[key].attrs["units"] = self._recorded_units[key]
+        avg = self._running_total[key] / self._n[key]
+        avg.attrs["units"] = self._recorded_units[key]
 
-        self._reset_running_average()
+        self._reset_running_average(key)
+        logger.info(f"Retrieved time averaged input data for reservoir: {key}")
+
+        return avg
+
+    def get_averages(self):
+
+        averages = {k: self.get_average(k) for k in self.variables}
+
         logger.info(
-            "Retrieved time averaged input data for reservoir:"
-            f" {averaged_data.keys()}"
+            "Retrieved all time averaged input data for reservoir:"
+            f" {averages.keys()}"
         )
 
-        return averaged_data
+        return averages
 
 
 def _scatter_stepper_return(communicator, tendencies, diags, state):
@@ -204,6 +220,8 @@ class _ReservoirStepper:
         required_variables: Optional[Sequence[str]] = None,
         hydrostatic: bool = False,
         mse_conserving_limiter: bool = False,
+        incrementer_offset: Optional[timedelta] = None,
+        reservoir_input_offset: Optional[Mapping[str, timedelta]] = None,
     ):
         self.model = model
         self.synchronize_steps = synchronize_steps
@@ -217,6 +235,12 @@ class _ReservoirStepper:
         self._required_variables = required_variables
         self.hydrostatic = hydrostatic
         self.mse_conserving_limiter = mse_conserving_limiter
+        self._incrementer_offset = (
+            incrementer_offset if incrementer_offset is not None else timedelta(0)
+        )
+        self._reservoir_input_offset = (
+            reservoir_input_offset if reservoir_input_offset is not None else {}
+        )
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -236,6 +260,9 @@ class _ReservoirStepper:
         if rename_mapping is None:
             rename_mapping = cast(NameDict, {})
         self.rename_mapping = rename_mapping
+
+        # storage for intermediate states while incrementing
+        self._intermediate_storage: Mapping[str, Any] = {}
 
     @property
     def completed_sync_steps(self):
@@ -322,6 +349,25 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         self._state_machine(self._state_machine.INCREMENT)
         self.model.increment_state(inputs)
 
+    def _store_inputs_for_increment(self, time, inputs):
+        """
+        Store a given input for use with the increment
+        """
+
+        for key, data in inputs.items():
+            offset = self._reservoir_input_offset.get(key, timedelta(0))
+            if self._is_rc_update_step(time + offset):
+                logger.info(f"Storing reservoir input {key} for increment: time {time}")
+                to_store = data
+                if self.input_averager is not None:
+                    to_store = self.input_averager.get_average(key)
+                self._intermediate_storage[key] = to_store
+
+    def _get_inputs_for_increment(self):
+        inputs = xr.Dataset({**self._intermediate_storage})
+        self._intermediate_storage = {}
+        return inputs
+
     def __call__(self, time, state):
 
         diags = {}
@@ -333,10 +379,16 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         if self.input_averager is not None:
             self.input_averager.increment_running_average(inputs)
 
-        if self._is_rc_update_step(time):
-            if self.input_averager is not None:
-                # update inputs w/ average quantities
-                inputs.update(self.input_averager.get_averages())
+        self._store_inputs_for_increment(time, inputs)
+
+        # Add a call to a store for state if offset time is reached
+        # Take the averager update out of the is _rc_update_step
+        # adjust the time such that the increment update happens
+        # at the correct tiem to gather all the inputs
+
+        if self._is_rc_update_step(time + self._incrementer_offset):
+
+            inputs = self._get_inputs_for_increment()
 
             logger.info(f"Incrementing rc at time {time}")
             self.increment_reservoir(inputs)
@@ -562,7 +614,9 @@ class _GatherScatterStateStepper:
 
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:
-    return cast(ReservoirDatasetAdapter, fv3fit.load(path))
+    with get_dir(path) as f:
+        model = cast(ReservoirDatasetAdapter, fv3fit.load(f))
+    return model
 
 
 def _get_time_averagers(model, do_time_average):
@@ -597,6 +651,16 @@ def _get_reservoir_steppers(
         model, config.time_average_inputs
     )
 
+    increment_offset = None
+    if config.incrementer_offset is not None:
+        increment_offset = pd.to_timedelta(config.incrementer_offset)
+
+    reservoir_input_offset = None
+    if config.reservoir_input_offset is not None:
+        reservoir_input_offset = {
+            k: pd.to_timedelta(v) for k, v in config.reservoir_input_offset.items()
+        }
+
     incrementer = ReservoirIncrementOnlyStepper(
         model,
         init_time,
@@ -609,6 +673,8 @@ def _get_reservoir_steppers(
         communicator=communicator,
         required_variables=increment_variables,
         model_timestep=model_timestep,
+        incrementer_offset=increment_offset,
+        reservoir_input_offset=reservoir_input_offset,
     )
     predictor = ReservoirPredictStepper(
         model,

@@ -314,7 +314,7 @@ def test_model_paths_and_rank_index_mismatch_on_load():
 
     with pytest.raises(KeyError):
         reservoir.get_reservoir_steppers(
-            config, 1, datetime(2020, 1, 1), mock_comm, MODEL_TIMESTEP
+            config, 0, datetime(2020, 1, 1), mock_comm, MODEL_TIMESTEP
         )
 
 
