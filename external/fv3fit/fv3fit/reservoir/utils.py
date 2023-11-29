@@ -110,20 +110,28 @@ def process_batch_data(
     """
     data = get_ordered_X(batch_data, variables)
 
+    # TODO: there is a chicken/egg problem here in that no
+    # specification of transforms creates an autoencoder that
+    # expects halo, while pre-trained might not. I'm not quite
+    # sure how the output transformer works when the readout
+    # outputs are trimmed while the encoder expects halos?
+
     # Concatenate features, normalize and optionally convert data
     # to latent representation
+    if trim_halo:
+        data = [rank_divider.trim_halo_from_rank_data(arr) for arr in data]
+
     if autoencoder is not None:
         data_encoded = encode_columns(data, autoencoder)
 
     if trim_halo:
-        data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
+        # data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
         no_overlap_rank_divider = rank_divider.get_no_overlap_rank_divider()
         return no_overlap_rank_divider.get_all_subdomains_with_flat_feature(
-            data_trimmed
+            data_encoded
         )
     else:
-        data_trimmed = data_encoded
-        return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
+        return rank_divider.get_all_subdomains_with_flat_feature(data_encoded)
 
 
 def process_validation_batch_data_to_dataset(
