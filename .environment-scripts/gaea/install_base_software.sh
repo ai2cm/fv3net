@@ -15,7 +15,7 @@ conda config --add pkgs_dirs $CONDA_PREFIX/pkgs
 conda config --add envs_dirs $CONDA_PREFIX/envs
 conda deactivate
 
-conda create -n $CONDA_ENV -c conda-forge python==3.8.10 pip pip-tools
+conda create -n $CONDA_ENV -c conda-forge python==3.8.10 google-cloud-sdk pip pip-tools
 conda activate $CONDA_ENV
 
 echo "Compiler settings:"

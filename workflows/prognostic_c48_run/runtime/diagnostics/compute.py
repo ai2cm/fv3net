@@ -134,6 +134,10 @@ def precipitation_sum(
     Returns:
         total precipitation [m]"""
     m_per_mm = 1 / 1000
+    # some steppers do not have a net moistening diagnostic and column_dq2 passed is
+    # an empty data array
+    if column_dq2.size <= 1:
+        column_dq2 = xr.zeros_like(physics_precip)
     ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
     total_precip = physics_precip + ml_precip
     total_precip = total_precip.where(total_precip >= 0, 0)

@@ -23,7 +23,7 @@ START_TIME = cftime.DatetimeJulian(2020, 1, 1, 0, 0, 0)
 
 
 @pytest.mark.parametrize(
-    "interval, offset, time_checks",
+    "interval, offset, time_checks,",
     [
         (
             3600,
@@ -93,3 +93,26 @@ def test_call():
         state_updates.append(state_update)
     assert "output_state_update" in state_updates.pop(4)
     assert all(len(update) == 0 for update in state_updates)
+
+
+@pytest.mark.parametrize(
+    "n_calls, update_sequence", [(None, [True, True, True]), (2, [True, True, False])]
+)
+def test_ncall_counting(n_calls, update_sequence):
+    dt = 1800
+    interval_stepper = IntervalStepper(
+        apply_interval_seconds=dt,
+        stepper=MockStepper(),
+        offset_seconds=0,
+        n_calls=n_calls,
+    )
+    # The first time checked becomes the start time for the IntervalStepper
+    assert interval_stepper._need_to_update(START_TIME) is False
+
+    for i, needs_update in enumerate(update_sequence):
+        t = START_TIME + datetime.timedelta(seconds=dt * i)
+        _, _, state_updates = interval_stepper(t, state={})
+        if needs_update:
+            assert "output_state_update" in state_updates
+        else:
+            assert len(state_updates) == 0
