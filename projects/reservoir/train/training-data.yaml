@@ -1,2 +1,2 @@
-filepath: gs://vcm-ml-intermediate/reservoir/era5_training/train_tile${TILE}.nc
+filepath: gs://vcm-ml-intermediate/reservoir/era5_training/halo2/train_tile${TILE}.nc
 dim_order: ["time", "x", "y"]
