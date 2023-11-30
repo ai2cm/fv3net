@@ -214,3 +214,4 @@ def _importorskip(modname: str, minversion: Optional[str] = None):
 
 
 has_fv3gfs_wrapper, requires_fv3gfs_wrapper = _importorskip("fv3gfs.wrapper")
+has_shield_wrapper, requires_shield_wrapper = _importorskip("shield.wrapper")

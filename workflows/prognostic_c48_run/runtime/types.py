@@ -2,6 +2,7 @@ from typing import (
     Hashable,
     Callable,
     MutableMapping,
+    Literal,
 )
 import xarray as xr
 
@@ -12,3 +13,4 @@ Diagnostics = MutableMapping[Hashable, xr.DataArray]
 Tendencies = MutableMapping[Hashable, xr.DataArray]
 Step = Callable[[], Diagnostics]
 QuantityState = MutableMapping[Hashable, pace.util.Quantity]
+WrapperModuleName = Literal["fv3gfs.wrapper", "shield.wrapper"]
