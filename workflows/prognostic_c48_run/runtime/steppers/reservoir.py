@@ -790,6 +790,9 @@ def get_reservoir_steppers(
         model_index = rank
         require_scatter_gather = False
 
+    # used to add variables for SST masked update
+    predictor_variables = []
+
     if rank == tile_root:
         logger.info(f"Loading reservoir model on rank {rank}")
         try:
@@ -799,6 +802,10 @@ def get_reservoir_steppers(
                 f"No reservoir model path found  for rank {rank}. "
                 "Ensure that the rank key and model is present in the configuration."
             )
+        if model.is_hybrid:
+            predictor_variables += [
+                config.rename_mapping.get(k, k) for k in model.hybrid_variables
+            ]
     else:
         model = None  # type: ignore
 
@@ -819,12 +826,15 @@ def get_reservoir_steppers(
             incrementer_offset,
         )
     else:
+        if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
+            predictor_variables += [SST, TSFC, MASK]
         incrementer, predictor = _get_reservoir_steppers(
             model,
             config,
             init_time,
             model_timestep,
             incrementer_offset=incrementer_offset,
+            predictor_variables=predictor_variables,
         )
 
     return incrementer, predictor
