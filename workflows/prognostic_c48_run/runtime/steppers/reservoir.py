@@ -577,11 +577,13 @@ class _GatherScatterStateStepper:
         variables: Sequence[str],
         initial_time: cftime.DatetimeJulian,
         reservoir_timestep: timedelta,
+        offset: timedelta = timedelta(0),
     ) -> None:
         self.initial_time = initial_time
         self.timestep = reservoir_timestep
         self.communicator = communicator
         self.variables = variables
+        self.offset = offset
 
     def __call__(self, time, state):
 
@@ -596,7 +598,7 @@ class _GatherScatterStateStepper:
         )
         gather_from_subtiles(self.communicator, retrieved_state)
 
-        if self._is_rc_update_step(time):
+        if self._is_rc_update_step(time + self.offset):
 
             logger.info(
                 f"GS obj scatter (rank {GLOBAL_COMM.Get_rank()}):"
@@ -640,6 +642,7 @@ def _get_reservoir_steppers(
     config: ReservoirConfig,
     init_time: cftime.DatetimeJulian,
     model_timestep: float,
+    incrementer_offset: Optional[timedelta] = None,
     communicator=None,
     increment_variables=None,
     predictor_variables=None,
@@ -650,10 +653,6 @@ def _get_reservoir_steppers(
     increment_averager, predict_averager = _get_time_averagers(
         model, config.time_average_inputs
     )
-
-    increment_offset = None
-    if config.incrementer_offset is not None:
-        increment_offset = pd.to_timedelta(config.incrementer_offset)
 
     reservoir_input_offset = None
     if config.reservoir_input_offset is not None:
@@ -673,7 +672,7 @@ def _get_reservoir_steppers(
         communicator=communicator,
         required_variables=increment_variables,
         model_timestep=model_timestep,
-        incrementer_offset=increment_offset,
+        incrementer_offset=incrementer_offset,
         reservoir_input_offset=reservoir_input_offset,
     )
     predictor = ReservoirPredictStepper(
@@ -713,7 +712,14 @@ def _more_ranks_than_models(num_models: int, num_ranks: int):
 
 
 def _initialize_steppers_for_gather_scatter(
-    model, config, init_time, model_timestep, rank, tile_root, communicator
+    model,
+    config,
+    init_time,
+    model_timestep,
+    rank,
+    tile_root,
+    communicator,
+    incrementer_offset,
 ):
 
     if rank == 0:
@@ -737,7 +743,7 @@ def _initialize_steppers_for_gather_scatter(
         )
         timestep = pd.to_timedelta(config.reservoir_timestep)
         incrementer = _GatherScatterStateStepper(
-            communicator, variables, init_time, timestep
+            communicator, variables, init_time, timestep, offset=incrementer_offset
         )
         predictor = _GatherScatterStateStepper(
             communicator, predictor_variables, init_time, timestep
@@ -749,6 +755,7 @@ def _initialize_steppers_for_gather_scatter(
             config,
             init_time,
             model_timestep,
+            incrementer_offset=incrementer_offset,
             communicator=communicator,
             increment_variables=variables,
             predictor_variables=predictor_variables,
@@ -795,13 +802,29 @@ def get_reservoir_steppers(
     else:
         model = None  # type: ignore
 
+    if config.incrementer_offset is not None:
+        incrementer_offset = pd.to_timedelta(config.incrementer_offset)
+    else:
+        incrementer_offset = timedelta(seconds=0)
+
     if require_scatter_gather:
         incrementer, predictor = _initialize_steppers_for_gather_scatter(
-            model, config, init_time, model_timestep, rank, tile_root, communicator
+            model,
+            config,
+            init_time,
+            model_timestep,
+            rank,
+            tile_root,
+            communicator,
+            incrementer_offset,
         )
     else:
         incrementer, predictor = _get_reservoir_steppers(
-            model, config, init_time, model_timestep
+            model,
+            config,
+            init_time,
+            model_timestep,
+            incrementer_offset=incrementer_offset,
         )
 
     return incrementer, predictor
