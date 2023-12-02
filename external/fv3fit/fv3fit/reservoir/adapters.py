@@ -65,7 +65,7 @@ class DatasetAdapter:
             }
         )
         if output_dims is None:
-            output_dims = self.DIM_ORDER
+            output_dims = ["y", "x", "z"]  # default ordering for wrapper
 
         return ds.transpose(*[dim for dim in output_dims if dim in ds.dims])
 
