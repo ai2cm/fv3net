@@ -38,20 +38,58 @@ spec:
               - {name: bucket, value: "{{inputs.parameters.bucket}}"}
               - {name: project, value: "{{inputs.parameters.project}}"}
               - {name: tag, value: "{{inputs.parameters.tag}}"}
-      - - name: prepare-config
-          template: prepare-config
+      - - name: prepare-input-config
+          template: prepare-input-config
           arguments:
             parameters:
               - {name: config, value: "{{inputs.parameters.config}}"}
-      - - name: run-model
+      - - template: get-wrapper
+          name: get-wrapper
+          arguments:
+            artifacts:
+              - name: config
+                from: "{{steps.prepare-input-config.outputs.artifacts.config}}"
+            parameters:
+              - {name: config, value: "{{inputs.parameters.config}}"}
+      - - name: prepare-config-fv3gfs
+          template: prepare-config-fv3gfs
+          when: "'{{steps.get-wrapper.outputs.result}}' == 'fv3gfs.wrapper'"
+          arguments:
+            artifacts:
+              - name: config
+                from: "{{steps.prepare-input-config.outputs.artifacts.config}}"
+      - - name: prepare-config-shield
+          template: prepare-config-shield
+          when: "'{{steps.get-wrapper.outputs.result}}' == 'shield.wrapper'"
+          arguments:
+            artifacts:
+              - name: config
+                from: "{{steps.prepare-input-config.outputs.artifacts.config}}"
+      - - name: run-model-fv3gfs
           continueOn:
             failed: true
+          when: "'{{steps.get-wrapper.outputs.result}}' == 'fv3gfs.wrapper'"
           templateRef:
             name: run-fv3gfs
             template: run-fv3gfs
           arguments:
             artifacts:
-              - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
+              - {name: fv3config, from: "{{steps.prepare-config-fv3gfs.outputs.artifacts.fv3config}}"}
+            parameters:
+              - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
+              - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
+      - - name: run-model-shield
+          continueOn:
+            failed: true
+          when: "'{{steps.get-wrapper.outputs.result}}' == 'shield.wrapper'"
+          templateRef:
+            name: run-shield
+            template: run-shield
+          arguments:
+            artifacts:
+              - {name: fv3config, from: "{{steps.prepare-config-shield.outputs.artifacts.fv3config}}"}
             parameters:
               - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
@@ -81,15 +119,34 @@ spec:
                   value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
       - - name: exit
           template: exit
-          when: "{{steps.run-model.status}} == Failed"
+          when: "{{steps.run-model-fv3gfs.status}} == Failed || {{steps.run-model-shield.status}} == Failed}"
     - name: exit
       container:
         image: ubuntu:20.04
         command: ["exit", "1"]
-    - name: prepare-config
+    - name: prepare-input-config
       inputs:
         parameters:
           - name: config
+      outputs:
+        artifacts:
+          - {name: config, path: /tmp/config.yaml}
+      container:
+        image: bash
+        command: ["bash", "-c", "-x", "-e"]
+        volumeMounts:
+          - name: workdir
+            mountPath: /tmp
+        args:
+          - |
+            cat << EOF > /tmp/config.yaml
+            {{inputs.parameters.config}}
+            EOF
+    - name: prepare-config-fv3gfs
+      inputs:
+        artifacts:
+          - name: config
+            path: /tmp/config.yaml
       outputs:
         artifacts:
           - {name: fv3config, path: /tmp/fv3config.yaml}
@@ -108,11 +165,46 @@ spec:
           - name: workdir
             mountPath: /tmp
         args:
-          - |
-            cat << EOF > config.yaml
-            {{inputs.parameters.config}}
-            EOF
-
-            prepare-config \
-              config.yaml \
-              > /tmp/fv3config.yaml
+          - prepare-config /tmp/config.yaml > /tmp/fv3config.yaml
+    - name: prepare-config-shield
+      inputs:
+        artifacts:
+          - name: config
+            path: /tmp/config.yaml
+      outputs:
+        artifacts:
+          - {name: fv3config, path: /tmp/fv3config.yaml}
+      container:
+        image: us.gcr.io/vcm-ml/prognostic_run_shield
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "700m"
+          limits:
+            memory: "500Mi"
+            cpu: "700m"
+        command: ["bash", "-c", "-x", "-e"]
+        workingDir: /fv3net/workflows/prognostic_c48_run
+        volumeMounts:
+          - name: workdir
+            mountPath: /tmp
+        args:
+          # Without setting the DGLBACKEND some additional text gets added to
+          # the prepared config (it's a warning that the default backend was set
+          # to pytorch).  I do not fully understand why this happens in this
+          # image but not the FV3GFS prognostic run image.  Should I just set
+          # this in the Dockerfile itself?
+          - DGLBACKEND=pytorch prepare-config /tmp/config.yaml > /tmp/fv3config.yaml
+    - name: get-wrapper
+      inputs:
+        artifacts:
+          - name: config
+            path: /mnt/data/config.yaml
+      script:
+        image: us.gcr.io/vcm-ml/fv3net
+        command: [python]
+        source: |
+          import yaml
+          with open("/mnt/data/config.yaml", "r") as file:
+              config = yaml.safe_load(file)
+          print(config.get("wrapper", "fv3gfs.wrapper"))
