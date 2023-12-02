@@ -64,6 +64,9 @@ class DatasetAdapter:
                 for var, output in zip(self.output_variables, outputs)
             }
         )
+        if output_dims is None:
+            output_dims = ["y", "x", "z"]  # default ordering for wrapper
+
         return ds.transpose(*[dim for dim in output_dims if dim in ds.dims])
 
     def input_dataset_to_arrays(
