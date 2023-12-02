@@ -359,7 +359,9 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
             if self._is_rc_update_step(time + offset):
                 logger.info(f"Storing reservoir input {key} for increment: time {time}")
                 to_store = data
-                if self.input_averager is not None:
+                if self.input_averager is not None and key != "sst":
+                    # TODO: if this works, make configurable
+                    # hack to keep at instantaneous SST (which is weekly for RC)
                     to_store = self.input_averager.get_average(key)
                 self._intermediate_storage[key] = to_store
 
@@ -804,7 +806,8 @@ def get_reservoir_steppers(
             )
         if model.is_hybrid:
             predictor_variables += [
-                config.rename_mapping.get(k, k) for k in model.hybrid_variables
+                config.rename_mapping.get(k, k)
+                for k in model.hybrid_variables  # type: ignore
             ]
     else:
         model = None  # type: ignore
