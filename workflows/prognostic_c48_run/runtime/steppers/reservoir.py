@@ -725,13 +725,17 @@ def _initialize_steppers_for_gather_scatter(
 ):
 
     if rank == 0:
-        variables = [config.rename_mapping.get(k, k) for k in model.input_variables]
-        # Need to gather additional fields to update post-prediction
-        # TODO: how to make less of a hack?
-        if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
-            predictor_variables = [SST, TSFC, MASK] + variables
+        variables = [
+            config.rename_mapping.get(k, k) for k in model.nonhybrid_input_variables
+        ]
+        if model.is_hybrid:
+            predictor_variables = [
+                config.rename_mapping.get(k, k) for k in model.hybrid_variables
+            ]
+            if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
+                predictor_variables += [SST, TSFC, MASK]
         else:
-            predictor_variables = variables
+            predictor_variables = None
     else:
         variables = None
         predictor_variables = None
