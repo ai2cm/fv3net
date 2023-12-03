@@ -586,6 +586,7 @@ class _GatherScatterStateStepper:
         self.communicator = communicator
         self.variables = variables
         self.offset = offset
+        self.is_diagnostic = False
 
     def __call__(self, time, state):
 
@@ -595,7 +596,7 @@ class _GatherScatterStateStepper:
 
         retrieved_state = xr.Dataset({k: state[k] for k in self.variables})
         logger.info(
-            f"Gathering from gs obj, rank({GLOBAL_COMM.Get_rank()}),"
+            f"Gathering from gs obj at time {time}, rank({GLOBAL_COMM.Get_rank()}),"
             f" {list(retrieved_state.keys())}"
         )
         gather_from_subtiles(self.communicator, retrieved_state)
@@ -615,6 +616,10 @@ class _GatherScatterStateStepper:
     def _is_rc_update_step(self, time):
         remainder = (time - self.initial_time) % self.timestep
         return remainder == timedelta(0)
+
+    def get_diagnostics(self, state, tendency):
+        diags: MutableMapping[Hashable, xr.DataArray] = {}
+        return diags, xr.DataArray()
 
 
 def open_rc_model(path: str) -> ReservoirDatasetAdapter:

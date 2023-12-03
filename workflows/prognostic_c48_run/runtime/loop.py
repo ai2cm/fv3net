@@ -593,34 +593,34 @@ class TimeLoop(
                 diags,
                 state_updates,
             ) = self._reservoir_predict_stepper(self._state.time, self._state)
-            (
-                stepper_diags,
-                net_moistening,
-            ) = self._reservoir_predict_stepper.get_diagnostics(
-                self._state, tendencies_from_state_prediction
-            )
-            diags.update(stepper_diags)
-            if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
-                rename_diagnostics(diags, label="reservoir_predictor")
+            # (
+            #     stepper_diags,
+            #     net_moistening,
+            # ) = self._reservoir_predict_stepper.get_diagnostics(
+            #     self._state, tendencies_from_state_prediction
+            # )
+            # diags.update(stepper_diags)
+            # if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
+            #     rename_diagnostics(diags, label="reservoir_predictor")
 
-            state_updates[TOTAL_PRECIP] = precipitation_sum(
-                self._state[TOTAL_PRECIP], net_moistening, self._timestep,
-            )
+            # state_updates[TOTAL_PRECIP] = precipitation_sum(
+            #     self._state[TOTAL_PRECIP], net_moistening, self._timestep,
+            # )
 
             self._state.update_mass_conserving(state_updates)
 
-            diags.update({name: self._state[name] for name in self._states_to_output})
-            diags.update(
-                {
-                    "area": self._state[AREA],
-                    "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
-                        "cnvprcp"
-                    ).data_array,
-                    TOTAL_PRECIP_RATE: precipitation_rate(
-                        self._state[TOTAL_PRECIP], self._timestep
-                    ),
-                }
-            )
+            # diags.update({name: self._state[name] for name in self._states_to_output})
+            # diags.update(
+            #     {
+            #         "area": self._state[AREA],
+            #         "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
+            #             "cnvprcp"
+            #         ).data_array,
+            #         TOTAL_PRECIP_RATE: precipitation_rate(
+            #             self._state[TOTAL_PRECIP], self._timestep
+            #         ),
+            #     }
+            # )
 
             return diags
         else:
