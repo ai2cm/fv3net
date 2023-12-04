@@ -325,15 +325,25 @@ class ScreamSimulation:
 
 
 def evaluation_pair_to_input_data(
-    prognostic: Simulation, verification: Simulation, grid: xr.Dataset
+    prognostic: Simulation,
+    verification: Simulation,
+    grid: xr.Dataset,
+    start_date: str = None,
+    end_date: str = None,
 ):
     # 3d data special handling
     data_3d = prognostic.data_3d
     verif_3d = verification.data_3d
+    data_2d = prognostic.data_2d
+    verif_2d = verification.data_2d
     if check_if_scream_dataset(data_3d):
         dropped_grid_vars = ["land_sea_mask"]
     else:
         dropped_grid_vars = ["tile", "land_sea_mask"]
+    data_3d = data_3d.sel(time=slice(start_date, end_date))
+    verif_3d = verif_3d.sel(time=slice(start_date, end_date))
+    data_2d = data_2d.sel(time=slice(start_date, end_date))
+    verif_2d = verif_2d.sel(time=slice(start_date, end_date))
     return {
         "3d": (
             derived_variables.derive_3d_variables(data_3d),
@@ -341,8 +351,8 @@ def evaluation_pair_to_input_data(
             grid.drop(dropped_grid_vars),
         ),
         "2d": (
-            derived_variables.derive_2d_variables(prognostic.data_2d),
-            derived_variables.derive_2d_variables(verification.data_2d),
+            derived_variables.derive_2d_variables(data_2d),
+            derived_variables.derive_2d_variables(verif_2d),
             grid,
         ),
     }
