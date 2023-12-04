@@ -624,6 +624,18 @@ def add_time_range_arguments(parser: ArgumentParser):
     )
 
 
+def clean_up_diags_attrs(diags: xr.Dataset) -> xr.Dataset:
+    """
+    Remove attrs from diags that are not serializable.
+    Specifically, we cast start_date and end_date which has default of None to str.
+    """
+    if "start_date" in diags.attrs:
+        diags.attrs["start_date"] = str(diags.attrs["start_date"])
+    if "end_date" in diags.attrs:
+        diags.attrs["end_date"] = str(diags.attrs["end_date"])
+    return diags
+
+
 def register_parser(subparsers):
     parser: ArgumentParser = subparsers.add_parser(
         "save", help="Compute the prognostic run diags."
@@ -699,6 +711,7 @@ def main(args):
 
     logger.info(f"Saving data to {args.output}")
     with fsspec.open(args.output, "wb") as f:
+        diags = clean_up_diags_attrs(diags)
         vcm.dump_nc(diags, f)
 
     StepMetadata(
