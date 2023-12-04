@@ -328,8 +328,8 @@ def evaluation_pair_to_input_data(
     prognostic: Simulation,
     verification: Simulation,
     grid: xr.Dataset,
-    start_date: str = "",
-    end_date: str = "",
+    start_date: str = None,
+    end_date: str = None,
 ):
     # 3d data special handling
     data_3d = prognostic.data_3d
@@ -340,11 +340,10 @@ def evaluation_pair_to_input_data(
         dropped_grid_vars = ["land_sea_mask"]
     else:
         dropped_grid_vars = ["tile", "land_sea_mask"]
-    if start_date and end_date:
-        data_3d = data_3d.sel(time=slice(start_date, end_date))
-        verif_3d = verif_3d.sel(time=slice(start_date, end_date))
-        data_2d = data_2d.sel(time=slice(start_date, end_date))
-        verif_2d = verif_2d.sel(time=slice(start_date, end_date))
+    data_3d = data_3d.sel(time=slice(start_date, end_date))
+    verif_3d = verif_3d.sel(time=slice(start_date, end_date))
+    data_2d = data_2d.sel(time=slice(start_date, end_date))
+    verif_2d = verif_2d.sel(time=slice(start_date, end_date))
     return {
         "3d": (
             derived_variables.derive_3d_variables(data_3d),
