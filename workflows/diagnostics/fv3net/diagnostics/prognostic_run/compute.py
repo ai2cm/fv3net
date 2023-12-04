@@ -617,10 +617,10 @@ def add_catalog_and_verification_arguments(parser: ArgumentParser):
 
 def add_time_range_arguments(parser: ArgumentParser):
     parser.add_argument(
-        "--start-date", type=str, help="Start date for diagnostics", default=""
+        "--start-date", type=str, help="Start date for diagnostics", default=None
     )
     parser.add_argument(
-        "--end-date", type=str, help="End date for diagnostics", default=""
+        "--end-date", type=str, help="End date for diagnostics", default=None
     )
 
 
