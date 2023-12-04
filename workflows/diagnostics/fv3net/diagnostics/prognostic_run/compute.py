@@ -615,6 +615,15 @@ def add_catalog_and_verification_arguments(parser: ArgumentParser):
     )
 
 
+def add_time_range_arguments(parser: ArgumentParser):
+    parser.add_argument(
+        "--start-date", type=str, help="Start date for diagnostics", default=""
+    )
+    parser.add_argument(
+        "--end-date", type=str, help="End date for diagnostics", default=""
+    )
+
+
 def register_parser(subparsers):
     parser: ArgumentParser = subparsers.add_parser(
         "save", help="Compute the prognostic run diags."
@@ -622,6 +631,7 @@ def register_parser(subparsers):
     parser.add_argument("url", help="Prognostic run output location.")
     parser.add_argument("output", help="Output path including filename.")
     add_catalog_and_verification_arguments(parser)
+    add_time_range_arguments(parser)
     parser.add_argument(
         "--n-jobs",
         type=int,
@@ -673,7 +683,7 @@ def main(args):
 
     grid = load_diags.load_grid(catalog, args.gsrm)
     input_data = load_diags.evaluation_pair_to_input_data(
-        prognostic, verification, grid
+        prognostic, verification, grid, args.start_date, args.end_date
     )
 
     computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs)
