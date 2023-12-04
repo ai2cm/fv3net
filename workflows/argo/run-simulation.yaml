@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: run-fv3gfs
+  name: run-simulation
 spec:
-  entrypoint: run-fv3gfs
   templates:
-  - name: run-fv3gfs
+  - &run-fv3gfs
+    name: run-fv3gfs
     inputs:
       artifacts:
         - name: fv3config
@@ -15,7 +15,8 @@ spec:
         - {name: memory, value: 8Gi}
         - {name: segment-count, value: "1"}
     steps:
-      - - template: create-run
+      - - &create-run-step-fv3gfs
+          template: create-run
           name: create-run
           arguments:
             parameters:
@@ -23,7 +24,8 @@ spec:
             artifacts:
               - name: fv3config
                 from: "{{inputs.artifacts.fv3config}}"
-        - name: choose-node-pool
+        - &choose-node-pool-step-fv3gfs
+          name: choose-node-pool
           template: choose-node-pool
           arguments:
             parameters:
@@ -33,7 +35,8 @@ spec:
             - {name: memory-cutoff, value: "30"}
       # loop over segments implemented through recursion so that a failed segment will
       # terminate the workflow. Argo loops by default run in parallel and do not fail fast.
-      - - name: run-first-segment
+      - - &run-first-segment-step-fv3gfs
+          name: run-first-segment
           template: run-all-segments
           arguments:
             parameters:
@@ -43,7 +46,8 @@ spec:
             - {name: node-pool, value: "{{steps.choose-node-pool.outputs.result}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: 0}
-  - name: run-all-segments
+  - &run-all-segments-fv3gfs
+    name: run-all-segments
     inputs:
       parameters:
         - name: output-url
@@ -53,7 +57,8 @@ spec:
         - name: segment-count
         - name: segment
     steps:
-      - - template: append-segment
+      - - &append-segment-step-fv3gfs
+          template: append-segment
           name: append-segment
           arguments:
             parameters:
@@ -61,12 +66,14 @@ spec:
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
               - {name: node-pool, value: "{{inputs.parameters.node-pool}}"}
-      - - name: increment-segment
+      - - &increment-segment-step-fv3gfs
+          name: increment-segment
           template: increment-count
           arguments:
             parameters:
               - {name: count, value: "{{inputs.parameters.segment}}"}
-      - - name: run-next-segment
+      - - &run-next-segment-step-fv3gfs
+          name: run-next-segment
           template: run-all-segments
           when: "{{steps.increment-segment.outputs.result}} < {{inputs.parameters.segment-count}}"
           arguments:
@@ -77,14 +84,15 @@ spec:
             - {name: node-pool, value: "{{inputs.parameters.node-pool}}"}
             - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
             - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
-  - name: create-run
+  - &create-run-fv3gfs
+    name: create-run
     inputs:
       artifacts:
         - name: fv3config
           path: /mnt/data/fv3config.yaml
       parameters:
         - name: runURL
-    container:
+    container: &create-run-container-fv3gfs
       image: us.gcr.io/vcm-ml/prognostic_run
       command: ["/bin/bash", "-c", "-x", "-e"]
       resources:
@@ -142,7 +150,8 @@ spec:
         else:
             node_pool = 'ultra-sim-pool'
         print(node_pool)
-  - name: append-segment
+  - &append-segment-fv3gfs
+    name: append-segment
     inputs:
       parameters:
         - name: cpu
@@ -167,7 +176,7 @@ spec:
             requests:
               cpu: "{{inputs.parameters.cpu}}"
               memory: "{{inputs.parameters.memory}}"
-    container:
+    container: &append-segment-container-fv3gfs
       image: us.gcr.io/vcm-ml/prognostic_run
       command: [runfv3]
       args: ["append", "{{inputs.parameters.runURL}}"]
@@ -195,3 +204,35 @@ spec:
       command: [python]
       source: |
         print({{inputs.parameters.count}} + 1)
+
+  # Template for running SHiELD instead of FV3GFS; note we have been careful to
+  # rename all the SHiELD-wrapper-dependent templates such that there is no risk
+  # of using a template meant for running FV3GFS with SHiELD or vice-versa.  The
+  # choose-node-pool and increment-segment steps are identical between the two
+  # workflows, so we do not bother to do any renaming of those.
+  - <<: *run-fv3gfs
+    name: run-shield
+    steps:
+      - - <<: *create-run-step-fv3gfs
+          template: create-run-shield
+        - *choose-node-pool-step-fv3gfs
+      - - <<: *run-first-segment-step-fv3gfs
+          template: run-all-segments-shield
+  - <<: *run-all-segments-fv3gfs
+    name: run-all-segments-shield
+    steps:
+      - - <<: *append-segment-step-fv3gfs
+          template: append-segment-shield
+      - - *increment-segment-step-fv3gfs
+      - - <<: *run-next-segment-step-fv3gfs
+          template: run-all-segments-shield
+  - <<: *create-run-fv3gfs
+    name: create-run-shield
+    container:
+      <<: *create-run-container-fv3gfs
+      image: us.gcr.io/vcm-ml/prognostic_run_shield
+  - <<: *append-segment-fv3gfs
+    name: append-segment-shield
+    container:
+      <<: *append-segment-container-fv3gfs
+      image: us.gcr.io/vcm-ml/prognostic_run_shield
