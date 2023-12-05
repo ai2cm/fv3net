@@ -282,7 +282,7 @@ def train_reservoir_model(
     if hyperparameters.hybrid_variables is None:
         model = ReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
             reservoir=reservoir,
             readout=readout,
             square_half_hidden_state=hyperparameters.square_half_hidden_state,
@@ -297,7 +297,7 @@ def train_reservoir_model(
     else:
         model = HybridReservoirComputingModel(
             input_variables=hyperparameters.input_variables,
-            output_variables=hyperparameters.input_variables,
+            output_variables=hyperparameters.output_variables,
             hybrid_variables=hyperparameters.hybrid_variables,
             reservoir=reservoir,
             readout=readout,
