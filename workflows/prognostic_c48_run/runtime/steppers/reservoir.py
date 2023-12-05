@@ -1,6 +1,7 @@
 import cftime
 import dataclasses
 import logging
+import numpy as np
 import pandas as pd
 import xarray as xr
 import mpi4py.MPI as MPI
@@ -18,9 +19,11 @@ from typing import (
 )
 
 import pace.util
+from pace.util import constants
+from pace.util.communicator import Quantity, array_buffer
 import fv3fit
 from fv3fit._shared import get_dir
-from fv3fit._shared.halos import append_halos_using_mpi
+from fv3fit._shared.halos import append_halos_using_mpi, append_halos
 from fv3fit.reservoir.adapters import ReservoirDatasetAdapter
 from runtime.names import SST, TSFC, MASK, SPHUM, TEMP
 from runtime.tendency import add_tendency, tendencies_from_state_updates
@@ -30,7 +33,12 @@ from runtime.diagnostics import (
 )
 from .prescriber import sst_update_from_reference
 from .machine_learning import rename_dataset_members, NameDict
-from ..scatter import scatter_within_tile, gather_from_subtiles
+from ..scatter import (
+    scatter_within_tile,
+    gather_from_subtiles,
+    scatter_global,
+    gather_global,
+)
 
 GLOBAL_COMM = MPI.COMM_WORLD
 logger = logging.getLogger(__name__)
@@ -200,6 +208,68 @@ def _scatter_stepper_return(communicator, tendencies, diags, state):
     return tendencies, diags, state
 
 
+class FullTileScatterComm(pace.util.CubedSphereCommunicator):
+    @classmethod
+    def from_cubed_sphere_communicator(cls, communicator):
+        return cls(
+            communicator.comm,
+            communicator.partitioner,
+            force_cpu=communicator._force_cpu,
+            timer=communicator.timer,
+        )
+
+    def scatter(
+        self,
+        send_quantity: Optional[Quantity] = None,
+        recv_quantity: Optional[Quantity] = None,
+    ) -> Quantity:
+        """
+        Transfer a whole tiles from a global cubedsphere to each
+        tile root rank.
+
+        Args:
+            send_quantity: quantity to send, only required/used on the root rank
+            recv_quantity: if provided, assign received data into this Quantity.
+        Returns:
+            recv_quantity
+        """
+        if self.rank == constants.ROOT_RANK and send_quantity is None:
+            raise TypeError("send_quantity is a required argument on the root rank")
+        if self.rank == constants.ROOT_RANK:
+            send_quantity = cast(Quantity, send_quantity)
+            metadata = self.comm.bcast(send_quantity.metadata, root=constants.ROOT_RANK)
+        else:
+            metadata = self.comm.bcast(None, root=constants.ROOT_RANK)
+        shape = metadata.extent[1:]
+        if recv_quantity is None:
+            recv_quantity = self._get_scatter_recv_quantity(shape, metadata)
+
+        if self.rank == constants.ROOT_RANK:
+            send_quantity = cast(Quantity, send_quantity)
+            total_ranks = self.partitioner.total_ranks
+            with array_buffer(
+                self._maybe_force_cpu(metadata.np).zeros,
+                (total_ranks,) + shape,
+                dtype=metadata.dtype,
+            ) as sendbuf:
+                for i in range(0, self.partitioner.total_ranks):
+                    tile = self.partitioner.tile_index(i)
+                    sendbuf.assign_from(
+                        send_quantity.view[tile], buffer_slice=np.index_exp[i, :],
+                    )
+                self._Scatter(
+                    metadata.np,
+                    sendbuf.array,
+                    recv_quantity.view[:],
+                    root=constants.ROOT_RANK,
+                )
+        else:
+            self._Scatter(
+                metadata.np, None, recv_quantity.view[:], root=constants.ROOT_RANK,
+            )
+        return recv_quantity
+
+
 class _ReservoirStepper:
 
     label = "base_reservoir_stepper"
@@ -307,6 +377,47 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
     label = "reservoir_incrementer"
 
+    @property
+    def n_halo_points(self):
+        return self.model.input_overlap
+
+    def _append_halos_mpi(self, inputs):
+        """
+        Append halos to inputs using mpi4py.
+        """
+        n_halo_points = self.model.input_overlap
+        if n_halo_points > 0:
+            try:
+                rc_in_with_halos = append_halos_using_mpi(inputs, n_halo_points)
+            except RuntimeError:
+                raise ValueError(
+                    "MPI not available or tile dimension does not exist in state fields"
+                    " during reservoir increment update"
+                )
+            inputs = rc_in_with_halos
+        return inputs
+
+    def _append_halos_global(self, inputs):
+        if self.communicator is None:
+            raise ValueError("Cannot append global halos without communicator")
+
+        logger.info(
+            f"appending halo rank {self.communicator.rank}, "
+            f"original input {str(inputs)}"
+        )
+        global_ds = gather_global(self.communicator, inputs)
+
+        if self.communicator.rank == 0:
+            with_halos = append_halos(global_ds, self.model.input_overlap)
+        else:
+            with_halos = None
+
+        scatter_comm = FullTileScatterComm.from_cubed_sphere_communicator(
+            self.communicator
+        )
+        tile_with_halo = scatter_global(scatter_comm, with_halos)
+        return tile_with_halo
+
     def _get_inputs_from_state(self, state):
         """
         Get all required inputs for incrementing w/ halos
@@ -320,24 +431,14 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
 
         state_inputs = self._retrieve_fv3_state(state, variables)
 
-        if self.communicator:
-            logger.info(f"gathering increment state, {list(state_inputs.keys())}")
-            state_inputs = gather_from_subtiles(self.communicator, state_inputs)
+        if self.communicator and self.n_halo_points > 0:
+            reservoir_inputs = self._append_halos_global(state_inputs)
+        elif self.communicator and self.n_halo_points == 0:
+            reservoir_inputs = gather_from_subtiles(self.communicator, state_inputs)
+        elif self.communicator is None and self.n_halo_points > 0:
+            reservoir_inputs = self._append_halos_mpi(state_inputs)
 
         reservoir_inputs = self._rename_inputs_for_reservoir(state_inputs)
-
-        n_halo_points = self.model.input_overlap
-        if n_halo_points > 0:
-            try:
-                rc_in_with_halos = append_halos_using_mpi(
-                    reservoir_inputs, n_halo_points
-                )
-            except RuntimeError:
-                raise ValueError(
-                    "MPI not available or tile dimension does not exist in state fields"
-                    " during reservoir increment update"
-                )
-            reservoir_inputs = rc_in_with_halos
 
         return reservoir_inputs
 
@@ -474,11 +575,10 @@ class ReservoirPredictStepper(_ReservoirStepper):
         # the gather requirements.  Otherwise those fields are subdomains.
         if self._required_variables is not None:
             use_variables = self._required_variables
+        elif self.model.is_hybrid:
+            use_variables += list(self.model.model.hybrid_variables)
         else:
-            use_variables = list(self.model.output_variables)
-
-            if self.model.is_hybrid:
-                use_variables += list(self.model.model.hybrid_variables)
+            use_variables = []
 
         retrieved_state = self._retrieve_fv3_state(state, use_variables)
         if self.communicator and use_variables:
@@ -580,13 +680,15 @@ class _GatherScatterStateStepper:
         initial_time: cftime.DatetimeJulian,
         reservoir_timestep: timedelta,
         offset: timedelta = timedelta(0),
+        extra_gather_scatter: bool = False,
     ) -> None:
         self.initial_time = initial_time
         self.timestep = reservoir_timestep
         self.communicator = communicator
-        self.variables = variables
+        self.variables = variables if variables is not None else []
         self.offset = offset
         self.is_diagnostic = False
+        self.halo_gather_scatter = extra_gather_scatter
 
     def __call__(self, time, state):
 
@@ -594,17 +696,26 @@ class _GatherScatterStateStepper:
         tendencies = {}
         diags = {}
 
+        rank = GLOBAL_COMM.Get_rank()
         retrieved_state = xr.Dataset({k: state[k] for k in self.variables})
         logger.info(
-            f"Gathering from gs obj at time {time}, rank({GLOBAL_COMM.Get_rank()}),"
+            f"Gathering from gs obj at time {time}, rank({rank}),"
             f" {list(retrieved_state.keys())}"
         )
-        gather_from_subtiles(self.communicator, retrieved_state)
+
+        if self.halo_gather_scatter:
+            gather_global(self.communicator, retrieved_state)
+            scatter_comm = FullTileScatterComm.from_cubed_sphere_communicator(
+                self.communicator
+            )
+            scatter_global(scatter_comm, xr.Dataset())
+        else:
+            gather_from_subtiles(self.communicator, retrieved_state)
 
         if self._is_rc_update_step(time + self.offset):
 
             logger.info(
-                f"GS obj scatter (rank {GLOBAL_COMM.Get_rank()}):"
+                f"GS obj scatter (rank {rank}):"
                 f" {list(output_state.keys()) + list(diags.keys())}"
             )
             tendencies, diags, output_state = _scatter_stepper_return(
@@ -727,6 +838,7 @@ def _initialize_steppers_for_gather_scatter(
     tile_root,
     communicator,
     incrementer_offset,
+    halo_gather_scatter,
 ):
 
     if rank == 0:
@@ -737,10 +849,11 @@ def _initialize_steppers_for_gather_scatter(
             predictor_variables = [
                 config.rename_mapping.get(k, k) for k in model.hybrid_variables
             ]
-            if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
-                predictor_variables += [SST, TSFC, MASK]
         else:
-            predictor_variables = None
+            predictor_variables = []
+
+        if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
+            predictor_variables += [SST, TSFC, MASK]
     else:
         variables = None
         predictor_variables = None
@@ -749,18 +862,21 @@ def _initialize_steppers_for_gather_scatter(
     predictor_variables = GLOBAL_COMM.bcast(predictor_variables, root=0)
 
     if rank != tile_root:
-        logging.info(
-            f"Getting gather/scatter steppers for rank {GLOBAL_COMM.Get_rank()}"
-        )
+        logging.info(f"Getting gather/scatter steppers for rank {rank}")
         timestep = pd.to_timedelta(config.reservoir_timestep)
         incrementer = _GatherScatterStateStepper(
-            communicator, variables, init_time, timestep, offset=incrementer_offset
+            communicator,
+            variables,
+            init_time,
+            timestep,
+            offset=incrementer_offset,
+            extra_gather_scatter=halo_gather_scatter,
         )
         predictor = _GatherScatterStateStepper(
             communicator, predictor_variables, init_time, timestep
         )
     else:
-        logging.info(f"Getting main steppers for rank {GLOBAL_COMM.Get_rank()}")
+        logging.info(f"Getting main steppers for rank {rank}")
         incrementer, predictor = _get_reservoir_steppers(
             model,
             config,
@@ -802,7 +918,7 @@ def get_reservoir_steppers(
         require_scatter_gather = False
 
     # used to add variables for SST masked update
-    predictor_variables = []
+    predictor_variables = None
 
     if rank == tile_root:
         logger.info(f"Loading reservoir model on rank {rank}")
@@ -814,12 +930,18 @@ def get_reservoir_steppers(
                 "Ensure that the rank key and model is present in the configuration."
             )
         if model.is_hybrid:
-            predictor_variables += [
+            predictor_variables = [
                 config.rename_mapping.get(k, k)
                 for k in model.hybrid_variables  # type: ignore
             ]
     else:
         model = None  # type: ignore
+
+    if rank == 0:
+        extra_gather_scatter = model.input_overlap > 0
+        GLOBAL_COMM.bcast(extra_gather_scatter, root=0)
+    else:
+        extra_gather_scatter = GLOBAL_COMM.bcast(None, root=0)
 
     if config.incrementer_offset is not None:
         incrementer_offset = pd.to_timedelta(config.incrementer_offset)
@@ -836,10 +958,14 @@ def get_reservoir_steppers(
             tile_root,
             communicator,
             incrementer_offset,
+            extra_gather_scatter,
         )
     else:
         if SST in [config.rename_mapping.get(k, k) for k in model.output_variables]:
+            if predictor_variables is None:
+                predictor_variables = []
             predictor_variables += [SST, TSFC, MASK]
+
         incrementer, predictor = _get_reservoir_steppers(
             model,
             config,
