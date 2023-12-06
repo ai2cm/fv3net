@@ -576,7 +576,7 @@ class ReservoirPredictStepper(_ReservoirStepper):
         if self._required_variables is not None:
             use_variables = self._required_variables
         elif self.model.is_hybrid:
-            use_variables += list(self.model.model.hybrid_variables)
+            use_variables = list(self.model.hybrid_variables)
         else:
             use_variables = []
 
