@@ -32,7 +32,7 @@ endif
 
 PROGNOSTIC_RUN_WORKDIR ?= /fv3net/workflows/prognostic_c48_run
 
-IMAGES = fv3net post_process_run prognostic_run
+IMAGES = fv3net post_process_run prognostic_run prognostic_run_shield
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
 ############################################################
@@ -82,6 +82,9 @@ endif
 		--target prognostic-run \
 		--build-arg BASE_IMAGE=$(REGISTRY)/prognostic_run_base_gpu:$(PROGNOSTIC_BASE_VERSION) .
 
+# Use the identical Python requirements to the FV3GFS prognostic run
+build_image_prognostic_run_shield: docker/prognostic_run/requirements.txt
+
 build_image_dataflow: ARGS = --build-arg BEAM_VERSION=$(BEAM_VERSION)
 
 image_test_dataflow: push_image_dataflow
@@ -102,6 +105,12 @@ image_test_prognostic_run: image_test_emulation
 		--rm \
 		-w /fv3net/workflows/prognostic_c48_run \
 		$(REGISTRY)/prognostic_run:$(VERSION) pytest
+
+image_test_prognostic_run_shield:
+	tools/docker-run \
+		--rm \
+		-w /fv3net/workflows/prognostic_c48_run \
+		$(REGISTRY)/prognostic_run_shield:$(VERSION) pytest -vv
 
 image_test_%:
 	echo "No tests specified"
@@ -231,7 +240,9 @@ clean:
 update_submodules:
 	git submodule sync --recursive
 	git submodule update --init \
-		external/fv3gfs-fortran \
+		external/fv3gfs-fortran
+	git submodule update --init --recursive \
+		external/SHiELD-wrapper
 
 
 ############################################################

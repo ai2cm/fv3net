@@ -16,6 +16,7 @@ import vcm.testing
 import xarray as xr
 import yaml
 from machine_learning_mocks import get_mock_predictor
+from testing_utils import requires_fv3gfs_wrapper
 
 BASE_FV3CONFIG_CACHE = Path("vcm-fv3config", "data")
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
@@ -628,6 +629,7 @@ def completed_segment(completed_rundir):
     return completed_rundir.join("artifacts").join("20160801.000000")
 
 
+@requires_fv3gfs_wrapper
 def test_fv3run_checksum_restarts(completed_segment, regtest):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -637,15 +639,18 @@ def test_fv3run_checksum_restarts(completed_segment, regtest):
     print(fv_core.computehash(), file=regtest)
 
 
+@requires_fv3gfs_wrapper
 @pytest.mark.parametrize("path", [LOG_PATH, STATISTICS_PATH, PROFILES_PATH])
 def test_fv3run_logs_present(completed_segment, path):
     assert completed_segment.join(path).exists()
 
 
+@requires_fv3gfs_wrapper
 def test_chunks_present(completed_segment):
     assert completed_segment.join(CHUNKS_PATH).exists()
 
 
+@requires_fv3gfs_wrapper
 def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -658,11 +663,13 @@ def test_fv3run_diagnostic_outputs_check_variables(regtest, completed_rundir):
         print(f"{variable}: " + checksum, file=regtest)
 
 
+@requires_fv3gfs_wrapper
 def test_fv3run_diagnostic_outputs_schema(regtest, completed_rundir):
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     diagnostics.info(regtest)
 
 
+@requires_fv3gfs_wrapper
 def test_metrics_valid(completed_segment, configuration):
     if configuration == ConfigEnum.nudging:
         pytest.skip()
@@ -680,6 +687,7 @@ def test_metrics_valid(completed_segment, configuration):
 
 
 @pytest.mark.xfail
+@requires_fv3gfs_wrapper
 def test_fv3run_python_mass_conserving(completed_segment, configuration):
     if configuration == ConfigEnum.nudging:
         pytest.skip()
@@ -701,6 +709,7 @@ def test_fv3run_python_mass_conserving(completed_segment, configuration):
         )
 
 
+@requires_fv3gfs_wrapper
 def test_fv3run_vertical_profile_statistics(completed_segment, configuration):
     if (
         configuration == ConfigEnum.nudging
@@ -719,6 +728,7 @@ def test_fv3run_vertical_profile_statistics(completed_segment, configuration):
         assert len(profiles["specific_humidity_limiter_active_global_sum"]) == npz
 
 
+@requires_fv3gfs_wrapper
 def test_fv3run_emulation_zarr_out(completed_rundir, configuration, regtest):
 
     if configuration != ConfigEnum.microphys_emulation:
@@ -728,6 +738,7 @@ def test_fv3run_emulation_zarr_out(completed_rundir, configuration, regtest):
     emu_state_zarr.info(regtest)
 
 
+@requires_fv3gfs_wrapper
 def test_each_line_of_file_is_json(completed_segment):
     with completed_segment.join("logs.txt").open() as f:
         k = 0
@@ -738,6 +749,7 @@ def test_each_line_of_file_is_json(completed_segment):
     assert some_lines_read
 
 
+@requires_fv3gfs_wrapper
 def test_fv3run_emulation_nc_out(completed_segment, configuration, regtest):
 
     if configuration != ConfigEnum.microphys_emulation:
