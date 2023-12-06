@@ -10,11 +10,11 @@ hyperparameters:
   output_variables:
     - sst
   transformers:
-    input: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231129/pure-inputs/halo6-scale-xyz-concat-z-tile${TILE}"
+    input: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231129/pure-inputs/halo2-scale-xyz-concat-z-tile${TILE}"
     output: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231129/sst-out/scale-xyz-concat-z-tile${TILE}"
   subdomain:
     layout: [8,8]
-    overlap: 6
+    overlap: 2
     rank_dims:
       - x
       - y
