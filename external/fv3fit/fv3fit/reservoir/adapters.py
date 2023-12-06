@@ -129,6 +129,9 @@ class ReservoirDatasetAdapter(Predictor):
     def is_hybrid(self):
         return False
 
+    def dump_state(self, path: str):
+        self.model.reservoir.dump_state(path)
+
     def predict(self, inputs: xr.Dataset) -> xr.Dataset:
         # inputs arg is not used, but is required by Predictor signature and prog run
         prediction_arr = self.model.predict()
@@ -197,6 +200,9 @@ class HybridReservoirDatasetAdapter(Predictor):
             output_variables=model.output_variables,
         )
         self.clip_config = clip_config
+
+    def dump_state(self, path: str):
+        self.model.reservoir.dump_state(path)
 
     @property
     def input_overlap(self):

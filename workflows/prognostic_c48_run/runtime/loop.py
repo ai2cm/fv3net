@@ -55,6 +55,7 @@ from runtime.steppers.interval import IntervalStepper, IntervalConfig
 from runtime.steppers.combine import CombinedStepper
 from runtime.steppers.reservoir import get_reservoir_steppers
 from runtime.types import Diagnostics, State, Tendencies, Step
+
 from toolz import dissoc
 
 from runtime.nudging import NudgingConfig
@@ -139,6 +140,7 @@ class TimeLoop(
         self.comm = comm
         self._timer = pace.util.Timer()
         self.rank: int = comm.rank
+        self._steps_taken = 1
 
         namelist = get_namelist()
 
@@ -626,6 +628,17 @@ class TimeLoop(
                 }
             )
 
+            # save state if configured
+            self._log_info(
+                f"steps taken: {self._steps_taken}/{self._wrapper.get_step_count()}"
+            )
+            if self._reservoir_predict_stepper.dump_state_at_end:  # type: ignore
+                if self._steps_taken == self._wrapper.get_step_count():
+                    self._log_info("dumping reservoir state")
+                    self._reservoir_predict_stepper.dump_state(  # type: ignore
+                        checkpoint_time=self._state.time
+                    )
+
             return diags
         else:
             return {}
@@ -666,4 +679,5 @@ class TimeLoop(
             ]:
                 with self._timer.clock(substep.__name__):
                     diagnostics.update(substep())
+            self._steps_taken += 1
             yield self._state.time, {str(k): v for k, v in diagnostics.items()}

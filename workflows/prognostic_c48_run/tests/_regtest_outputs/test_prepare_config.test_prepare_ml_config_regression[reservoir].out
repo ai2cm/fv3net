@@ -435,6 +435,7 @@ prephysics: null
 radiation_scheme: null
 reservoir_corrector:
   diagnostic_only: false
+  dump_state_at_end: false
   hydrostatic: false
   interval_average_precipitation: false
   models:
@@ -447,6 +448,7 @@ reservoir_corrector:
   mse_conserving_limiter: false
   rename_mapping: {}
   reservoir_timestep: 900s
+  state_checkpoint_group: null
   synchronize_steps: 12
   taper_blending: null
   time_average_inputs: false

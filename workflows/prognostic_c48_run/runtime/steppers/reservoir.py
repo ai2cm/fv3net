@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 import xarray as xr
 from datetime import timedelta
+import os
 from typing import (
     Optional,
     MutableMapping,
@@ -86,6 +87,8 @@ class ReservoirConfig:
     mse_conserving_limiter: bool = False
     interval_average_precipitation: bool = False
     taper_blending: Optional[Mapping] = None
+    dump_state_at_end: bool = False
+    state_checkpoint_group: Optional[str] = None
 
     def __post_init__(self):
         # This handles cases in automatic config writing where json/yaml
@@ -244,6 +247,7 @@ class _ReservoirStepper:
         reservoir_timestep: timedelta,
         model_timestep: float,
         synchronize_steps: int,
+        model_path: str,
         state_machine: Optional[_FiniteStateMachine] = None,
         diagnostic_only: bool = False,
         input_averager: Optional[TimeAverageInputs] = None,
@@ -253,7 +257,11 @@ class _ReservoirStepper:
         mse_conserving_limiter: bool = False,
         precip_tracker: Optional[PrecipTracker] = None,
         taper_blending: Optional[TaperConfig] = None,
+        dump_state_at_end: bool = False,
+        state_checkpoint_group: Optional[str] = None,
     ):
+        self.dump_state_at_end = dump_state_at_end
+        self.state_checkpoint_group = state_checkpoint_group
         self.model = model
         self.synchronize_steps = synchronize_steps
         self.initial_time = init_time
@@ -266,6 +274,7 @@ class _ReservoirStepper:
         self.mse_conserving_limiter = mse_conserving_limiter
         self.precip_tracker = precip_tracker
         self.taper_blending = taper_blending
+        self.model_path = model_path
 
         if state_machine is None:
             state_machine = _FiniteStateMachine()
@@ -285,6 +294,20 @@ class _ReservoirStepper:
         if rename_mapping is None:
             rename_mapping = cast(NameDict, {})
         self.rename_mapping = rename_mapping
+
+    def dump_state(self, checkpoint_time: cftime.DatetimeJulian):
+        # Save the current model state to its path
+        self.model.dump_state(os.path.join(self.model_path, "reservoir"))
+
+        checkpoint_path = os.path.join(
+            self.model_path,
+            "reservoir_state_checkpoints",
+            self.state_checkpoint_group or "",
+            checkpoint_time.strftime("%Y%m%d.%H%M%S"),
+        )
+        # Save the current model state to the checkpoint directory
+        self.model.dump_state(checkpoint_path)
+        logger.info
 
     @property
     def completed_sync_steps(self):
@@ -573,7 +596,8 @@ def get_reservoir_steppers(
     using the stepped underlying model + incremented RC state.
     """
     try:
-        model = open_rc_model(config.models[rank])
+        model_path = config.models[rank]
+        model = open_rc_model(model_path)
     except KeyError:
         raise KeyError(
             f"No reservoir model path found  for rank {rank}. "
@@ -604,6 +628,8 @@ def get_reservoir_steppers(
         rename_mapping=config.rename_mapping,
         warm_start=config.warm_start,
         model_timestep=model_timestep,
+        model_path=model_path,
+        dump_state_at_end=config.dump_state_at_end,
     )
     predictor = ReservoirPredictStepper(
         model,
@@ -619,6 +645,9 @@ def get_reservoir_steppers(
         hydrostatic=config.hydrostatic,
         mse_conserving_limiter=config.mse_conserving_limiter,
         taper_blending=taper_blending,
+        model_path=model_path,
+        dump_state_at_end=config.dump_state_at_end,
+        state_checkpoint_group=config.state_checkpoint_group,
         **_precip_tracker_kwargs,
     )
     return incrementer, predictor
