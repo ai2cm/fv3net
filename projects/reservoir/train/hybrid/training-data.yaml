@@ -1,0 +1,2 @@
+filepath: gs://vcm-ml-intermediate/reservoir/era5_training/halo6/train_tile${TILE}.nc
+dim_order: ["time", "x", "y"]
