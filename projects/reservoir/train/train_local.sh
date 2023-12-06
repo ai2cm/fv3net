@@ -7,7 +7,7 @@ export WANDB_RUN_GROUP=$CURRENT_DATE-v3
 export WANDB_MODE=online
 
 EXPERIMENT="sst-reservoir-training"
-NAME="pure-8x8sub-halo2"
+NAME="pure-8x8sub-halo6-state1000"
 RANDOM_TAG=$(openssl rand -hex 3)
 OUTPUT_URL="gs://vcm-ml-experiments/${EXPERIMENT}/${CURRENT_DATE}/${NAME}"
 
