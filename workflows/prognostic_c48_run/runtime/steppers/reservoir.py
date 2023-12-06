@@ -438,7 +438,7 @@ class ReservoirIncrementOnlyStepper(_ReservoirStepper):
         elif self.communicator is None and self.n_halo_points > 0:
             reservoir_inputs = self._append_halos_mpi(state_inputs)
 
-        reservoir_inputs = self._rename_inputs_for_reservoir(state_inputs)
+        reservoir_inputs = self._rename_inputs_for_reservoir(reservoir_inputs)
 
         return reservoir_inputs
 

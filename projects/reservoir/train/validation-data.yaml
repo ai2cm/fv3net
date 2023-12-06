@@ -1,2 +1,0 @@
-filepath: gs://vcm-ml-intermediate/reservoir/era5_training/halo6/val_tile${TILE}.nc
-dim_order: ["time", "y", "x"]

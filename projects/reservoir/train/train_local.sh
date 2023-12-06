@@ -15,16 +15,23 @@ train_config=training-config.yaml
 training_data=training-data.yaml
 validation_data=validation-data.yaml
 
+config_dir=$1
+
+# Check if the argument was provided
+if [ -z "$config_dir" ]; then
+  echo "Please provide the configuration yaml directory as an argument."
+  exit 1
+fi
+
 # Loop through each tile and submit the specified number of jobs
 for tile in {0..5}; do
   # Create a temporary directory for the updated configuration files
   export TILE=$tile
 
   tmpdir=$(mktemp -d)
-  envsubst < $training_data > $tmpdir/$training_data
-  envsubst < $validation_data > $tmpdir/$validation_data
-  envsubst < $train_config > $tmpdir/$train_config
-  # cp $train_config $tmpdir/$train_config
+  envsubst < $config_dir/$training_data > $tmpdir/$training_data
+  envsubst < $config_dir/$validation_data > $tmpdir/$validation_data
+  envsubst < $config_dir/$train_config > $tmpdir/$train_config
 
   export WANDB_NAME="${NAME}-tile${tile}-${RANDOM_TAG}"
   export SUBMIT_DIR=$(pwd)
