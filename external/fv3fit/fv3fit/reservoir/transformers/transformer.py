@@ -192,7 +192,8 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         np.save(os.path.join(path, self._SCALE_NDARRAY), self._norm_layer.scale)
         np.save(os.path.join(path, self._CENTER_NDARRAY), self._norm_layer.center)
-        np.save(os.path.join(path, self._MASK_NDARRAY), self._mask)
+        if self._mask is not None:
+            np.save(os.path.join(path, self._MASK_NDARRAY), self._mask)
 
     @classmethod
     def load(cls, path: str) -> "ScaleSpatialConcatZTransformer":
@@ -201,7 +202,10 @@ class ScaleSpatialConcatZTransformer(Transformer):
 
         scale = np.load(os.path.join(path, cls._SCALE_NDARRAY))
         center = np.load(os.path.join(path, cls._CENTER_NDARRAY))
-        mask = np.load(os.path.join(path, cls._MASK_NDARRAY))
+        if os.path.exists(os.path.join(path, cls._MASK_NDARRAY)):
+            mask = np.load(os.path.join(path, cls._MASK_NDARRAY))
+        else:
+            mask = None
         return cls(center=center, scale=scale, mask=mask, **config)
 
 
