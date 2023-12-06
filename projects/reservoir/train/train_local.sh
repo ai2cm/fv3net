@@ -3,7 +3,7 @@
 CURRENT_DATE=$(date +%Y%m%d)
 export WANDB_PROJECT=sst-reservoir-training
 export WANDB_ENTITY=ai2cm
-export WANDB_RUN_GROUP=$CURRENT_DATE-v1
+export WANDB_RUN_GROUP=$CURRENT_DATE-v3
 export WANDB_MODE=online
 
 EXPERIMENT="sst-reservoir-training"

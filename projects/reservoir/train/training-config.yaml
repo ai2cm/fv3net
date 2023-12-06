@@ -19,7 +19,7 @@ hyperparameters:
       - x
       - y
   reservoir_hyperparameters:
-    state_size: 1000
+    state_size: 500
     adjacency_matrix_sparsity: 0.999
     spectral_radius: 0.99
     seed: 0
