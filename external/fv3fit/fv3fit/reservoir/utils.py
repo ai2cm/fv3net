@@ -117,7 +117,12 @@ def process_batch_data(
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     if trim_halo:
-        data = [rank_divider.trim_halo_from_rank_data(arr) for arr in data]
+        trimmed_data = []
+        for arr in data:
+            tmp_divider = rank_divider.get_new_zdim_rank_divider(arr.shape[-1])
+            trimmed = tmp_divider.trim_halo_from_rank_data(arr)
+            trimmed_data.append(trimmed)
+        data = trimmed_data
 
     if autoencoder is not None:
         data_encoded = autoencoder.encode_txyz(data)
