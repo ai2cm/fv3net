@@ -4,13 +4,15 @@ from datetime import timedelta
 from typing import Tuple, Union, Optional, List
 import xarray as xr
 import logging
+import vcm
 
 from runtime.types import Diagnostics
 from runtime.steppers.stepper import Stepper
 from runtime.steppers.machine_learning import MachineLearningConfig
 from runtime.steppers.prescriber import PrescriberConfig
 from runtime.nudging import NudgingConfig
-
+from runtime.diagnostics.compute import KG_PER_M2_PER_M
+from runtime.names import SPHUM, DELP, TOTAL_PRECIP
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class IntervalConfig:
     offset_seconds: int = 0
     record_fields_before_update: Optional[List[str]] = None
     n_calls: Optional[int] = None
+    do_total_precip_update: bool = True
 
 
 class IntervalStepper:
@@ -44,6 +47,7 @@ class IntervalStepper:
         offset_seconds: float = 0,
         n_calls: Optional[int] = None,
         record_fields_before_update: Optional[List[str]] = None,
+        do_total_precip_update: bool = True,
     ):
         self.start_time = None
         self.interval = timedelta(seconds=apply_interval_seconds)
@@ -52,6 +56,7 @@ class IntervalStepper:
         self._record_fields_before_update = record_fields_before_update or []
         self.n_calls = n_calls
         self._call_count = 0
+        self._do_total_precip_update = do_total_precip_update
 
     @property
     def label(self):
@@ -90,13 +95,38 @@ class IntervalStepper:
         if self._need_to_update(time) is False:
             # Diagnostic must be available at all timesteps, not just when
             # the base stepper is called
-            return {}, self.get_diagnostics_prior_to_update(state), {}
+            diags = self.get_diagnostics_prior_to_update(state)
+            return {}, diags, {}
         else:
             logger.info(f"applying interval stepper at time {time}")
             tendencies, diagnostics, state_updates = self.stepper(time, state)
             diagnostics.update(self.get_diagnostics_prior_to_update(state))
             self._call_count += 1
+
+            if self._do_total_precip_update and SPHUM in state_updates:
+                logger.info(f"Updating total precip at time {time}")
+                state_updates[TOTAL_PRECIP] = self._get_precipitation_update(
+                    state, state_updates
+                )
+            else:
+                logger.info(f"Not updating total precip at time {time} ")
             return tendencies, diagnostics, state_updates
+
+    def _get_precipitation_update(
+        self, state, state_updates,
+    ):
+        corrective_moistening_integral = (
+            vcm.mass_integrate(state_updates[SPHUM] - state[SPHUM], state[DELP], "z")
+            / KG_PER_M2_PER_M
+        )
+        total_precip_before_limiter = (
+            state[TOTAL_PRECIP] - corrective_moistening_integral
+        )
+        total_precip = total_precip_before_limiter.where(
+            total_precip_before_limiter >= 0, 0
+        )
+        total_precip.attrs["units"] = "m"
+        return total_precip
 
     def get_diagnostics(self, state, tendency) -> Tuple[Diagnostics, xr.DataArray]:
         diags, moistening = self.stepper.get_diagnostics(state, tendency)

@@ -134,6 +134,7 @@ def get_mock_ReservoirSteppers():
         MODEL_TIMESTEP,
         2,
         state_machine=state_machine,
+        model_path="path/to/model",
     )
 
     predictor = ReservoirPredictStepper(
@@ -143,6 +144,7 @@ def get_mock_ReservoirSteppers():
         MODEL_TIMESTEP,
         2,
         state_machine=state_machine,
+        model_path="path/to/model",
     )
 
     return incrementer, predictor

@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set, Tuple
+from typing import Sequence, Optional, Set, Tuple, Mapping, Hashable
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -66,6 +66,16 @@ class TransformerConfig:
 
 
 @dataclass
+class ClipZConfig:
+    """ Vertical levels **between** start and stop are kept,
+    levels outside start/stop are clipped off.
+    """
+
+    start: Optional[int] = None
+    stop: Optional[int] = None
+
+
+@dataclass
 class ReservoirTrainingConfig(Hyperparameters):
     """
     input_variables: variables and additional features in time series
@@ -101,11 +111,13 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_timesteps_synchronize: int
     input_noise: float
     seed: int = 0
+    zero_fill_clipped_output_levels: bool = False
     transformers: Optional[TransformerConfig] = None
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     hybrid_variables: Optional[Sequence[str]] = None
     mask_variable: Optional[str] = None
+    clip_config: Optional[Mapping[Hashable, ClipZConfig]] = None
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):

@@ -128,7 +128,9 @@ def main(args):
         nfiles=val_data_config.get("nfiles", None),
     )
 
-    ds = validation_prediction(model, val_batches, args.n_synchronize,)
+    ds = validation_prediction(
+        model, val_batches, args.n_synchronize, clip_config=adapter.clip_config
+    )
 
     output_file = os.path.join(args.output_path, "offline_diags.nc")
 
