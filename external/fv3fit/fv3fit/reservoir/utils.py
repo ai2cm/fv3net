@@ -149,9 +149,11 @@ def process_validation_batch_data_to_dataset(
             trimmed_data.append(curr_divider.trim_halo_from_rank_data(arr))
         ordered_data = trimmed_data
 
+    # Note: dimensions should match the dimension layout in the validation
+    #       data configuration
     ds = xr.Dataset(
         {
-            varname: xr.DataArray(data, dims=["time", "x", "y", "z"])
+            varname: xr.DataArray(data, dims=["time", "y", "x", "z"])
             for varname, data in zip(variables, ordered_data)
         }
     )
