@@ -5,9 +5,7 @@ import xarray as xr
 from typing import Iterable, Hashable, Mapping, Optional
 
 from fv3fit.reservoir.transformers import (
-    # ReloadableTransformer,
     Transformer,
-    encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
 from fv3fit.reservoir.domain2 import RankXYDivider
@@ -122,7 +120,7 @@ def process_batch_data(
         data = [rank_divider.trim_halo_from_rank_data(arr) for arr in data]
 
     if autoencoder is not None:
-        data_encoded = encode_columns(data, autoencoder)
+        data_encoded = autoencoder.encode_txyz(data)
 
     if trim_halo:
         # data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)

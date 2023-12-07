@@ -6,14 +6,16 @@ num_jobs=6
 sweep_config=tile-train-sweep.yaml
 training_data=training-data.yaml
 validation_data=validation-data.yaml
+training_config=training-config.yaml
 
 temp_config=temporary_config_files
 
 # Loop through each tile and submit the specified number of jobs
-for tile in {0..5}; do
+for tile in {1..5}; do
   # Create a temporary directory for the updated configuration files
   mkdir -p $temp_config
   python format_for_tile.py $sweep_config $tile name > $temp_config/$sweep_config
+  python format_for_tile.py $training_config $tile hyperparameters.transformers.input hyperparameters.transformers.output > $temp_config/$training_config
   python format_for_tile.py $training_data $tile filepath > $temp_config/$training_data
   python format_for_tile.py $validation_data $tile filepath > $temp_config/$validation_data
 
@@ -28,7 +30,7 @@ for tile in {0..5}; do
     argo submit argo.yaml \
       -p sweep-id="$sweep_id" \
       -p sweep-config="$(cat $temp_config/$sweep_config)" \
-      -p training-config="$(cat training-config.yaml)" \
+      -p training-config="$(cat $temp_config/$training_config)" \
       -p training-data-config="$(cat $temp_config/$training_data)" \
       -p validation-data-config="$(cat $temp_config/$validation_data)" > /dev/null
     echo "Submitting job $i for tile $tile"

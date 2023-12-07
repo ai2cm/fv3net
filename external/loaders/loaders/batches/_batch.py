@@ -202,7 +202,7 @@ def batches_from_mapper(
 
     if needs_grid:
         transforms.append(add_grid_info(res, catalog_path))
-        if vcm.gsrm_name_from_resolution_string(res) == "fv3":
+        if vcm.gsrm_name_from_resolution_string(res) == "fv3gfs":
             transforms.append(add_wind_rotation_info(res, catalog_path))
     if data_transforms is not None:
         data_transform = dacite.from_dict(

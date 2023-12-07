@@ -25,7 +25,7 @@ def test_decode_single_output_returns_list():
 def test_build_concat_and_scale_only_autoencoder_normalize():
     model = build_concat_and_scale_only_autoencoder(["a", "b"], [a, b])
     np.testing.assert_array_almost_equal(
-        model.encode(test_inputs).reshape(-1), np.array([1, 1, 2, 2])
+        model.encode(test_inputs).numpy().reshape(-1), np.array([1, 1, 2, 2])
     )
 
 

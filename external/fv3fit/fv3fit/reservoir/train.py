@@ -6,6 +6,7 @@ import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
 import wandb
 
+from fv3fit._shared import get_dir
 from fv3fit.reservoir.readout import (
     BatchLinearRegressor,
     combine_readouts_from_subdomain_regressors,
@@ -30,9 +31,13 @@ from . import (
 )
 from .adapters import ReservoirDatasetAdapter, HybridReservoirDatasetAdapter
 from .domain2 import RankXYDivider
-from .validation import validation_prediction, log_rmse_z_plots, log_rmse_scalar_metrics
 from .validation import validate_model
-
+from .validation import (
+    validation_prediction,
+    log_rmse_z_plots,
+    log_rmse_scalar_metrics,
+    log_variance_scalar_metrics,
+)
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -40,6 +45,11 @@ logger.setLevel(logging.INFO)
 
 def _add_input_noise(arr: np.ndarray, stddev: float) -> np.ndarray:
     return arr + np.random.normal(loc=0, scale=stddev, size=arr.shape)
+
+
+def _load_transformer(path: str) -> Transformer:
+    with get_dir(path) as f:
+        return cast(Transformer, fv3fit.load(f))
 
 
 def _get_transformers(
@@ -50,7 +60,7 @@ def _get_transformers(
     for variable_group in ["input", "output", "hybrid"]:
         path = getattr(hyperparameters.transformers, variable_group, None)
         if path is not None:
-            transformers[variable_group] = cast(Transformer, fv3fit.load(path))
+            transformers[variable_group] = cast(Transformer, _load_transformer(path))
 
     # If input transformer not specified, always create a standard norm transform
     if "input" not in transformers:
@@ -312,6 +322,7 @@ def train_reservoir_model(
                 )
                 log_rmse_z_plots(ds_val, model.output_variables)
                 log_rmse_scalar_metrics(ds_val, model.output_variables)
+                log_variance_scalar_metrics(ds_val, model.output_variables)
             except Exception as e:
                 logging.error("Error logging validation metrics to wandb", exc_info=e)
         else:
@@ -342,6 +353,8 @@ def train_reservoir_model(
             area = target_data.isel(time=0).get("area", None)
             target_data = target_data.drop_vars(["mask_field", "area"], errors="ignore")
 
+            logger.info(str(target_data))
+            logger.info(f"sync steps {hyperparameters.n_timesteps_synchronize}")
             validate_model(
                 adapter_model,
                 input_data,

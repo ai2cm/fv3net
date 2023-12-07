@@ -1,6 +1,6 @@
 entity: ai2cm
 project:  sst-reservoir-tuning
-name: 2023-10-22-tile{}-halo4-sparsity-sweep
+name: 2023-11-20-tile{}-pure-sst-reservoir-sweep
 command:
   - ${env}
   - python3
@@ -32,4 +32,22 @@ parameters:
     distribution: uniform
     min: 0
     max: 0.5
+  reservoir_hyperparameters.state_size:
+    values: [500, 1000, 3000, 5000]
+  readout_hyperparameters.l2:
+    distribution: log_uniform_values
+    min: 0.0001
+    max: 100
+  subdomain.layout:
+    values:
+      - [1, 1]
+      - [2, 2]
+      - [4, 4]
+  input_noise:
+    distribution: log_uniform_values
+    min: 0.00001
+    max: 1
+  n_timesteps_synchronize:
+    values: [52, 78, 104]
+
 

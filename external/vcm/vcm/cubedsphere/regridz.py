@@ -32,6 +32,7 @@ def regrid_to_area_weighted_pressure(
     ds: xr.Dataset,
     delp: xr.DataArray,
     area: xr.DataArray,
+    toa_pressure: float,
     coarsening_factor: int,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
@@ -45,6 +46,8 @@ def regrid_to_area_weighted_pressure(
         ds: input Dataset
         delp: pressure thicknesses
         area: area weights
+        toa_pressure: pressure at the top of the atmosphere in units of
+            Pascals
         coarsening_factor: coarsening-factor for pressure levels
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_2"
@@ -67,6 +70,7 @@ def regrid_to_area_weighted_pressure(
         delp,
         delp_coarse,
         area,
+        toa_pressure,
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
@@ -78,6 +82,7 @@ def regrid_to_edge_weighted_pressure(
     ds: xr.Dataset,
     delp: xr.DataArray,
     length: xr.DataArray,
+    toa_pressure: float,
     coarsening_factor: int,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_OUTER,
@@ -92,6 +97,8 @@ def regrid_to_edge_weighted_pressure(
         ds: input Dataset
         delp: pressure thicknesses
         length: edge length weights
+        toa_pressure: pressure at the top of the atmosphere in units of
+            Pascals.
         coarsening_factor: coarsening-factor for pressure levels
         x_dim (optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (optional): y-dimension name. Defaults to "yaxis_1"
@@ -131,6 +138,7 @@ def regrid_to_edge_weighted_pressure(
         delp_staggered,
         delp_staggered_coarse,
         length,
+        toa_pressure,
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
@@ -143,6 +151,7 @@ def _regrid_given_delp(
     delp_fine,
     delp_coarse,
     weights,
+    toa_pressure,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
@@ -155,10 +164,16 @@ def _regrid_given_delp(
         delp_coarse, delp_fine, x_dim=x_dim, y_dim=y_dim
     )
     phalf_coarse_on_fine = pressure_at_interface(
-        delp_coarse_on_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+        delp_coarse_on_fine,
+        dim_center=z_dim,
+        dim_outer=RESTART_Z_OUTER,
+        toa_pressure=toa_pressure,
     )
     phalf_fine = pressure_at_interface(
-        delp_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+        delp_fine,
+        dim_center=z_dim,
+        dim_outer=RESTART_Z_OUTER,
+        toa_pressure=toa_pressure,
     )
 
     ds_regrid = xr.zeros_like(ds)
@@ -167,7 +182,9 @@ def _regrid_given_delp(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
-    pfull_coarse_on_fine = pressure_at_midpoint_log(delp_coarse_on_fine, dim=z_dim)
+    pfull_coarse_on_fine = pressure_at_midpoint_log(
+        delp_coarse_on_fine, dim=z_dim, toa_pressure=toa_pressure
+    )
     masked_weights = _mask_weights(
         weights,
         pfull_coarse_on_fine,
