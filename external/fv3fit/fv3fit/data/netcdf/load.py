@@ -168,7 +168,14 @@ class _BaseNCLoader(TFDatasetLoader):
 @dataclass
 class NCFileLoader(_BaseNCLoader):
     """
-    Loads a single remote/local netCDF file into a dataset
+    Loads a single remote/local netCDF file into a dataset.  Useful for the
+    case where the directory contains multiple netcdf files for different
+    purposes vs. having to create a new directory for each set of
+    training/validation files.
+
+    Attributes:
+        filepath: a path (local or remote) to the netcdf file
+        dim_order: Order of dimensions in tensors.
     """
 
     filepath: str = ""
