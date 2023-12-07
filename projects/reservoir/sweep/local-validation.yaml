@@ -1,0 +1,2 @@
+filepath: /home/andrep/repos/explore/andrep/reservoir/consistent_fv3_mask_halo_4/val_tile0.nc
+dim_order: ["time", "x", "y"]

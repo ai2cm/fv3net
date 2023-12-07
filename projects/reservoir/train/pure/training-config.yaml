@@ -1,0 +1,34 @@
+model_type: reservoir
+hyperparameters:
+  n_jobs: 1
+  seed: 0
+  input_variables:
+    - sst
+    - t2m_at_next_timestep
+    - u10_at_next_timestep
+    - v10_at_next_timestep
+  output_variables:
+    - sst
+  transformers:
+    input: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231129/pure-inputs/halo2-scale-xyz-concat-z-tile${TILE}"
+    output: "gs://vcm-ml-experiments/sst-reservoir-transforms/20231129/sst-out/scale-xyz-concat-z-tile${TILE}"
+  subdomain:
+    layout: [8,8]
+    overlap: 2
+    rank_dims:
+      - x
+      - y
+  reservoir_hyperparameters:
+    state_size: 1000
+    adjacency_matrix_sparsity: 0.999
+    spectral_radius: 0.99
+    seed: 0
+    input_coupling_sparsity: 0.001
+    input_coupling_scaling: 0.1
+  readout_hyperparameters:
+    l2: 10
+  n_timesteps_synchronize: 52
+  input_noise: 0.001
+  square_half_hidden_state: False
+  validate_sst_only: True
+  mask_readout: False

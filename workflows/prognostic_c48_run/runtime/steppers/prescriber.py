@@ -4,7 +4,7 @@ import logging
 import cftime
 import xarray as xr
 from runtime.types import State, Diagnostics, Tendencies
-from runtime.scatter import scatter_within_tile
+from runtime.scatter import scatter_within_tile_for_prescriber
 from runtime.names import SST, TSFC, MASK
 
 import pace.util
@@ -76,7 +76,9 @@ class Prescriber:
         self._tendency_variables = tendency_variables or {}
 
     def _open_prescribed_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
-        ds = scatter_within_tile(time, self._time_lookup_function, self._communicator)
+        ds = scatter_within_tile_for_prescriber(
+            time, self._time_lookup_function, self._communicator
+        )
         return ds.rename(**self._variables, **self._tendency_variables)
 
     def __call__(self, time, state):

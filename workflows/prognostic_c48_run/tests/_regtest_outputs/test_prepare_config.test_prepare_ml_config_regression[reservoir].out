@@ -436,6 +436,7 @@ radiation_scheme: null
 reservoir_corrector:
   diagnostic_only: false
   hydrostatic: false
+  incrementer_offset: null
   models:
     0: gs://vcm-ml-scratch/rc-model-tile-0
     1: gs://vcm-ml-scratch/rc-model-tile-1
@@ -445,6 +446,7 @@ reservoir_corrector:
     5: gs://vcm-ml-scratch/rc-model-tile-5
   mse_conserving_limiter: false
   rename_mapping: {}
+  reservoir_input_offset: null
   reservoir_timestep: 900s
   synchronize_steps: 12
   time_average_inputs: false

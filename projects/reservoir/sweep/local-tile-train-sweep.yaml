@@ -1,0 +1,25 @@
+entity: ai2cm
+project:  sst-reservoir-tuning
+name: 2023-10-13-tile0-sweep
+command:
+  - ${env}
+  - python3
+  - -m
+  - fv3fit.train
+  - training-config.yaml
+  - local-training.yaml
+  - trained_model
+  - --validation-data-config
+  - local-validation.yaml
+method: random
+metric:
+  goal: minimize
+  name: combined_score/sst
+parameters:
+  subdomain.layout:
+    values:
+      - [1, 1]
+      - [2, 2]
+      - [4, 4]
+  reservoir_hyperparameters.state_size:
+    values: [100, 300, 500, 1000, 3000]

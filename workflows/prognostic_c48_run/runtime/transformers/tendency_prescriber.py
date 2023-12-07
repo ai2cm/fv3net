@@ -10,7 +10,7 @@ import loaders
 from runtime.monitor import Monitor
 from runtime.types import Diagnostics, Step, State
 from runtime.derived_state import DerivedFV3State
-from runtime.scatter import scatter_within_tile
+from runtime.scatter import scatter_within_tile_for_prescriber
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class TendencyPrescriber:
 
     def _open_tendencies_timestep(self, time: cftime.DatetimeJulian) -> xr.Dataset:
         # https://github.com/python/mypy/issues/5485
-        return scatter_within_tile(
+        return scatter_within_tile_for_prescriber(
             time, self.time_lookup_function, self.communicator  # type: ignore
         )
 
