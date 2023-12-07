@@ -46,13 +46,29 @@ prescribed_cloud_random_run: deploy
 train_cloud_ml_dense_seed: deploy
 	cd argo/training && ./run_random_seed.sh dense 4
 
+.PHONY: train_cloud_ml_dense_nocoarsephys_seed
+train_cloud_ml_dense_nocoarsephys_seed: deploy
+	cd argo/training && ./run_random_seed.sh dense-nocoarsephys 4
+
 .PHONY: upload_squashed_models
 upload_squashed_models:
 	cd scripts/upload-squashed-models && ./upload.sh 4 gs://vcm-ml-experiments/cloud-ml/2023-07-04/train-cloud-ml-dense
 
+.PHONY: upload_squashed_models_nocoarsephys
+upload_squashed_models_nocoarsephys:
+	cd scripts/upload-squashed-models && ./upload.sh \
+	4 gs://vcm-ml-experiments/cloud-ml/2023-12-06/train-cloud-ml-dense-nocoarsephys \
+	squash_thresholds_nocoarsephys.yaml \
+	squashed_output_model_nocoarsephys.yaml
+
 .PHONY: prescribed_cloud_dense_seed_squash_threshold
 prescribed_cloud_dense_seed_squash_threshold: deploy
 	cd argo/prognostic-run && ./run_seed_squash_threshold.sh prescribed-cloud-dense 4 39
+
+.PHONY: prescribed_cloud_dense_nocoarsephys_seed_squash_threshold
+prescribed_cloud_dense_nocoarsephys_seed_squash_threshold: deploy
+	cd argo/prognostic-run && ./run_seed_squash_threshold.sh \
+	prescribed-cloud-dense-ncp 4 39 squash_thresholds_nocoarsephys.yaml
 
 .PHONY: offline_cloud_predictions_zarr
 offline_cloud_predictions_zarr:
@@ -61,6 +77,14 @@ offline_cloud_predictions_zarr:
 .PHONY: offline_cloud_predictions_squashed_zarr
 offline_cloud_predictions_squashed_zarr:
 	cd scripts && python ./offline_predictions_zarr.py offline_predictions_squashed_config.yaml
+
+.PHONY: offline_cloud_predictions_nocoarsephys_zarr
+offline_cloud_predictions_nocoarsephys_zarr:
+	cd scripts && python ./offline_predictions_zarr.py offline_predictions_nocoarsephys_config.yaml
+
+.PHONY: offline_cloud_predictions_nocoarsephys_squashed_zarr
+offline_cloud_predictions_nocoarsephys_squashed_zarr:
+	cd scripts && python ./offline_predictions_zarr.py offline_predictions_nocoarsephys_squashed_config.yaml
 
 .PHONY: deploy
 deploy: argo/kustomize

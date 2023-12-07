@@ -5,6 +5,7 @@ set -e
 CONFIG=$1
 N_SEEDS=$2
 SEGMENT_COUNT=$3
+SQUASH_FILE=${4:-"squash_thresholds.yaml"}
 
 PROJECT=cloud-ml
 EXPERIMENT="cloud-ml-prog-run"
@@ -12,7 +13,7 @@ TRIAL="trial-0"
 
 TMP_CONFIG="/tmp/tmp_config.yaml"
 
-SQUASH_FILE="../../scripts/upload-squashed-models/squash_thresholds.yaml"
+SQUASH_FILE="../../scripts/upload-squashed-models/${SQUASH_FILE}"
 readarray -t SQUASH_THRESHOLDS < <(yq '.squash_thresholds[]' ${SQUASH_FILE})
 
 
