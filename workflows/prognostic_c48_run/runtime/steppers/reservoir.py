@@ -297,7 +297,9 @@ class _ReservoirStepper:
 
     def dump_state(self, checkpoint_time: cftime.DatetimeJulian):
         # Save the current model state to its path
-        self.model.dump_state(os.path.join(self.model_path, "reservoir"))
+        self.model.dump_state(
+            os.path.join(self.model_path, "hybrid_reservoir_model", "reservoir")
+        )
 
         checkpoint_path = os.path.join(
             self.model_path,
