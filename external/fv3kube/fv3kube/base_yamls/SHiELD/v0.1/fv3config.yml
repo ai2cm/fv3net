@@ -2,7 +2,7 @@ data_table: default
 diag_table: no_output
 experiment_name: default
 field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.1/field_table
-forcing: gs://vcm-ml-experiments/spencerc/2023-09-13-SHiELD-forcing-data
+forcing: gs://vcm-fv3config/data/base_forcing/SHiELD/v1.0/C48
 initial_conditions: ''  # no default provided
 namelist:
   fms_affinity_nml:
@@ -230,14 +230,15 @@ namelist:
   interpolator_nml:
     interp_method: conserve_great_circle
   namsfc:
-    fabsl: 99999
-    faisl: 99999
-    faiss: 99999
-    fnabsc: grb/global_mxsnoalb.uariz.t1534.3072.1536.rg.grb
+    fabsl: 0  # Use maximum snow albedo from forcing files instead of initial conditions
+    fabss: 0  # Use maximum snow albedo from forcing files instead of initial conditions
+    faisl: 0  # Use land / sea / sea-ice mask from forcing files instead of initial conditions
+    faiss: 0  # Use land / sea / sea-ice mask from forcing files instead of initial conditions
+    fnabsc: INPUT/fix_sfc/maximum_snow_albedo.tileX.nc
     fnacna: ''
     fnaisc: grb/CFSR.SEAICE.1982.2012.monthly.clim.grb
-    fnalbc: grb/global_snowfree_albedo.bosu.t1534.3072.1536.rg.grb
-    fnalbc2: grb/global_albedo4.1x1.grb
+    fnalbc: INPUT/fix_sfc/snowfree_albedo.tileX.nc
+    fnalbc2: INPUT/fix_sfc/facsf.tileX.nc
     fnglac: grb/global_glacier.2x2.grb
     fnmskh: grb/seaice_newland.grb
     fnmxic: grb/global_maxice.2x2.grb
@@ -245,30 +246,32 @@ namelist:
     fnsmcc: grb/global_soilmgldas.t1534.3072.1536.grb
     fnsnoa: ''
     fnsnoc: grb/global_snoclim.1.875.grb
-    fnsotc: grb/global_soiltype.statsgo.t1534.3072.1536.rg.grb
-    fntg3c: grb/global_tg3clim.2.6x1.5.grb
+    fnsotc: INPUT/fix_sfc/soil_type.tileX.nc
+    fntg3c: INPUT/fix_sfc/substrate_temperature.tileX.nc
     fntsfa: ''
     fntsfc: grb/RTGSST.1982.2012.monthly.clim.grb
-    fnvegc: grb/global_vegfrac.0.144.decpercent.grb
-    fnvetc: grb/global_vegtype.igbp.t1534.3072.1536.rg.grb
-    fnvmnc: grb/global_shdmin.0.144x0.144.grb
-    fnvmxc: grb/global_shdmax.0.144x0.144.grb
+    fnvegc: INPUT/fix_sfc/vegetation_greenness.tileX.nc
+    fnvetc: INPUT/fix_sfc/vegetation_type.tileX.nc
+    fnvmnc: INPUT/fix_sfc/vegetation_greenness.tileX.nc
+    fnvmxc: INPUT/fix_sfc/vegetation_greenness.tileX.nc
     fnzorc: igbp
-    fsicl: 99999
-    fsics: 99999
-    fslpl: 99999
+    fsicl: 0  # Use sea ice fraction from forcing files instead of persisting the fraction in the initial condition
+    fsics: 0  # Use sea ice fraction from forcing files instead of persisting the fraction in the initial condition
+    fslpl: 99999  # Use slope type from initial condition
     fsmcl:
+    - 99999  # Use soil moisture from initial condition
     - 99999
     - 99999
-    - 99999
-    fsnol: 99999
-    fsnos: 99999
+    fsnol: 99999  # Use snow cover fraction from initial condition
+    fsnos: 99999  # Use snow cover fraction from initial condition
     fsotl: 99999
     ftsfl: 99999
-    ftsfs: 90
+    ftsfs: 0  # Use only climatological SSTs, no relaxation from initial conditions
     fvetl: 99999
-    fvmnl: 99999
-    fvmxl: 99999
+    fvmnl: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
+    fvmns: 0  # Use minimum green vegetation fraction from forcing files instead of initial condition
+    fvmxl: 0  # Use maximum green vegetation fraction from forcing files instead of initial condition
+    fvmxs: 0  # Use maximum green vegetation fraction from forcing files instead of initial condition
     ldebug: false
   ocean_nml:
     do_mld_restore: true
