@@ -103,27 +103,34 @@ def process_batch_data(
     """
     data = get_ordered_X(batch_data, variables)
 
-    # TODO: there is a chicken/egg problem here in that no
-    # specification of transforms creates an autoencoder that
-    # expects halo, while pre-trained might not. I'm not quite
-    # sure how the output transformer works when the readout
-    # outputs are trimmed while the encoder expects halos?
-
     # Concatenate features, normalize and optionally convert data
     # to latent representation
     if trim_halo:
-        trimmed_data = []
+        pre_trimmed_data = []
         for arr in data:
             tmp_divider = rank_divider.get_new_zdim_rank_divider(arr.shape[-1])
             trimmed = tmp_divider.trim_halo_from_rank_data(arr)
-            trimmed_data.append(trimmed)
-        data = trimmed_data
+            pre_trimmed_data.append(trimmed)
 
     if autoencoder is not None:
-        data_encoded = autoencoder.encode_txyz(data)
+        try:
+            data_encoded = autoencoder.encode_txyz(pre_trimmed_data)
+        except ValueError as e:
+            # TODO: there is a chicken/egg problem here in that no
+            # specification of transforms creates an autoencoder that
+            # expects halo, while pre-trained might not. I'm not quite
+            # sure how the prognostic run works with an overlap and
+            # hybrid data currently... Follow-on PR will be necessary
+            # to rectify, but this should be backwards compatible
+            logger.error(
+                "There was an error using pre-trimmed data. Trying again"
+                f" with the original input data. [Error: {e}]"
+            )
+            data_encoded = autoencoder.encode_txyz(data)
+            if trim_halo:
+                data_encoded = rank_divider.trim_halo_from_rank_data(data_encoded)
 
     if trim_halo:
-        # data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
         no_overlap_rank_divider = rank_divider.get_no_overlap_rank_divider()
         return no_overlap_rank_divider.get_all_subdomains_with_flat_feature(
             data_encoded
