@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional, Union, Iterable
+from typing import List, Optional, Union, Iterable
 import dataclasses
 import importlib
 import yaml
@@ -19,6 +19,7 @@ from runtime.steppers.interval import IntervalConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.fv3fit
 from runtime.steppers.radiation import RadiationStepperConfig
+from runtime.types import WrapperModuleName
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 FV3CONFIG_KEYS = {
@@ -58,7 +59,7 @@ class UserConfig:
         reservoir_corrector: configuration for using a reservoir computing model to
             correct the final model state
         wrapper: Python wrapper used for the simulation (default "fv3gfs.wrapper").
-            Currently only "fv3gfs.wrapper" is supported.
+            Supported values are "fv3gfs.wrapper" or "shield.wrapper".
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -76,7 +77,7 @@ class UserConfig:
     radiation_scheme: Optional[RadiationStepperConfig] = None
     bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
     reservoir_corrector: Optional[ReservoirConfig] = None
-    wrapper: Literal["fv3gfs.wrapper"] = "fv3gfs.wrapper"
+    wrapper: WrapperModuleName = "fv3gfs.wrapper"
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:

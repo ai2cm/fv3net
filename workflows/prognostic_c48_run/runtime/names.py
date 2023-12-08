@@ -53,6 +53,7 @@ D_GRID_WIND_TENDENCIES = {X_WIND_TENDENCY, Y_WIND_TENDENCY}
 TENDENCY_NAMES = set(TENDENCY_TO_STATE_NAME) | A_GRID_WIND_TENDENCIES
 
 FV3GFS_WRAPPER = "fv3gfs.wrapper"
+SHIELD_WRAPPER = "shield.wrapper"
 
 
 def is_state_update_variable(key, state: State):
