@@ -58,7 +58,25 @@ class Transformer(BaseTransformer, Reloadable):
 
 
 @io.register("scale-spatial-concat-z-transformer")
-class ScaleSpatialConcatZTransformer(Transformer):
+class _ScaleSpatialConcatZTransformer(Transformer):
+    """
+    Limited utility transformer that specifically takes in a
+    sequence of data with the x,y,z trailing features, normalizes
+    the data per individual xyz feature, and then concatenates along the
+    z dimension.
+
+    Requires that all input arrays have the same x,y,z features. Use
+    the build function below to construct this transformer.
+
+    Attributes:
+        center: mean of each variable, shape (x * y * z)
+        scale: standard deviation of each variable, shape (x * y * z)
+        spatial_features: x,y,z dimensions of the input data
+        num_variables: number of variables in the input data
+        mask: optional mask to apply to the encoded output, shape
+            (x, y, z * num_variables)
+    """
+
     _CONFIG_NAME = "scale_spatial_concat_z_transformer.yaml"
     _SCALE_NDARRAY = "scale.npy"
     _CENTER_NDARRAY = "center.npy"
@@ -111,6 +129,9 @@ class ScaleSpatialConcatZTransformer(Transformer):
                 )
 
     def encode_txyz(self, input_arrs: Sequence[ndarray]) -> ndarray:
+        # Overloads the original transformer encode_txyz since we want to
+        # handle the xyz dimensions differently.
+
         self._check_consistent_xyz(input_arrs)
 
         leading_dims = input_arrs[0].shape[:-3]
@@ -141,6 +162,8 @@ class ScaleSpatialConcatZTransformer(Transformer):
         return normalized_stacked_z
 
     def decode_txyz(self, encoded: ndarray) -> Sequence[ndarray]:
+        # Overloads the original transformer decode_txyz since we want to
+        # handle the xyz dimensions differently.
         leading_dims = encoded.shape[:-3]
 
         if self._mask is not None:
@@ -196,7 +219,7 @@ class ScaleSpatialConcatZTransformer(Transformer):
             np.save(os.path.join(path, self._MASK_NDARRAY), self._mask)
 
     @classmethod
-    def load(cls, path: str) -> "ScaleSpatialConcatZTransformer":
+    def load(cls, path: str) -> "_ScaleSpatialConcatZTransformer":
         with fsspec.open(os.path.join(path, cls._CONFIG_NAME), "r") as f:
             config = yaml.safe_load(f)
 
@@ -213,9 +236,21 @@ def build_scale_spatial_concat_z_transformer(
     sample_data: Sequence[np.ndarray], mask: Optional[np.ndarray] = None,
 ):
     """
-    Take in a sequence of time xyz data and form a standard normalizer
-    over each xyz element
+    Take in a sequence of time,x,y,z data and form a standard normalizer
+    over each xyz element and then concatenate the z dimension.
+
+    Args:
+        sample_data: sequence of time,x,y,z data
+        mask: optional mask to apply to the encoded output, shape
+            (x, y, z * num_variables)
     """
+
+    if len(sample_data[0].shape) < 4:
+        raise ValueError(
+            "Expected at least 4 dimensions in the input data, but got "
+            f"{len(sample_data[0].shape)}"
+        )
+
     leading_dims = sample_data[0].shape[:-3]
     spatial_features = sample_data[0].shape[-3:]
     num_variables = len(sample_data)
@@ -225,21 +260,17 @@ def build_scale_spatial_concat_z_transformer(
     factory = NormFactory(
         center=MeanMethod.per_feature,
         scale=StdDevMethod.per_feature,
-        epsilon=ScaleSpatialConcatZTransformer._EPSILON,
+        epsilon=_ScaleSpatialConcatZTransformer._EPSILON,
     )
     norm_layer = factory.build(joined_feature,)
 
-    return ScaleSpatialConcatZTransformer(
+    return _ScaleSpatialConcatZTransformer(
         center=norm_layer.center,
         scale=norm_layer.scale,
         spatial_features=spatial_features,
         num_variables=num_variables,
         mask=mask,
     )
-
-    # also include a mask mapping? that will selectively apply the mask to the fields
-    # that way I can mask the SST data and/or the atmospheric data
-    # I need a way to turn off the mask application on the encoded output in training
 
 
 @io.register("do-nothing-transformer")
