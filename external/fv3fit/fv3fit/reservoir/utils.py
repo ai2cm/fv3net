@@ -105,20 +105,23 @@ def process_batch_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
+    encoder_inputs = data
     if trim_halo:
         pre_trimmed_data = []
         for arr in data:
             tmp_divider = rank_divider.get_new_zdim_rank_divider(arr.shape[-1])
             trimmed = tmp_divider.trim_halo_from_rank_data(arr)
             pre_trimmed_data.append(trimmed)
+        encoder_inputs = pre_trimmed_data
 
     if autoencoder is not None:
         try:
-            data_encoded = autoencoder.encode_txyz(pre_trimmed_data)
+            data_encoded = autoencoder.encode_txyz(encoder_inputs)
         except ValueError as e:
             # TODO: there is a chicken/egg problem here in that no
             # specification of transforms creates an autoencoder that
-            # expects halo, while pre-trained might not. I'm not quite
+            # expects halo during training, while pre-trained encoder
+            # expect trimmed data inputs. I'm not quite
             # sure how the prognostic run works with an overlap and
             # hybrid data currently... Follow-on PR will be necessary
             # to rectify, but this should be backwards compatible
