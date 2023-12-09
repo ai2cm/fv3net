@@ -1,7 +1,11 @@
 import numpy as np
+import tempfile
 import pytest
 
-from fv3fit.reservoir.transformers.transformer import DoNothingAutoencoder
+from fv3fit.reservoir.transformers.transformer import (
+    DoNothingAutoencoder,
+    build_scale_spatial_concat_z_transformer,
+)
 
 
 @pytest.mark.parametrize("nz, nvars", [(2, 2), (2, 1), (1, 2), (1, 1)])
@@ -48,3 +52,105 @@ def test_base_decode_txyz(nx, ny, nz, nvars):
     assert len(expected_shapes) == len(decoded)
     for expected_shape, decoded_output in zip(expected_shapes, decoded):
         assert expected_shape == decoded_output.shape
+
+
+def _get_sample_xyz_data(nx, ny, nz):
+    xyz_base = np.ones((1, nx, ny, nz))
+    a = np.concatenate([-10 * xyz_base, 10 * xyz_base], axis=0)  # mean = 0, std = 10
+    b = np.concatenate([xyz_base, 2 * xyz_base], axis=0)  # mean = 1, std = 1
+    return [a, b]
+
+
+# test encode w/ specified arrays
+def test_scale_per_feature_concat_z_transform():
+    nx, ny, nz = 3, 4, 1
+    a, b = _get_sample_xyz_data(nx, ny, nz)
+
+    xyz_like = np.ones((1, nx, ny, nz))
+    normalized = np.concatenate([-1 * xyz_like, 1 * xyz_like], axis=0)
+    normalized_and_stacked = np.concatenate([normalized, normalized], axis=-1)
+
+    transformer = build_scale_spatial_concat_z_transformer([a, b])
+    encoded = transformer.encode_txyz([a, b])
+
+    # test that it normalizes
+    nsamples, nvars = 2, 2
+    assert encoded.shape == (nsamples, 3, 4, 1 * nvars)
+    np.testing.assert_allclose(encoded, normalized_and_stacked, rtol=1e-6)
+
+    # test round trip
+    decoded = transformer.decode_txyz(encoded)
+    np.testing.assert_allclose(decoded, [a, b], rtol=1e-6)
+
+
+# test mask
+def test_scale_per_feature_concat_z_transform_mask():
+    nx, ny, nz = 3, 4, 1
+    a, _ = _get_sample_xyz_data(nx, ny, nz)
+
+    xyz_like = np.ones((1, nx, ny, nz))
+    normalized = np.concatenate([-1 * xyz_like, 1 * xyz_like], axis=0)
+
+    mask = xyz_like.copy()
+    mask[:, :, 0] = 0  # mask y fields of a
+
+    transformer = build_scale_spatial_concat_z_transformer([a], mask=mask)
+    a_adj = a.copy()
+    a_adj[:, :, 0] = 25
+    encoded = transformer.encode_txyz([a_adj])
+    np.testing.assert_allclose(encoded, normalized * mask, rtol=1e-6)
+
+    encoded[:, :, 0, :] = 25  # adjust normalized a
+    decoded = transformer.decode_txyz(encoded)
+    a_adj[:, :, 0] = 0
+    np.testing.assert_allclose(decoded, [a_adj], rtol=1e-6)
+
+
+# test dump load is equivalent
+def test_scale_per_feature_concat_z_transfor_dumpload():
+    nx, ny, nz = 3, 4, 1
+    a, b = _get_sample_xyz_data(nx, ny, nz)
+
+    transformer = build_scale_spatial_concat_z_transformer([a, b])
+    encoded = transformer.encode_txyz([a, b])
+
+    # test dump load
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transformer.dump(tmpdir)
+        loaded_transformer = transformer.load(tmpdir)
+
+    loaded_encoded = loaded_transformer.encode_txyz([a, b])
+    np.testing.assert_allclose(encoded, loaded_encoded, rtol=1e-6)
+
+    loaded_decoded = loaded_transformer.decode_txyz(loaded_encoded)
+    np.testing.assert_allclose(loaded_decoded, [a, b], rtol=1e-6)
+
+
+# test that dims < 4 throws error
+def test_scale_per_feature_concat_z_transform_not_enough_dims():
+    nx, ny, nz = 3, 4, 1
+    a, b = _get_sample_xyz_data(nx, ny, nz)
+
+    with pytest.raises(ValueError):
+        build_scale_spatial_concat_z_transformer([a[0, :, :, :]])
+
+
+# test inconsistent shapes
+def test_scale_per_feature_concat_z_transform_inconsistent_dims():
+    """Add these tests since we hard code the spatial handling"""
+    nx, ny, nz = 3, 4, 1
+    a, b = _get_sample_xyz_data(nx, ny, nz)
+
+    # inconsistent dimensions for fit
+    with pytest.raises(ValueError):
+        build_scale_spatial_concat_z_transformer([a, b[:, :, 0:2]])
+
+    transformer = build_scale_spatial_concat_z_transformer([a, b])
+
+    # both inconsistent w/ fit data but with same dimensions
+    with pytest.raises(ValueError):
+        transformer.encode_txyz([a[..., 0], b[..., 0]])
+
+    # one inconsistent w/ fit data
+    with pytest.raises(ValueError):
+        transformer.encode_txyz([a, b[:, :, :, 0]])

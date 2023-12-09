@@ -245,11 +245,22 @@ def build_scale_spatial_concat_z_transformer(
             (x, y, z * num_variables)
     """
 
-    if len(sample_data[0].shape) < 4:
-        raise ValueError(
-            "Expected at least 4 dimensions in the input data, but got "
-            f"{len(sample_data[0].shape)}"
-        )
+    initial_shape = None
+    for i, data in enumerate(sample_data):
+        if len(data.shape) < 4:
+            raise ValueError(
+                "Expected at least 4 dimensions in the input data, but got "
+                f"{len(data.shape)} for array {i}."
+            )
+        if initial_shape is None:
+            initial_shape = data.shape
+        else:
+            if data.shape != initial_shape:
+                raise ValueError(
+                    "All arrays must have the same shape. "
+                    f"Expected {initial_shape} but got {data.shape} "
+                    f"for array {i}."
+                )
 
     leading_dims = sample_data[0].shape[:-3]
     spatial_features = sample_data[0].shape[-3:]
