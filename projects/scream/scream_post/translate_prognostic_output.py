@@ -23,7 +23,7 @@ SCREAM_TO_FV3_CONVENTION = {
     "VapWaterPath": "water_vapor_path",
     "ps": "PRESsfc",
     "pseudo_density": "pressure_thickness_of_atmospheric_layer",
-    "surf_evap": "LHTFLsfc",
+    "surf_evap": "surf_evap",
     "surf_sens_flux": "SHTFLsfc",
     "surf_radiative_T": "TMPsfc",
     "z_mid_at_500hPa": "h500",
