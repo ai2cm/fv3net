@@ -3,7 +3,7 @@ import xarray as xr
 from typing import Mapping, Hashable
 import vcm
 import os
-from util import *
+from util import convert_npdatetime_to_cftime, rename_lev_to_z, split_horiz_winds_tend
 
 SCREAM_TO_FV3_CONVENTION = {
     "T_mid": "air_temperature",
@@ -17,7 +17,7 @@ SCREAM_TO_FV3_CONVENTION = {
     "physics_T_mid_tend": "air_temperature_tendency_due_to_scream_physics",
     "physics_qv_tend": "specific_humidity_tendency_due_to_scream_physics",
     "machine_learning_U_tend": "dQu",
-    "machine_learning_V_tend": "dQv",    
+    "machine_learning_V_tend": "dQv",
     "machine_learning_T_mid_tend": "dQ1",
     "machine_learning_qv_tend": "dQ2",
     "VapWaterPath": "water_vapor_path",
@@ -39,7 +39,7 @@ SCREAM_TO_FV3_CONVENTION = {
     "SW_flux_dn_at_model_bot": "DSWRFsfc",
     "LW_flux_dn_at_model_bot": "DLWRFsfc",
     "LW_flux_up_at_model_bot": "ULWRFsfc",
-    "SW_flux_up_at_model_bot": "USWRFsfc",    
+    "SW_flux_up_at_model_bot": "USWRFsfc",
     "SW_flux_up_at_model_top": "USWRFtoa",
     "LW_flux_up_at_model_top": "ULWRFtoa",
     "SW_flux_dn_at_model_top": "DSWRFtoa",
@@ -62,10 +62,7 @@ def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "input_data",
-        type=str,
-        default=None,
-        help=("Input netcdf."),
+        "input_data", type=str, default=None, help=("Input netcdf."),
     )
     parser.add_argument(
         "output_path",
@@ -73,9 +70,7 @@ def _get_parser() -> argparse.ArgumentParser:
         help="Local or remote path where output will be written.",
     )
     parser.add_argument(
-        "process_label",
-        type=str,
-        help="Either nudging or machine_learning",
+        "process_label", type=str, help="Either nudging or machine_learning",
     )
     parser.add_argument(
         "nudging_variables",
@@ -88,7 +83,7 @@ def _get_parser() -> argparse.ArgumentParser:
         "--subset",
         help="Whether to subset to a smaller set of timesteps",
         action="store_true",
-    )    
+    )
     return parser
 
 
@@ -99,10 +94,11 @@ def compute_PRATEsfc(ds):
     if "PrecipIceSurfMassFlux" in ds.variables:
         ds = ds.rename({"PrecipIceSurfMassFlux": "precip_liq_surf_mass_flux"})
     if "PrecipLiqSurfMassFlux" in ds.variables:
-            ds = ds.rename({"PrecipLiqSurfMassFlux": "precip_ice_surf_mass_flux"})        
+        ds = ds.rename({"PrecipLiqSurfMassFlux": "precip_ice_surf_mass_flux"})
     PRATEsfc = (ds.precip_liq_surf_mass_flux + ds.precip_ice_surf_mass_flux) * 1000.0
     PRATEsfc = PRATEsfc.assign_attrs(units="kg/m^2/s")
     return PRATEsfc
+
 
 def add_additional_surface_fields(ds):
     """
@@ -110,14 +106,29 @@ def add_additional_surface_fields(ds):
     and override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
     for training ML radiaitve fluxes
     """
-    shortwave_transmissivity_of_atmospheric_column = ds.SW_flux_dn_at_model_bot / ds.SW_flux_dn_at_model_top
-    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.where(ds.SW_flux_dn_at_model_top!=0.,0.)
-    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.assign_attrs(units="-", long_name="shortwave transmissivity of atmospheric column")
-    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = ds.LW_flux_dn_at_model_bot
-    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface.assign_attrs(units="W/m**2", long_name="surface downward longwave flux")
-    ds["shortwave_transmissivity_of_atmospheric_column"] = shortwave_transmissivity_of_atmospheric_column
-    ds["override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"] = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
+    shortwave_transmissivity_of_atmospheric_column = (
+        ds.SW_flux_dn_at_model_bot / ds.SW_flux_dn_at_model_top
+    )
+    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.where(  # noqa: E501
+        ds.SW_flux_dn_at_model_top != 0.0, 0.0
+    )
+    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.assign_attrs(  # noqa: E501
+        units="-", long_name="shortwave transmissivity of atmospheric column"
+    )
+    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = (
+        ds.LW_flux_dn_at_model_bot
+    )
+    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface.assign_attrs(  # noqa: E501
+        units="W/m**2", long_name="surface downward longwave flux"
+    )
+    ds[
+        "shortwave_transmissivity_of_atmospheric_column"
+    ] = shortwave_transmissivity_of_atmospheric_column
+    ds[
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"
+    ] = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
     return ds
+
 
 def compute_prognostic_run_diagnostics(
     ds: xr.DataArray, label: str, tendency_variables: [], hydrostatic: bool = False
@@ -176,9 +187,14 @@ def compute_prognostic_run_diagnostics(
             ),
         }
     diags.update(diags_3d)
-    if label == "machine_learning" and "U" in tendency_variables and "V" in tendency_variables:
+    if (
+        label == "machine_learning"
+        and "U" in tendency_variables
+        and "V" in tendency_variables
+    ):
         diags.update(compute_ml_momentum_diagnostics(ds))
     return xr.Dataset(diags)
+
 
 def compute_ml_momentum_diagnostics(ds: xr.DataArray):
     delp = ds[DELP]
@@ -203,6 +219,7 @@ def compute_ml_momentum_diagnostics(ds: xr.DataArray):
     )
     return xr.Dataset(momentum)
 
+
 def truncate_and_rename_scream_variables(ds: xr.Dataset):
     output_var_list = [
         var for var in SCREAM_TO_FV3_CONVENTION.keys() if var in ds.variables
@@ -211,16 +228,22 @@ def truncate_and_rename_scream_variables(ds: xr.Dataset):
     output_var_list += grid_var
     ds["PRATEsfc"] = compute_PRATEsfc(ds)
     ds = add_additional_surface_fields(ds)
-    output_var_list += ["PRATEsfc", "shortwave_transmissivity_of_atmospheric_column", "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"]
+    output_var_list += [
+        "PRATEsfc",
+        "shortwave_transmissivity_of_atmospheric_column",
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface",
+    ]
     ds = ds[output_var_list]
     rename_vars = {k: v for k, v in SCREAM_TO_FV3_CONVENTION.items() if k in ds}
     ds = ds.rename(rename_vars)
     return ds
 
+
 def convert_time_and_change_lev_to_z(ds):
     ds = convert_npdatetime_to_cftime(ds)
     ds = rename_lev_to_z(ds)
-    return ds    
+    return ds
+
 
 def get_3d_vars(ds: xr.Dataset):
     return [var for var in ds.variables if ds[var].dims == ("time", "ncol", "z")]
@@ -246,7 +269,7 @@ if __name__ == "__main__":
         ds = split_horiz_winds_tend(ds, args.process_label)
     if args.process_label == "nudging" or args.process_label == "machine_learning":
         diags = compute_prognostic_run_diagnostics(ds, args.process_label, nudging_vars)
-        ds = truncate_and_rename_scream_variables(ds)    
+        ds = truncate_and_rename_scream_variables(ds)
         ds = ds.drop(
             [var for var in ds.variables if var in diags.variables and var != "time"]
         )
@@ -261,14 +284,14 @@ if __name__ == "__main__":
         ds_2d.chunk({"time": args.chunk_size}).to_zarr(
             os.path.join(args.output_path, "data_2d.zarr"), consolidated=True
         )
-    elif args.save_to_disk == "3d":    
+    elif args.save_to_disk == "3d":
         ds_3d.chunk({"time": args.chunk_size}).to_zarr(
             os.path.join(args.output_path, "data_3d.zarr"), consolidated=True
         )
-    elif args.save_to_disk == "all": 
+    elif args.save_to_disk == "all":
         ds_2d.chunk({"time": args.chunk_size}).to_zarr(
             os.path.join(args.output_path, "data_2d.zarr"), consolidated=True
-        )        
+        )
         ds_3d.chunk({"time": args.chunk_size}).to_zarr(
             os.path.join(args.output_path, "data_3d.zarr"), consolidated=True
         )

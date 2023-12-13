@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import cftime
 
+
 def convert_npdatetime_to_cftime(ds: xr.Dataset):
     if isinstance(ds.time.values[0], np.datetime64):
         cf_time = []
@@ -26,6 +27,7 @@ def rename_lev_to_z(ds: xr.Dataset):
     rename_vars = {"lev": "z", "ilev": "z_interface"}
     rename_vars = {k: v for k, v in rename_vars.items() if k in ds.dims}
     return ds.rename(rename_vars)
+
 
 def split_horiz_winds_tend(ds: xr.Dataset, label: str):
     u = ds[f"{label}_horiz_winds_tend"].isel(dim2=0).rename({f"{label}_U_tend"})
