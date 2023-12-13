@@ -69,7 +69,7 @@ spec:
             failed: true
           when: "'{{steps.infer-wrapper.outputs.result}}' == 'fv3gfs.wrapper'"
           templateRef:
-            name: run-fv3gfs
+            name: run-simulation
             template: run-fv3gfs
           arguments:
             artifacts:
@@ -83,7 +83,7 @@ spec:
           name: run-model-shield
           when: "'{{steps.infer-wrapper.outputs.result}}' == 'shield.wrapper'"
           templateRef:
-            name: run-shield
+            name: run-simulation
             template: run-shield
           arguments:
             artifacts:
