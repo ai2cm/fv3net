@@ -24,7 +24,6 @@ for tile in {0..0}; do
   envsubst < $training_data > $tmpdir/$training_data
   envsubst < $validation_data > $tmpdir/$validation_data
   envsubst < $train_config > $tmpdir/$train_config
-  # cp $train_config $tmpdir/$train_config
 
   export WANDB_NAME="${NAME}-tile${tile}-${RANDOM_TAG}"
   export SUBMIT_DIR=$(pwd)

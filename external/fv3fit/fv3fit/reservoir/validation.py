@@ -401,7 +401,8 @@ def validate_model(
     area=None,
 ):
 
-    # want to do the index handling in this function
+    # Enforce length checks because we want to handle all dimension adjustments
+    # for validation within this function
     if len(reservoir_inputs.time) != len(targets.time):
         raise ValueError("Inputs and targets must have the same number of time steps.")
     if hybrid_inputs and len(hybrid_inputs.time) != len(targets.time):
