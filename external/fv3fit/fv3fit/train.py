@@ -175,6 +175,10 @@ def main(args, unknown_args=None):
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
 
+    # There is a test in test_main.py of fv3fit, "test_main_dumps_correct_predictor",
+    # that checks the output path used in the dump call.  Not sure if it's
+    # necessary, but to be safe this change preserves that test while allowing
+    # remote saving of models with mixed components
     fs = get_fs(args.output_path)
     if "gs" in fs.protocol:
         with put_dir(args.output_path) as path:
