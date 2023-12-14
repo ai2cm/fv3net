@@ -1,2 +1,0 @@
-filepath: /home/andrep/repos/explore/andrep/reservoir/consistent_fv3_era_mask_sst/val_tile0.nc
-dim_order: ["time", "x", "y"]

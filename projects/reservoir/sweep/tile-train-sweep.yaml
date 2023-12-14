@@ -1,6 +1,6 @@
 entity: ai2cm
 project:  sst-reservoir-tuning
-name: 2023-10-18-tile{}-mreadout-sweep-v2
+name: 2023-10-18-tile${TILE}-mreadout-sweep-v2
 command:
   - ${env}
   - python3

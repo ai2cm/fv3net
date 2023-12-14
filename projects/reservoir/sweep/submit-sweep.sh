@@ -13,9 +13,10 @@ temp_config=temporary_config_files
 for tile in {0..5}; do
   # Create a temporary directory for the updated configuration files
   mkdir -p $temp_config
-  python format_for_tile.py $sweep_config $tile name > $temp_config/$sweep_config
-  python format_for_tile.py $training_data $tile filepath > $temp_config/$training_data
-  python format_for_tile.py $validation_data $tile filepath > $temp_config/$validation_data
+  export TILE=$tile
+  envsubst < $sweep_config > $temp_config/$sweep_config
+  envsubst < $training_data > $temp_config/$training_data
+  envsubst < $validation_data > $temp_config/$validation_data
 
   cd $temp_config
   wandb sweep $sweep_config &> sweep.log
