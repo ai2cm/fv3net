@@ -93,6 +93,8 @@ class ReservoirTrainingConfig(Hyperparameters):
         mask_variable field.
     mask_readout: if mask_variable is specified, apply that mask to the hybrid inputs
         as well
+    validate_sst_only: if True, perform the SST validation instead of the atmosphere
+        validation code
     """
 
     input_variables: Sequence[str]
