@@ -40,14 +40,14 @@ class Transformer(BaseTransformer, Reloadable):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def encode_txyz(self, input_arrs: Sequence[np.ndarray]) -> np.ndarray:
+    def encode_unstacked_xyz(self, input_arrs: Sequence[np.ndarray]) -> np.ndarray:
         """Handle non-2D inputs during runtime/training"""
         leading_shape = input_arrs[0].shape[:-1]
         collapsed_arrs = [np.reshape(arr, (-1, arr.shape[-1])) for arr in input_arrs]
         encoded = self.encode(collapsed_arrs)
         return np.reshape(encoded, (*leading_shape, -1))
 
-    def decode_txyz(self, encoded: np.ndarray) -> Sequence[np.ndarray]:
+    def decode_unstacked_xyz(self, encoded: np.ndarray) -> Sequence[np.ndarray]:
         """Handle non-2D inputs during runtime/training"""
         feature_size = encoded.shape[-1]
         leading_shape = encoded.shape[:-1]
@@ -128,7 +128,7 @@ class _ScaleSpatialConcatZTransformer(Transformer):
                     f"for array {i}."
                 )
 
-    def encode_txyz(self, input_arrs: Sequence[ndarray]) -> ndarray:
+    def encode_unstacked_xyz(self, input_arrs: Sequence[ndarray]) -> ndarray:
         # Overloads the original transformer encode_txyz since we want to
         # handle the xyz dimensions differently.
 
@@ -161,7 +161,7 @@ class _ScaleSpatialConcatZTransformer(Transformer):
 
         return normalized_stacked_z
 
-    def decode_txyz(self, encoded: ndarray) -> Sequence[ndarray]:
+    def decode_unstacked_xyz(self, encoded: ndarray) -> Sequence[ndarray]:
         # Overloads the original transformer decode_txyz since we want to
         # handle the xyz dimensions differently.
         leading_dims = encoded.shape[:-3]

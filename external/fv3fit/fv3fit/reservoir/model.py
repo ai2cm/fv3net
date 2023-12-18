@@ -94,7 +94,9 @@ class HybridReservoirComputingModel(Predictor):
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
-        encoded_hybrid_input = self.transformers.hybrid.encode_txyz(hybrid_input)
+        encoded_hybrid_input = self.transformers.hybrid.encode_unstacked_xyz(
+            hybrid_input
+        )
 
         flat_hybrid_in = self._hybrid_rank_divider.get_all_subdomains_with_flat_feature(
             encoded_hybrid_input
@@ -111,7 +113,7 @@ class HybridReservoirComputingModel(Predictor):
         prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
-        decoded_prediction = self.transformers.output.decode_txyz(prediction)
+        decoded_prediction = self.transformers.output.decode_unstacked_xyz(prediction)
         return decoded_prediction
 
     def _concatenate_readout_inputs(self, hidden_state_input, flat_hybrid_input):
@@ -231,7 +233,7 @@ class ReservoirComputingModel(Predictor):
         prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
-        decoded_prediction = self.transformers.output.decode_txyz(prediction)
+        decoded_prediction = self.transformers.output.decode_unstacked_xyz(prediction)
         return decoded_prediction
 
     def reset_state(self):
@@ -243,7 +245,7 @@ class ReservoirComputingModel(Predictor):
 
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         # input array is in native x, y, z_feature coordinates
-        encoded_xy_input_arrs = self.transformers.input.encode_txyz(
+        encoded_xy_input_arrs = self.transformers.input.encode_unstacked_xyz(
             prediction_with_overlap
         )
         encoded_flat_sub = self.rank_divider.get_all_subdomains_with_flat_feature(
@@ -253,7 +255,7 @@ class ReservoirComputingModel(Predictor):
 
     def synchronize(self, synchronization_time_series):
         # input arrays in native x, y, z_feature coordinates
-        encoded_timeseries = self.transformers.input.encode_txyz(
+        encoded_timeseries = self.transformers.input.encode_unstacked_xyz(
             synchronization_time_series
         )
         encoded_flat = self.rank_divider.get_all_subdomains_with_flat_feature(

@@ -116,7 +116,7 @@ def process_batch_data(
 
     if autoencoder is not None:
         try:
-            data_encoded = autoencoder.encode_txyz(encoder_inputs)
+            data_encoded = autoencoder.encode_unstacked_xyz(encoder_inputs)
         except ValueError as e:
             # TODO: there is a chicken/egg problem here in that no
             # specification of transforms creates an autoencoder that
@@ -129,7 +129,7 @@ def process_batch_data(
                 "There was an error using pre-trimmed data. Trying again"
                 f" with the original input data. [Error: {e}]"
             )
-            data_encoded = autoencoder.encode_txyz(data)
+            data_encoded = autoencoder.encode_unstacked_xyz(data)
             if trim_halo:
                 data_encoded = rank_divider.trim_halo_from_rank_data(data_encoded)
 

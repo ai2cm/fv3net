@@ -29,7 +29,7 @@ def test_base_encode_txyz(nt, nx, ny, nz, nvars):
     transformer = DoNothingAutoencoder([nz for var in range(nvars)])
     data_arrs = [np.random.rand(*shape) for var in range(nvars)]
 
-    encoded = transformer.encode_txyz(data_arrs)
+    encoded = transformer.encode_unstacked_xyz(data_arrs)
 
     assert encoded.shape == expected_shape
 
@@ -44,10 +44,10 @@ def test_base_decode_txyz(nx, ny, nz, nvars):
 
     # need to call encode before decode
     data_arrs = [np.random.rand(*shape) for shape in expected_shapes]
-    transformer.encode_txyz(data_arrs)
+    transformer.encode_unstacked_xyz(data_arrs)
 
     encoded_input = np.random.rand(nx, ny, transformer.n_latent_dims)
-    decoded = transformer.decode_txyz(encoded_input)
+    decoded = transformer.decode_unstacked_xyz(encoded_input)
 
     assert len(expected_shapes) == len(decoded)
     for expected_shape, decoded_output in zip(expected_shapes, decoded):
@@ -75,7 +75,7 @@ def test_scale_per_feature_concat_z_transform(nz):
     normalized_and_stacked = np.concatenate([normalized, normalized], axis=-1)
 
     transformer = build_scale_spatial_concat_z_transformer([a, b])
-    encoded = transformer.encode_txyz([a, b])
+    encoded = transformer.encode_unstacked_xyz([a, b])
 
     # test that it normalizes
     nsamples, nvars = 2, 2
@@ -83,7 +83,7 @@ def test_scale_per_feature_concat_z_transform(nz):
     np.testing.assert_allclose(encoded, normalized_and_stacked, rtol=1e-6)
 
     # test round trip
-    decoded = transformer.decode_txyz(encoded)
+    decoded = transformer.decode_unstacked_xyz(encoded)
     np.testing.assert_allclose(decoded, [a, b], rtol=1e-6)
 
 
@@ -95,7 +95,7 @@ def test_scale_per_feature_concat_z_transform_no_leading_dim():
     normalized_and_stacked = np.concatenate([xyz_like, xyz_like], axis=-1)
 
     transformer = build_scale_spatial_concat_z_transformer([a, b])
-    encoded = transformer.encode_txyz([a[0], b[0]])
+    encoded = transformer.encode_unstacked_xyz([a[0], b[0]])
 
     # test that it normalizes
     nvars = 2
@@ -103,7 +103,7 @@ def test_scale_per_feature_concat_z_transform_no_leading_dim():
     np.testing.assert_allclose(encoded, normalized_and_stacked, rtol=1e-6)
 
     # test round trip
-    decoded = transformer.decode_txyz(encoded)
+    decoded = transformer.decode_unstacked_xyz(encoded)
     np.testing.assert_allclose(decoded, [a[0], b[0]], rtol=1e-6)
 
 
@@ -121,11 +121,11 @@ def test_scale_per_feature_concat_z_transform_mask(nz):
     transformer = build_scale_spatial_concat_z_transformer([a], mask=mask)
     a_adj = a.copy()
     a_adj[..., 0, :] = 25
-    encoded = transformer.encode_txyz([a_adj])
+    encoded = transformer.encode_unstacked_xyz([a_adj])
     np.testing.assert_allclose(encoded, normalized * mask, rtol=1e-6)
 
     encoded[..., 0, :] = 25  # adjust normalized a
-    decoded = transformer.decode_txyz(encoded)
+    decoded = transformer.decode_unstacked_xyz(encoded)
     a_adj[..., 0, :] = 0
     np.testing.assert_allclose(decoded, [a_adj], rtol=1e-6)
 
@@ -136,17 +136,17 @@ def test_scale_per_feature_concat_z_transfor_dumpload():
     a, b = _get_sample_xyz_data(nx, ny, nz)
 
     transformer = build_scale_spatial_concat_z_transformer([a, b])
-    encoded = transformer.encode_txyz([a, b])
+    encoded = transformer.encode_unstacked_xyz([a, b])
 
     # test dump load
     with tempfile.TemporaryDirectory() as tmpdir:
         transformer.dump(tmpdir)
         loaded_transformer = transformer.load(tmpdir)
 
-    loaded_encoded = loaded_transformer.encode_txyz([a, b])
+    loaded_encoded = loaded_transformer.encode_unstacked_xyz([a, b])
     np.testing.assert_allclose(encoded, loaded_encoded, rtol=1e-6)
 
-    loaded_decoded = loaded_transformer.decode_txyz(loaded_encoded)
+    loaded_decoded = loaded_transformer.decode_unstacked_xyz(loaded_encoded)
     np.testing.assert_allclose(loaded_decoded, [a, b], rtol=1e-6)
 
 
@@ -173,8 +173,8 @@ def test_scale_per_feature_concat_z_transform_inconsistent_dims():
 
     # both inconsistent w/ fit data but with same dimensions
     with pytest.raises(ValueError):
-        transformer.encode_txyz([a[..., 0], b[..., 0]])
+        transformer.encode_unstacked_xyz([a[..., 0], b[..., 0]])
 
     # one inconsistent w/ fit data
     with pytest.raises(ValueError):
-        transformer.encode_txyz([a, b[:, :, :, 0]])
+        transformer.encode_unstacked_xyz([a, b[:, :, :, 0]])
