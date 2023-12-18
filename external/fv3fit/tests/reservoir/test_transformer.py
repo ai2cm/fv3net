@@ -77,7 +77,7 @@ def test_scale_per_feature_concat_z_transform(nz):
     transformer = build_scale_spatial_concat_z_transformer([a, b])
     encoded = transformer.encode_unstacked_xyz([a, b])
 
-    # test that it normalizes
+    # test that it normalizes and encode reshaping
     nsamples, nvars = 2, 2
     assert encoded.shape == (nsamples, nx, ny, nz * nvars)
     np.testing.assert_allclose(encoded, normalized_and_stacked, rtol=1e-6)
@@ -85,6 +85,11 @@ def test_scale_per_feature_concat_z_transform(nz):
     # test round trip
     decoded = transformer.decode_unstacked_xyz(encoded)
     np.testing.assert_allclose(decoded, [a, b], rtol=1e-6)
+
+    # test correct decode reshaping
+    test_encoded = abs(np.concatenate([a, b], axis=-1))
+    decoded = transformer.decode_unstacked_xyz(test_encoded)
+    np.testing.assert_allclose(decoded, [a ** 2, b ** 2], rtol=1e-6)
 
 
 def test_scale_per_feature_concat_z_transform_no_leading_dim():
