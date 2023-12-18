@@ -55,15 +55,20 @@ def test_base_decode_txyz(nx, ny, nz, nvars):
 
 
 def _get_sample_xyz_data(nx, ny, nz):
-    xyz_base = np.ones((1, nx, ny, nz))
+    nfeatures = nx * ny * nz
+    arr_shape = [1, nx, ny, nz]
+
+    xyz_base = np.arange(1, nfeatures + 1).reshape(arr_shape).astype(float)
+    # create arrays that will std to 1 everywhere across sample dim
     a = np.concatenate([-10 * xyz_base, 10 * xyz_base], axis=0)  # mean = 0, std = 10
-    b = np.concatenate([xyz_base, 2 * xyz_base], axis=0)  # mean = 1, std = 1
+    b = np.concatenate([-1 * xyz_base, xyz_base], axis=0)  # mean = 1, std = 1
     return [a, b]
 
 
 # test encode w/ specified arrays
-def test_scale_per_feature_concat_z_transform():
-    nx, ny, nz = 3, 4, 1
+@pytest.mark.parametrize("nz", [1, 2], ids=["single-level", "multi-level",])
+def test_scale_per_feature_concat_z_transform(nz):
+    nx, ny = 3, 4
     a, b = _get_sample_xyz_data(nx, ny, nz)
 
     xyz_like = np.ones((1, nx, ny, nz))
@@ -75,7 +80,7 @@ def test_scale_per_feature_concat_z_transform():
 
     # test that it normalizes
     nsamples, nvars = 2, 2
-    assert encoded.shape == (nsamples, 3, 4, 1 * nvars)
+    assert encoded.shape == (nsamples, nx, ny, nz * nvars)
     np.testing.assert_allclose(encoded, normalized_and_stacked, rtol=1e-6)
 
     # test round trip
@@ -84,25 +89,27 @@ def test_scale_per_feature_concat_z_transform():
 
 
 # test mask
-def test_scale_per_feature_concat_z_transform_mask():
-    nx, ny, nz = 3, 4, 1
+# test encode w/ specified arrays
+@pytest.mark.parametrize("nz", [1, 2], ids=["single-level", "multi-level",])
+def test_scale_per_feature_concat_z_transform_mask(nz):
+    nx, ny = 3, 4
     a, _ = _get_sample_xyz_data(nx, ny, nz)
 
     xyz_like = np.ones((1, nx, ny, nz))
     normalized = np.concatenate([-1 * xyz_like, 1 * xyz_like], axis=0)
 
     mask = xyz_like.copy()
-    mask[:, :, 0] = 0  # mask y fields of a
+    mask[..., 0, :] = 0  # mask y fields of a
 
     transformer = build_scale_spatial_concat_z_transformer([a], mask=mask)
     a_adj = a.copy()
-    a_adj[:, :, 0] = 25
+    a_adj[..., 0, :] = 25
     encoded = transformer.encode_txyz([a_adj])
     np.testing.assert_allclose(encoded, normalized * mask, rtol=1e-6)
 
-    encoded[:, :, 0, :] = 25  # adjust normalized a
+    encoded[..., 0, :] = 25  # adjust normalized a
     decoded = transformer.decode_txyz(encoded)
-    a_adj[:, :, 0] = 0
+    a_adj[..., 0, :] = 0
     np.testing.assert_allclose(decoded, [a_adj], rtol=1e-6)
 
 
