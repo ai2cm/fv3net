@@ -65,7 +65,6 @@ def _get_sample_xyz_data(nx, ny, nz):
     return [a, b]
 
 
-# test encode w/ specified arrays
 @pytest.mark.parametrize("nz", [1, 2], ids=["single-level", "multi-level",])
 def test_scale_per_feature_concat_z_transform(nz):
     nx, ny = 3, 4
@@ -88,8 +87,26 @@ def test_scale_per_feature_concat_z_transform(nz):
     np.testing.assert_allclose(decoded, [a, b], rtol=1e-6)
 
 
-# test mask
-# test encode w/ specified arrays
+def test_scale_per_feature_concat_z_transform_no_leading_dim():
+    nx, ny, nz = 3, 4, 1
+    a, b = _get_sample_xyz_data(nx, ny, nz)
+
+    xyz_like = -1 * np.ones((nx, ny, nz))
+    normalized_and_stacked = np.concatenate([xyz_like, xyz_like], axis=-1)
+
+    transformer = build_scale_spatial_concat_z_transformer([a, b])
+    encoded = transformer.encode_txyz([a[0], b[0]])
+
+    # test that it normalizes
+    nvars = 2
+    assert encoded.shape == (nx, ny, nz * nvars)
+    np.testing.assert_allclose(encoded, normalized_and_stacked, rtol=1e-6)
+
+    # test round trip
+    decoded = transformer.decode_txyz(encoded)
+    np.testing.assert_allclose(decoded, [a[0], b[0]], rtol=1e-6)
+
+
 @pytest.mark.parametrize("nz", [1, 2], ids=["single-level", "multi-level",])
 def test_scale_per_feature_concat_z_transform_mask(nz):
     nx, ny = 3, 4
