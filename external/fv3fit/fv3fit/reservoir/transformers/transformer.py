@@ -128,6 +128,26 @@ class _ScaleSpatialConcatZTransformer(Transformer):
                     f"for array {i}."
                 )
 
+    @staticmethod
+    def _stack_xyz(leading_dims, input_arrs):
+        return [tf.reshape(arr, (*leading_dims, -1)) for arr in input_arrs]
+
+    @staticmethod
+    def _concat_feature_last_dim(stacked_spatial):
+        return np.concatenate(stacked_spatial, axis=-1)
+
+    def _split_joined_and_stacked_xyz(self, joined):
+        return np.split(joined, self._stacked_flat_spatial_split_idxs, axis=-1)
+
+    def _reshape_to_xyz(self, leading_dims, stacked_xyz_arrs):
+        return [
+            tf.reshape(arr, (*leading_dims, *self._spatial_features))
+            for arr in stacked_xyz_arrs
+        ]
+
+    def _split_z_joined(self, joined):
+        return np.split(joined, self._z_dim_split_idxs, axis=-1)
+
     def encode_unstacked_xyz(self, input_arrs: Sequence[ndarray]) -> ndarray:
         # Overloads the original transformer encode_txyz since we want to
         # handle the xyz dimensions differently.
@@ -135,25 +155,14 @@ class _ScaleSpatialConcatZTransformer(Transformer):
         self._check_consistent_xyz(input_arrs)
 
         leading_dims = input_arrs[0].shape[:-3]
-        # stack xyz
-        spatial_last_dim = [tf.reshape(arr, (*leading_dims, -1)) for arr in input_arrs]
-
-        # stack all xyz-flattened variables
-        stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
+        spatial_last_dim = self._stack_xyz(leading_dims, input_arrs)
+        stacked_feature = self._concat_feature_last_dim(spatial_last_dim)
 
         # normalize
         normalized = self.encode(stacked_feature)
 
-        # split xyz-flattened variables
-        normalized_arrs = np.split(
-            normalized, self._stacked_flat_spatial_split_idxs, axis=-1
-        )
-
-        # reshape to xyz and then stack z
-        normalized_unstacked = [
-            tf.reshape(arr, (*leading_dims, *self._spatial_features))
-            for arr in normalized_arrs
-        ]
+        normalized_arrs = self._split_joined_and_stacked_xyz(normalized)
+        normalized_unstacked = self._reshape_to_xyz(leading_dims, normalized_arrs)
         normalized_stacked_z = np.concatenate(normalized_unstacked, axis=-1)
 
         if self._mask is not None:
@@ -169,29 +178,19 @@ class _ScaleSpatialConcatZTransformer(Transformer):
         if self._mask is not None:
             encoded = encoded * self._mask
 
-        # unstack z
-        normalized_arrs = np.split(encoded, self._z_dim_split_idxs, axis=-1)
+        # unstack z since the encoder stacks it
+        normalized_arrs = self._split_z_joined(encoded)
         self._check_consistent_xyz(normalized_arrs)
 
-        # stack all xyz-flattened variables
-        spatial_last_dim = [
-            tf.reshape(arr, (*leading_dims, -1)) for arr in normalized_arrs
-        ]
-        stacked_feature = np.concatenate(spatial_last_dim, axis=-1)
+        spatial_last_dim = self._stack_xyz(leading_dims, normalized_arrs)
+        stacked_feature = self._concat_feature_last_dim(spatial_last_dim)
 
         # denormalize
         unnormalized = self.decode(stacked_feature)
 
-        # split xyz-flattened variables
-        unnormalized_arrs = np.split(
-            unnormalized, self._stacked_flat_spatial_split_idxs, axis=-1
-        )
+        unnormalized_arrs = self._split_joined_and_stacked_xyz(unnormalized)
+        original = self._reshape_to_xyz(leading_dims, unnormalized_arrs)
 
-        # reshape spatial
-        original = [
-            tf.reshape(arr, (*leading_dims, *self._spatial_features))
-            for arr in unnormalized_arrs
-        ]
         return original
 
     def encode(self, input_arr: ndarray) -> ndarray:
@@ -266,8 +265,12 @@ def build_scale_spatial_concat_z_transformer(
     spatial_features = sample_data[0].shape[-3:]
     num_variables = len(sample_data)
 
-    spatial_stacked = [arr.reshape(*leading_dims, -1) for arr in sample_data]
-    joined_feature = np.concatenate(spatial_stacked, axis=-1)
+    spatial_stacked = _ScaleSpatialConcatZTransformer._stack_xyz(
+        leading_dims, sample_data
+    )
+    joined_feature = _ScaleSpatialConcatZTransformer._concat_feature_last_dim(
+        spatial_stacked
+    )
     factory = NormFactory(
         center=MeanMethod.per_feature,
         scale=StdDevMethod.per_feature,
