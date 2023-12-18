@@ -93,7 +93,7 @@ def test_process_batch_data_trim_workaround(encoder_shape):
         def __init__(self, expected_dimensions):
             self.expected_dimensions = expected_dimensions
 
-        def encode_txyz(self, data):
+        def encode_unstacked_xyz(self, data):
             if data[0].shape[-3:] != self.expected_dimensions:
                 raise ValueError(
                     f"Expected data shape {self.expected_dimensions} "
