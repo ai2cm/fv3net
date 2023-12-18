@@ -6,4 +6,4 @@ from .tfdataset import (
     CycleGANLoader,
 )
 from .synthetic import SyntheticNoise, SyntheticWaves
-from .netcdf.load import NCDirLoader
+from .netcdf.load import NCDirLoader, NCFileLoader

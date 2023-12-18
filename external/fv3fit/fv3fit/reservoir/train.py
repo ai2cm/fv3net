@@ -293,6 +293,7 @@ def train_reservoir_model(
             log_variance_scalar_metrics(ds_val, model.output_variables)
         except Exception as e:
             logging.error("Error logging validation metrics to wandb", exc_info=e)
+
     return adapter
 
 
