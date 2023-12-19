@@ -36,7 +36,7 @@ from .validation import (
     log_rmse_z_plots,
     log_rmse_scalar_metrics,
 )
-from .validation import validate_model
+from .validate_sst import validate_model
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
