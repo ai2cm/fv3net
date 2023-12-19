@@ -4,6 +4,12 @@ import numpy as np
 import os
 import cftime
 import util
+import vcm
+import intake
+import logging
+import vcm.catalog
+
+logger = logging.getLogger("format scream output")
 
 
 def make_placeholder_data(
@@ -73,36 +79,10 @@ def rename_water_vapor_path(ds: xr.Dataset):
     return ds.rename({"VapWaterPath": "water_vapor_path"})
 
 
-def add_rad_fluxes(ds: xr.Dataset):
-    shortwave_transmissivity_of_atmospheric_column = (
-        ds.SW_flux_dn_at_model_bot / ds.SW_flux_dn_at_model_top
-    )
-    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.where(  # noqa
-        ds.SW_flux_dn_at_model_top != 0.0, 0.0
-    )
-    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.assign_attrs(  # noqa
-        units="-", long_name="shortwave transmissivity of atmosphericcolumn"
-    )
-    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = (  # noqa
-        ds.LW_flux_dn_at_model_bot
-    )
-    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface.assign_attrs(  # noqa
-        units="W/m**2", long_name="surface downward longwave flux"
-    )
-    ds[
-        "shortwave_transmissivity_of_atmospheric_column"
-    ] = shortwave_transmissivity_of_atmospheric_column
-    ds[
-        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"
-    ] = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
-    return ds
-
-
 def add_sfc_geopotential_height(
-    ds: xr.Dataset,
-    path="/usr/gdata/climdat/ccsm3data/inputdata/atm/cam/topo/USGS-gtopo30_ne30np4pg2_x6t-SGH.c20210614.nc",  # noqa
+    ds: xr.Dataset, catalog: intake.Catalog, res: str = "ne30",
 ):
-    sfc_geo = xr.open_dataset(path)
+    sfc_geo = catalog[f"phis/{res}"].read()
     phis = sfc_geo.PHIS
     phis = phis.expand_dims(dim={"time": ds.time}, axis=0)
     ds["surface_geopotential"] = phis
@@ -131,6 +111,12 @@ def _get_parser() -> argparse.ArgumentParser:
         help="List of tendency processes deliminated with commas",
     )
     parser.add_argument("chunk_size", type=int, help="Chunk size for output zarrs.")
+    parser.add_argument(
+        "--catalog_path",
+        type=str,
+        default=vcm.catalog.catalog_path,
+        help=("The location of the catalog.yaml file"),
+    )
     parser.add_argument(
         "--calc-physics-tend",
         type=bool,
@@ -197,32 +183,33 @@ if __name__ == "__main__":
     if args.split_horiz_winds_tend:
         tend_processes = [str(item) for item in args.tend_processes.split(",")]
         for i in range(len(tend_processes)):
-            print(f"Splitting {tend_processes[i]} horiz winds tendency")
+            logger.info(f"Splitting {tend_processes[i]} horiz winds tendency")
             ds = util.split_horiz_winds_tend(ds, tend_processes[i])
     if args.calc_physics_tend:
-        print("Calculating scream physics tendencies")
+        logger.info("Calculating scream physics tendencies")
         ds = compute_tendencies_due_to_scream_physics(ds, nudging_vars)
     if args.rename_nudging_tend:
-        print("Renaming nudging tendencies")
+        logger.info("Renaming nudging tendencies")
         ds = rename_nudging_tendencies(ds, nudging_vars)
     if args.rename_delp:
-        print("Renaming nudging delp")
+        logger.info("Renaming nudging delp")
         ds = rename_delp(ds)
     if args.convert_to_cftime:
-        print("Converting timestamps to cftime")
+        logger.info("Converting timestamps to cftime")
         ds = util.convert_npdatetime_to_cftime(ds)
     if args.rename_lev_to_z:
-        print("Renaming lev to z")
+        logger.info("Renaming lev to z")
         ds = util.rename_lev_to_z(ds)
     if args.rename_water_vapor_path:
-        print("Renaming water vapor path")
+        logger.info("Renaming water vapor path")
         ds = rename_water_vapor_path(ds)
     if args.add_rad_fluxes:
-        print("Adding derived radiative fluxes")
-        ds = add_rad_fluxes(ds)
+        logger.info("Adding derived radiative fluxes")
+        ds = util.add_rad_fluxes(ds)
     if args.add_phis:
-        print("Adding surface geopotential height")
-        ds = add_sfc_geopotential_height(ds)
+        logger.info("Adding surface geopotential height")
+        catalog = intake.open_catalog(args.catalog_path)
+        ds = add_sfc_geopotential_height(ds, catalog)
     nudging_variables_tendencies = [
         f"{var}_tendency_due_to_nudging" for var in nudging_vars
     ]

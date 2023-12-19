@@ -36,3 +36,38 @@ def split_horiz_winds_tend(ds: xr.Dataset, label: str):
     ds[f"{label}_U_tend"] = u
     ds[f"{label}_V_tend"] = v
     return ds
+
+
+def add_rad_fluxes(ds: xr.Dataset):
+    if (
+        "SW_flux_dn_at_model_bot"
+        and "SW_flux_dn_at_model_top"
+        and "LW_flux_dn_at_model_bot" in ds.variables
+    ):
+        DSWRFsfc = ds.SW_flux_dn_at_model_bot
+        DSWRFtoa = ds.SW_flux_dn_at_model_top
+        DLWRFsfc = ds.LW_flux_dn_at_model_bot
+    elif "DSWRFsfc" and "DSWRFtoa" and "DLWRFsfc" in ds.variables:
+        DSWRFsfc = ds.DSWRFsfc
+        DSWRFtoa = ds.DSWRFtoa
+        DLWRFsfc = ds.DLWRFsfc
+    shortwave_transmissivity_of_atmospheric_column = DSWRFsfc / DSWRFtoa
+    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.where(  # noqa
+        DSWRFtoa != 0.0, 0.0
+    )
+    shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.assign_attrs(  # noqa
+        units="-", long_name="shortwave transmissivity of atmospheric column"
+    )
+    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = (  # noqa
+        DLWRFsfc
+    )
+    override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface.assign_attrs(  # noqa
+        units="W/m**2", long_name="surface downward longwave flux"
+    )
+    ds[
+        "shortwave_transmissivity_of_atmospheric_column"
+    ] = shortwave_transmissivity_of_atmospheric_column
+    ds[
+        "override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface"
+    ] = override_for_time_adjusted_total_sky_downward_longwave_flux_at_surface
+    return ds
