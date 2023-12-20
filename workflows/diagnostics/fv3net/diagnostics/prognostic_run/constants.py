@@ -121,6 +121,7 @@ DIURNAL_CYCLE_VARS = [
     "total_precip_to_surface",
     "PRATEsfc",
     "LHTFLsfc",
+    "surf_evap",
 ]
 
 TIME_MEAN_VARS = [

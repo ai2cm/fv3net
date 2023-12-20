@@ -3,7 +3,13 @@ import xarray as xr
 import numpy as np
 import os
 import cftime
-import pandas as pd
+import util
+import vcm
+import intake
+import logging
+import vcm.catalog
+
+logger = logging.getLogger("format scream output")
 
 
 def make_placeholder_data(
@@ -69,33 +75,18 @@ def rename_delp(ds: xr.Dataset):
     return ds
 
 
-def convert_npdatetime_to_cftime(ds: xr.Dataset):
-    if isinstance(ds.time.values[0], np.datetime64):
-        cf_time = []
-        for date in ds.time.values:
-            date = pd.to_datetime(date)
-            cf_time.append(
-                cftime.DatetimeJulian(
-                    date.year,
-                    date.month,
-                    date.day,
-                    date.hour,
-                    date.minute,
-                    date.second,
-                )
-            )
-        ds["time"] = xr.DataArray(cf_time, coords=ds.time.coords, attrs=ds.time.attrs)
-    return ds
-
-
-def rename_lev_to_z(ds: xr.Dataset):
-    rename_vars = {"lev": "z", "ilev": "z_interface"}
-    rename_vars = {k: v for k, v in rename_vars.items() if k in ds.dims}
-    return ds.rename(rename_vars)
-
-
 def rename_water_vapor_path(ds: xr.Dataset):
     return ds.rename({"VapWaterPath": "water_vapor_path"})
+
+
+def add_sfc_geopotential_height(
+    ds: xr.Dataset, catalog: intake.Catalog, res: str = "ne30",
+):
+    sfc_geo = catalog[f"phis/{res}"].read()
+    phis = sfc_geo.PHIS
+    phis = phis.expand_dims(dim={"time": ds.time}, axis=0)
+    ds["surface_geopotential"] = phis
+    return ds
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -114,12 +105,17 @@ def _get_parser() -> argparse.ArgumentParser:
         type=str,
         help="List of nudging variables deliminated with commas",
     )
+    parser.add_argument(
+        "tend_processes",
+        type=str,
+        help="List of tendency processes deliminated with commas",
+    )
     parser.add_argument("chunk_size", type=int, help="Chunk size for output zarrs.")
     parser.add_argument(
-        "--split-horiz-winds",
-        type=bool,
-        default=False,
-        help="Split horiz_winds to u and v",
+        "--catalog_path",
+        type=str,
+        default=vcm.catalog.catalog_path,
+        help="The location of the catalog.yaml file",
     )
     parser.add_argument(
         "--calc-physics-tend",
@@ -160,6 +156,22 @@ def _get_parser() -> argparse.ArgumentParser:
         default=False,
         help="Rename VapWaterPath to water_vapor_path",
     )
+
+    parser.add_argument(
+        "--split-horiz-winds-tend",
+        type=bool,
+        default=False,
+        help="Rename horiz_winds ",
+    )
+    parser.add_argument(
+        "--add-rad-fluxes",
+        type=bool,
+        default=False,
+        help="Add derived radiative fluxes",
+    )
+    parser.add_argument(
+        "--add-phis", type=bool, default=False, help="Add surface geopotential height",
+    )
     return parser
 
 
@@ -168,18 +180,36 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ds = xr.open_mfdataset(args.input_data)
     nudging_vars = [str(item) for item in args.nudging_variables.split(",")]
+    if args.split_horiz_winds_tend:
+        tend_processes = [str(item) for item in args.tend_processes.split(",")]
+        for i in range(len(tend_processes)):
+            logger.info(f"Splitting {tend_processes[i]} horiz winds tendency")
+            ds = util.split_horiz_winds_tend(ds, tend_processes[i])
     if args.calc_physics_tend:
+        logger.info("Calculating scream physics tendencies")
         ds = compute_tendencies_due_to_scream_physics(ds, nudging_vars)
     if args.rename_nudging_tend:
+        logger.info("Renaming nudging tendencies")
         ds = rename_nudging_tendencies(ds, nudging_vars)
     if args.rename_delp:
+        logger.info("Renaming nudging delp")
         ds = rename_delp(ds)
     if args.convert_to_cftime:
-        ds = convert_npdatetime_to_cftime(ds)
+        logger.info("Converting timestamps to cftime")
+        ds = util.convert_npdatetime_to_cftime(ds)
     if args.rename_lev_to_z:
-        ds = rename_lev_to_z(ds)
+        logger.info("Renaming lev to z")
+        ds = util.rename_lev_to_z(ds)
     if args.rename_water_vapor_path:
+        logger.info("Renaming water vapor path")
         ds = rename_water_vapor_path(ds)
+    if args.add_rad_fluxes:
+        logger.info("Adding derived radiative fluxes")
+        ds = util.add_rad_fluxes(ds)
+    if args.add_phis:
+        logger.info("Adding surface geopotential height")
+        catalog = intake.open_catalog(args.catalog_path)
+        ds = add_sfc_geopotential_height(ds, catalog)
     nudging_variables_tendencies = [
         f"{var}_tendency_due_to_nudging" for var in nudging_vars
     ]
