@@ -118,6 +118,47 @@ def _get_input_mask_array(
     return mask
 
 
+def _validate_sst(validation_batches, rank_divider, hyperparameters, adapter_model):
+    data = next(iter(validation_batches))
+    input_data = process_validation_batch_data_to_dataset(
+        data, adapter_model.nonhybrid_input_variables
+    )
+
+    if adapter_model.is_hybrid:
+        adapter_model = cast(HybridReservoirDatasetAdapter, adapter_model)
+        hybrid_data = process_validation_batch_data_to_dataset(
+            data, adapter_model.hybrid_variables, trim_divider=rank_divider
+        )
+    else:
+        hybrid_data = None
+
+    output_vars = list(adapter_model.output_variables)
+    if "mask_field" in data:
+        output_vars.append("mask_field")
+    if "area" in data:
+        output_vars.append("area")
+
+    target_data = process_validation_batch_data_to_dataset(
+        data, output_vars, trim_divider=rank_divider
+    ).squeeze()
+
+    output_mask = target_data.isel(time=0).get("mask_field", None)
+    area = target_data.isel(time=0).get("area", None)
+    target_data = target_data.drop_vars(["mask_field", "area"], errors="ignore")
+
+    logger.info(str(target_data))
+    logger.info(f"sync steps {hyperparameters.n_timesteps_synchronize}")
+    validate_model(
+        adapter_model,
+        input_data,
+        hybrid_data,
+        hyperparameters.n_timesteps_synchronize,
+        target_data,
+        mask=output_mask,
+        area=area,
+    )
+
+
 @register_training_function("reservoir", ReservoirTrainingConfig)
 def train_reservoir_model(
     hyperparameters: ReservoirTrainingConfig,
@@ -312,43 +353,8 @@ def train_reservoir_model(
             except Exception as e:
                 logging.error("Error logging validation metrics to wandb", exc_info=e)
         else:
-            data = next(iter(validation_batches))
-            input_data = process_validation_batch_data_to_dataset(
-                data, adapter_model.nonhybrid_input_variables
-            )
-
-            if adapter_model.is_hybrid:
-                adapter_model = cast(HybridReservoirDatasetAdapter, adapter_model)
-                hybrid_data = process_validation_batch_data_to_dataset(
-                    data, adapter_model.hybrid_variables, trim_divider=rank_divider
-                )
-            else:
-                hybrid_data = None
-
-            output_vars = list(adapter_model.output_variables)
-            if "mask_field" in data:
-                output_vars.append("mask_field")
-            if "area" in data:
-                output_vars.append("area")
-
-            target_data = process_validation_batch_data_to_dataset(
-                data, output_vars, trim_divider=rank_divider
-            ).squeeze()
-
-            output_mask = target_data.isel(time=0).get("mask_field", None)
-            area = target_data.isel(time=0).get("area", None)
-            target_data = target_data.drop_vars(["mask_field", "area"], errors="ignore")
-
-            logger.info(str(target_data))
-            logger.info(f"sync steps {hyperparameters.n_timesteps_synchronize}")
-            validate_model(
-                adapter_model,
-                input_data,
-                hybrid_data,
-                hyperparameters.n_timesteps_synchronize,
-                target_data,
-                mask=output_mask,
-                area=area,
+            _validate_sst(
+                validation_batches, rank_divider, hyperparameters, adapter_model
             )
 
     return adapter_model
