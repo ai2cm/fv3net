@@ -89,10 +89,10 @@ class ReservoirTrainingConfig(Hyperparameters):
     transformers: optional TransformerConfig for autoencoders to use in
         encoding input, output, and/or hybrid variable sets.
     mask_reservoir_inputs: Apply the mask_variable to the reservoir inputs (not the
-        readout, which is specified by mask_readout). Mask is applied to the input
+        hybrid, which is specified by mask_hybrid_inputs). Mask is applied to the input
         array before multiplication with W_in.
-    mask_readout: mask variable to apply to the inputs.  Must be specified if
-        mask_reservoir_inputs or mask_readout is specified
+    mask_hybrid_inputs: Apply the mask_variable to the hybrid inputs.  Applied prior
+        to input to the readout layer.
     mask_variable: mask variable to use if mask_reservoir_inputs or mask_readout
         are specified, or to use for validation if validate_sst_only is specified.
     validate_sst_only: if True, perform the SST validation instead of the atmosphere
@@ -112,7 +112,7 @@ class ReservoirTrainingConfig(Hyperparameters):
     square_half_hidden_state: bool = False
     hybrid_variables: Optional[Sequence[str]] = None
     mask_reservoir_inputs: bool = False
-    mask_readout: bool = False
+    mask_hybrid_inputs: bool = False
     mask_variable: Optional[str] = None
     validate_sst_only: bool = False
     _METADATA_NAME = "reservoir_training_config.yaml"
@@ -128,7 +128,7 @@ class ReservoirTrainingConfig(Hyperparameters):
                     f"input variables {self.input_variables}."
                 )
         if (
-            self.mask_reservoir_inputs or self.mask_readout
+            self.mask_reservoir_inputs or self.mask_hybrid_inputs
         ) and self.mask_variable is None:
             raise ValueError("mask_variable must be specified if masking is enabled")
 
@@ -188,7 +188,7 @@ class ReservoirTrainingConfig(Hyperparameters):
             "output_variables": self.output_variables,
             "hybrid_variables": self.hybrid_variables,
             "mask_reservoir_inputs": self.mask_reservoir_inputs,
-            "mask_readout": self.mask_readout,
+            "mask_hybrid_inputs": self.mask_hybrid_inputs,
             "mask_variable": self.mask_variable,
             "validate_sst_only": self.validate_sst_only,
         }

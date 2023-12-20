@@ -259,7 +259,7 @@ def train_reservoir_model(
                     trim_halo=True,
                 )
 
-                if hyperparameters.mask_readout:
+                if hyperparameters.mask_hybrid_inputs:
                     mask_variable = cast(str, hyperparameters.mask_variable)
                     hybrid_input_mask_array = _get_input_mask_array(
                         mask_variable,
