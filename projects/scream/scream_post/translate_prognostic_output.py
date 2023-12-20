@@ -1,6 +1,6 @@
 import argparse
 import xarray as xr
-from typing import Mapping, Hashable
+from typing import Mapping, Hashable, List
 import vcm
 import os
 from util import (
@@ -132,16 +132,17 @@ def add_additional_surface_fields(ds):
 
 
 def determine_nudging_or_ML_run(ds):
-    if "nudging_T_mid_tend" in ds.variables:
-        return "nudging"
-    elif "machine_learning_T_mid_tend" in ds.variables:
-        return "machine_learning"
-    else:
-        return None
+    label = None
+    for var in ds.variables:
+        if "nudging" in var:
+            label = "nudging"
+        elif "machine_learning" in var:
+            label = "machine_learning"
+    return label
 
 
 def compute_prognostic_run_diagnostics(
-    ds: xr.DataArray, label: str, tendency_variables: [], hydrostatic: bool = False
+    ds: xr.DataArray, label: str, tendency_variables: List, hydrostatic: bool = False
 ):
     """
     Compute diagnostics for a prognostic run

@@ -115,7 +115,7 @@ def _get_parser() -> argparse.ArgumentParser:
         "--catalog_path",
         type=str,
         default=vcm.catalog.catalog_path,
-        help=("The location of the catalog.yaml file"),
+        help="The location of the catalog.yaml file",
     )
     parser.add_argument(
         "--calc-physics-tend",
