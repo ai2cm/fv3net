@@ -133,8 +133,8 @@ def _validate_sst(validation_batches, rank_divider, hyperparameters, adapter_mod
         hybrid_data = None
 
     output_vars = list(adapter_model.output_variables)
-    if "mask_field" in data:
-        output_vars.append("mask_field")
+    if hyperparameters.mask_field in data:
+        output_vars.append(hyperparameters.mask_field)
     if "area" in data:
         output_vars.append("area")
 
@@ -142,9 +142,11 @@ def _validate_sst(validation_batches, rank_divider, hyperparameters, adapter_mod
         data, output_vars, trim_divider=rank_divider
     ).squeeze()
 
-    output_mask = target_data.isel(time=0).get("mask_field", None)
+    output_mask = target_data.isel(time=0).get(hyperparameters.mask_field, None)
     area = target_data.isel(time=0).get("area", None)
-    target_data = target_data.drop_vars(["mask_field", "area"], errors="ignore")
+    target_data = target_data.drop_vars(
+        [hyperparameters.mask_field, "area"], errors="ignore"
+    )
 
     logger.info(str(target_data))
     logger.info(f"sync steps {hyperparameters.n_timesteps_synchronize}")
@@ -183,9 +185,10 @@ def train_reservoir_model(
         z_feature_size=transformers.input.n_latent_dims,
     )
 
-    if hyperparameters.mask_variable is not None:
+    if hyperparameters.mask_reservoir_inputs:
+        mask_variable = cast(str, hyperparameters.mask_variable)
         input_mask_array: Optional[np.ndarray] = _get_input_mask_array(
-            hyperparameters.mask_variable, sample_batch, rank_divider
+            mask_variable, sample_batch, rank_divider
         )
     else:
         input_mask_array = None
@@ -256,12 +259,10 @@ def train_reservoir_model(
                     trim_halo=True,
                 )
 
-                if (
-                    hyperparameters.mask_variable is not None
-                    and hyperparameters.mask_readout
-                ):
+                if hyperparameters.mask_readout:
+                    mask_variable = cast(str, hyperparameters.mask_variable)
                     hybrid_input_mask_array = _get_input_mask_array(
-                        hyperparameters.mask_variable,
+                        mask_variable,
                         batch_data,
                         _hybrid_rank_divider_w_overlap,
                         trim_halo=True,
