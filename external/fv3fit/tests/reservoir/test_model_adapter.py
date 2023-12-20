@@ -160,8 +160,8 @@ def test_split_multi_subdomain_model():
     model = get_reservoir_computing_model(
         divider=divider, encoder=encoder, state_size=25, hybrid=True
     )
-    data = get_single_rank_xarray_data_with_overlap()["a"]
-    hybrid_data = get_single_rank_xarray_data()["a"]
+    data = get_single_rank_xarray_data_with_overlap()["a"].values
+    hybrid_data = get_single_rank_xarray_data()["a"].values
 
     model.increment_state([data])
     result = model.predict([hybrid_data])

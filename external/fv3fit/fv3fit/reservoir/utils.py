@@ -4,9 +4,7 @@ import tensorflow as tf
 from typing import Iterable, Mapping, Optional
 
 from fv3fit.reservoir.transformers import (
-    # ReloadableTransformer,
     Transformer,
-    encode_columns,
     build_concat_and_scale_only_autoencoder,
 )
 from fv3fit.reservoir.domain2 import RankXYDivider
@@ -107,18 +105,41 @@ def process_batch_data(
 
     # Concatenate features, normalize and optionally convert data
     # to latent representation
+    encoder_inputs = data
+    if trim_halo:
+        pre_trimmed_data = []
+        for arr in data:
+            tmp_divider = rank_divider.get_new_zdim_rank_divider(arr.shape[-1])
+            trimmed = tmp_divider.trim_halo_from_rank_data(arr)
+            pre_trimmed_data.append(trimmed)
+        encoder_inputs = pre_trimmed_data
+
     if autoencoder is not None:
-        data_encoded = encode_columns(data, autoencoder)
+        try:
+            data_encoded = autoencoder.encode_unstacked_xyz(encoder_inputs)
+        except ValueError as e:
+            # TODO: there is a chicken/egg problem here in that no
+            # specification of transforms creates an autoencoder that
+            # expects halo during training, while pre-trained encoder
+            # expect trimmed data inputs. I'm not quite
+            # sure how the prognostic run works with an overlap and
+            # hybrid data currently... Follow-on PR will be necessary
+            # to rectify, but this should be backwards compatible
+            logger.error(
+                "There was an error using pre-trimmed data. Trying again"
+                f" with the original input data. [Error: {e}]"
+            )
+            data_encoded = autoencoder.encode_unstacked_xyz(data)
+            if trim_halo:
+                data_encoded = rank_divider.trim_halo_from_rank_data(data_encoded)
 
     if trim_halo:
-        data_trimmed = rank_divider.trim_halo_from_rank_data(data_encoded)
         no_overlap_rank_divider = rank_divider.get_no_overlap_rank_divider()
         return no_overlap_rank_divider.get_all_subdomains_with_flat_feature(
-            data_trimmed
+            data_encoded
         )
     else:
-        data_trimmed = data_encoded
-        return rank_divider.get_all_subdomains_with_flat_feature(data_trimmed)
+        return rank_divider.get_all_subdomains_with_flat_feature(data_encoded)
 
 
 def get_standard_normalizing_transformer(variables, sample_batch):
