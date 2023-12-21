@@ -11,6 +11,7 @@ from fv3fit._shared.training_config import (
     to_nested_dict,
 )
 from fv3fit._shared import put_dir
+from vcm import get_fs
 
 import yaml
 import fsspec
@@ -173,7 +174,18 @@ def main(args, unknown_args=None):
         model = fv3fit.DerivedModel(model, training_config.derived_output_variables)
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
-    fv3fit.dump(model, args.output_path)
+
+    # There is a test in test_main.py of fv3fit, "test_main_dumps_correct_predictor",
+    # that checks the output path used in the dump call.  Not sure if it's
+    # necessary, but to be safe this change preserves that test while allowing
+    # remote saving of models with mixed components
+    fs = get_fs(args.output_path)
+    if "gs" in fs.protocol:
+        with put_dir(args.output_path) as path:
+            fv3fit.dump(model, path)
+    else:
+        fv3fit.dump(model, args.output_path)
+
     StepMetadata(
         job_type="training", url=args.output_path, args=sys.argv[1:],
     ).print_json()

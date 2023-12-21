@@ -4,6 +4,7 @@ from typing import Union, Optional, Sequence
 import xarray as xr
 import tensorflow as tf
 import wandb
+import logging
 
 from fv3fit.reservoir.utils import get_ordered_X
 from fv3fit.reservoir import (
@@ -12,8 +13,6 @@ from fv3fit.reservoir import (
     HybridReservoirDatasetAdapter,
     ReservoirDatasetAdapter,
 )
-
-import logging
 
 logger = logging.getLogger(__name__)
 
