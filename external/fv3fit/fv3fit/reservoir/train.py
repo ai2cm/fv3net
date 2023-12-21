@@ -6,7 +6,6 @@ import tensorflow as tf
 from typing import Optional, List, Union, cast, Mapping, Sequence
 import wandb
 
-from fv3fit._shared import get_dir
 from fv3fit.reservoir.readout import (
     BatchLinearRegressor,
     combine_readouts_from_subdomain_regressors,
@@ -22,7 +21,7 @@ from .utils import (
     get_standard_normalizing_transformer,
 )
 from .transformers import TransformerGroup, Transformer
-from .._shared import register_training_function
+from .._shared import register_training_function, get_dir
 from . import (
     ReservoirComputingModel,
     HybridReservoirComputingModel,
@@ -35,6 +34,7 @@ from .validation import (
     validation_prediction,
     log_rmse_z_plots,
     log_rmse_scalar_metrics,
+    log_variance_scalar_metrics,
 )
 from .validate_sst import validate_model
 
@@ -351,6 +351,7 @@ def train_reservoir_model(
                 )
                 log_rmse_z_plots(ds_val, model.output_variables)
                 log_rmse_scalar_metrics(ds_val, model.output_variables)
+                log_variance_scalar_metrics(ds_val, model.output_variables)
             except Exception as e:
                 logging.error("Error logging validation metrics to wandb", exc_info=e)
         else:

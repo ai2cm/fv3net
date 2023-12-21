@@ -28,6 +28,7 @@ from runtime.diagnostics.time import (
     IntervalAveragedTimes,
     SelectedTimes,
 )
+from runtime.names import FV3GFS_WRAPPER, SHIELD_WRAPPER
 
 
 @pytest.mark.parametrize(
@@ -362,7 +363,8 @@ def test_fortran_time_config_to_frequency(
         assert time_config.to_frequency() == expected_frequency
 
 
-def test_file_configs_to_namelist_settings_raises_error():
+@pytest.mark.parametrize("wrapper", [FV3GFS_WRAPPER, SHIELD_WRAPPER])
+def test_file_configs_to_namelist_settings_raises_error(wrapper):
     diagnostics = [
         FortranFileConfig(
             "physics_3hourly.zarr",
@@ -378,9 +380,14 @@ def test_file_configs_to_namelist_settings_raises_error():
         ),
     ]
     with pytest.raises(NotImplementedError):
-        file_configs_to_namelist_settings(diagnostics, 900)
+        file_configs_to_namelist_settings(diagnostics, 900, wrapper)
 
 
+@pytest.mark.parametrize(
+    "wrapper, atmos_model_parameter",
+    [(FV3GFS_WRAPPER, "fhout"), (SHIELD_WRAPPER, "fdiag")],
+    ids=[FV3GFS_WRAPPER, SHIELD_WRAPPER],
+)
 @pytest.mark.parametrize(
     "time_config, expected_frequency_in_hours",
     [
@@ -389,7 +396,9 @@ def test_file_configs_to_namelist_settings_raises_error():
         (FortranTimeConfig(kind="interval", frequency=3600), 1),
     ],
 )
-def test_file_configs_to_namelist_settings(time_config, expected_frequency_in_hours):
+def test_file_configs_to_namelist_settings(
+    wrapper, atmos_model_parameter, time_config, expected_frequency_in_hours
+):
     diagnostics = [
         FortranFileConfig(
             "physics_3hourly.zarr",
@@ -401,18 +410,21 @@ def test_file_configs_to_namelist_settings(time_config, expected_frequency_in_ho
             time_config,
         ),
     ]
-    overlay = file_configs_to_namelist_settings(diagnostics, timedelta(seconds=900))
+    overlay = file_configs_to_namelist_settings(
+        diagnostics, timedelta(seconds=900), wrapper
+    )
     expected_overlay = {
         "namelist": {
-            "atmos_model_nml": {"fhout": expected_frequency_in_hours},
+            "atmos_model_nml": {atmos_model_parameter: expected_frequency_in_hours},
             "gfs_physics_nml": {"fhzero": expected_frequency_in_hours},
         }
     }
     assert overlay == expected_overlay
 
 
-def test_file_configs_to_namelist_settings_empty_diagnostics():
-    assert file_configs_to_namelist_settings([], timedelta(seconds=900)) == {}
+@pytest.mark.parametrize("wrapper", [FV3GFS_WRAPPER, SHIELD_WRAPPER])
+def test_file_configs_to_namelist_settings_empty_diagnostics(wrapper):
+    assert file_configs_to_namelist_settings([], timedelta(seconds=900), wrapper) == {}
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,7 @@ from .reservoir import Reservoir
 from .domain2 import RankXYDivider
 from fv3fit._shared import io
 from .utils import square_even_terms
-from .transformers import encode_columns, decode_columns, TransformerGroup
+from .transformers import TransformerGroup
 
 DIMENSION_ORDER = ("x", "y")
 
@@ -94,8 +94,8 @@ class HybridReservoirComputingModel(Predictor):
     def predict(self, hybrid_input: Sequence[np.ndarray]):
         # hybrid input is assumed to be in original spatial xy dims
         # (x, y, feature) and does not include overlaps.
-        encoded_hybrid_input = encode_columns(
-            input_arrs=hybrid_input, transformer=self.transformers.hybrid
+        encoded_hybrid_input = self.transformers.hybrid.encode_unstacked_xyz(
+            hybrid_input
         )
 
         flat_hybrid_in = self._hybrid_rank_divider.get_all_subdomains_with_flat_feature(
@@ -113,9 +113,7 @@ class HybridReservoirComputingModel(Predictor):
         prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
-        decoded_prediction = decode_columns(
-            encoded_output=prediction, transformer=self.transformers.output,
-        )
+        decoded_prediction = self.transformers.output.decode_unstacked_xyz(prediction)
         return decoded_prediction
 
     def _concatenate_readout_inputs(self, hidden_state_input, flat_hybrid_input):
@@ -235,9 +233,7 @@ class ReservoirComputingModel(Predictor):
         prediction = self._output_rank_divider.merge_all_flat_feature_subdomains(
             flat_prediction
         )
-        decoded_prediction = decode_columns(
-            encoded_output=prediction, transformer=self.transformers.output,
-        )
+        decoded_prediction = self.transformers.output.decode_unstacked_xyz(prediction)
         return decoded_prediction
 
     def reset_state(self):
@@ -249,8 +245,8 @@ class ReservoirComputingModel(Predictor):
 
     def increment_state(self, prediction_with_overlap: Sequence[np.ndarray]) -> None:
         # input array is in native x, y, z_feature coordinates
-        encoded_xy_input_arrs = encode_columns(
-            prediction_with_overlap, self.transformers.input
+        encoded_xy_input_arrs = self.transformers.input.encode_unstacked_xyz(
+            prediction_with_overlap
         )
         encoded_flat_sub = self.rank_divider.get_all_subdomains_with_flat_feature(
             encoded_xy_input_arrs
@@ -259,8 +255,8 @@ class ReservoirComputingModel(Predictor):
 
     def synchronize(self, synchronization_time_series):
         # input arrays in native x, y, z_feature coordinates
-        encoded_timeseries = encode_columns(
-            synchronization_time_series, self.transformers.input
+        encoded_timeseries = self.transformers.input.encode_unstacked_xyz(
+            synchronization_time_series
         )
         encoded_flat = self.rank_divider.get_all_subdomains_with_flat_feature(
             encoded_timeseries

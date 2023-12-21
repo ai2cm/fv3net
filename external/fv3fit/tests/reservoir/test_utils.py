@@ -75,6 +75,62 @@ def test_process_batch_data(nz, overlap, trim_halo):
     assert time_series.shape == (nt, rank_divider.n_subdomains, features_per_subdomain,)
 
 
+@pytest.mark.parametrize(
+    "encoder_shape",
+    [(8, 8, 3), (6, 6, 3)],
+    ids=["encoder_expects_halo_input", "encoder_expects_no_halo_input"],
+)
+def test_process_batch_data_trim_workaround(encoder_shape):
+    """
+    This is a temporary test for hanlding the processing when
+    an autoencoder may or may not expect trimmed input data.
+    Once we resolve this issue, this test should be removed.
+    Need some sort of standard on what type of data encoders
+    expect as inputs.
+    """
+
+    class TrimCheckAutoencoder:
+        def __init__(self, expected_dimensions):
+            self.expected_dimensions = expected_dimensions
+
+        def encode_unstacked_xyz(self, data):
+            if data[0].shape[-3:] != self.expected_dimensions:
+                raise ValueError(
+                    f"Expected data shape {self.expected_dimensions} "
+                    f"but got {data[0].shape[-3:]}"
+                )
+            return data[0]
+
+    nt, nx, ny, nz = 10, 8, 8, 3
+    overlap = 1
+    subdomain_layout = (2, 2)
+    batch_data = {
+        "a": np.ones((nt, nx, ny, nz)),
+    }
+    rank_divider = RankXYDivider(
+        subdomain_layout=subdomain_layout,
+        overlap=overlap,
+        overlap_rank_extent=(nx, ny),
+        z_feature_size=nz,
+    )
+
+    encoder = TrimCheckAutoencoder(encoder_shape)
+
+    time_series = process_batch_data(
+        variables=["a"],
+        batch_data=batch_data,
+        rank_divider=rank_divider,
+        autoencoder=encoder,
+        trim_halo=True,
+    )
+    expected_shape = (
+        nt,
+        rank_divider.n_subdomains,
+        rank_divider.get_no_overlap_rank_divider().flat_subdomain_len,
+    )
+    assert time_series.shape == expected_shape
+
+
 def test_assure_txyz_dims():
     nt, nx, ny, nz = 5, 4, 4, 6
     arr_3d = np.ones((nt, nx, ny, nz))

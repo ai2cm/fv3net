@@ -83,7 +83,10 @@ def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
 
 
 def _column_pq2(ds: xr.Dataset) -> xr.DataArray:
-    evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
+    if "surf_evap" in ds.variables:
+        evap = ds.surf_evap
+    else:
+        evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
     column_pq2.attrs = {
         "long_name": "<pQ2> column integrated moistening from physics",

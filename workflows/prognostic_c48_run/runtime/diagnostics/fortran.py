@@ -7,6 +7,8 @@ import cftime
 import fv3config
 
 from .time import All, IntervalAveragedTimes, IntervalTimes, TimeContainer
+from runtime.names import FV3GFS_WRAPPER, SHIELD_WRAPPER
+from runtime.types import WrapperModuleName
 
 # the Fortran model handles diagnostics from these modules in a special way
 FORTRAN_PHYSICS_MODULES = ["gfs_phys", "gfs_sfc"]
@@ -130,7 +132,9 @@ class FortranFileConfig:
 
 
 def file_configs_to_namelist_settings(
-    diagnostics: Sequence[FortranFileConfig], physics_timestep: datetime.timedelta
+    diagnostics: Sequence[FortranFileConfig],
+    physics_timestep: datetime.timedelta,
+    wrapper: WrapperModuleName,
 ) -> Mapping[str, Mapping]:
     """Return overlay for physics output frequency configuration if any physics
     diagnostics are specified in given sequence of FortranFileConfig's."""
@@ -149,10 +153,22 @@ def file_configs_to_namelist_settings(
             # handle case of outputting diagnostics on every physics timestep
             physics_frequency = physics_timestep
         one_hour_duration = datetime.timedelta(hours=1)
+        physics_frequency_hours = physics_frequency / one_hour_duration
+
+        if wrapper == FV3GFS_WRAPPER:
+            atmos_model_parameter = "fhout"
+        elif wrapper == SHIELD_WRAPPER:
+            atmos_model_parameter = "fdiag"
+        else:
+            raise ValueError(
+                f"Unrecognized wrapper provided. Expected {FV3GFS_WRAPPER!r} "
+                f"or {SHIELD_WRAPPER!r}. Got {wrapper!r}."
+            )
+
         return {
             "namelist": {
-                "atmos_model_nml": {"fhout": physics_frequency / one_hour_duration},
-                "gfs_physics_nml": {"fhzero": physics_frequency / one_hour_duration},
+                "atmos_model_nml": {atmos_model_parameter: physics_frequency_hours},
+                "gfs_physics_nml": {"fhzero": physics_frequency_hours},
             }
         }
     else:

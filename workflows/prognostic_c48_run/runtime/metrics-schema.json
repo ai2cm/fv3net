@@ -418,6 +418,16 @@
             "type": "number",
             "description": "",
             "units": "<unkown>"
+        },
+        "cloud_fraction_path": {
+            "type": "number",
+            "description": "",
+            "units": "<unkown>"
+        },
+        "turbulent_kinetic_energy_path": {
+            "type": "number",
+            "description": "column turbulent kinetic energy",
+            "units": "kg/s^2"
         }
     },
     "additionalProperties": false
