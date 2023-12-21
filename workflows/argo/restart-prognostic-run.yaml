@@ -26,7 +26,7 @@ spec:
       steps:
       - - name: choose-node-pool
           templateRef:
-            name: run-fv3gfs
+            name: run-simulation
             template: choose-node-pool
           arguments:
             parameters:
@@ -34,9 +34,16 @@ spec:
               - {name: cpu-cutoff, value: "24"}
               - {name: memory-request, value: "{{inputs.parameters.memory}}"}
               - {name: memory-cutoff, value: "30"}
-      - - name: restart-run
+      - - name: infer-wrapper
+          template: infer-wrapper
+          arguments:
+            parameters:
+              - {name: url, value: "{{inputs.parameters.url}}"}
+      - - &restart-run-fv3gfs
+          name: restart-run-fv3gfs
+          when: "'{{steps.infer-wrapper.outputs.result}}' == 'fv3gfs.wrapper'"
           templateRef:
-            name: run-fv3gfs
+            name: run-simulation
             template: run-all-segments
           arguments:
             parameters:
@@ -46,3 +53,28 @@ spec:
               - {name: memory, value: "{{inputs.parameters.memory}}"}
               - {name: node-pool, value: "{{steps.choose-node-pool.outputs.result}}"}
               - {name: segment, value: 0}
+      - - <<: *restart-run-fv3gfs
+          name: restart-run-shield
+          when: "'{{steps.infer-wrapper.outputs.result}}' == 'shield.wrapper'"
+          templateRef:
+            name: run-simulation
+            template: run-all-segments-shield
+    - name: infer-wrapper
+      inputs:
+        parameters:
+          - name: url
+      script:
+        image:
+          us.gcr.io/vcm-ml/fv3net
+        command: [python]
+        source: |
+          import os
+          import fsspec
+          import yaml
+
+          config_path = os.path.join("{{inputs.parameters.url}}", "fv3config.yml")
+          fs, *_ = fsspec.get_fs_token_paths(config_path)
+          with fs.open(config_path, "r") as file:
+              config = yaml.safe_load(file)
+
+          print(config.get("wrapper", "fv3gfs.wrapper"))

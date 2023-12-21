@@ -5,7 +5,7 @@ resources:
 - training.yaml
 - training-gpu.yaml
 - training-torch.yaml
-- run-fv3gfs.yaml
+- run-simulation.yaml
 - offline-diags.yaml
 - train-diags-prog.yaml
 - cubed-to-latlon.yaml
