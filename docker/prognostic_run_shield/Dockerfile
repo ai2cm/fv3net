@@ -127,5 +127,9 @@ ENV OUTPUT_FREQ_SEC=18000
 # Add fv3net packages to the PYTHONPATH
 ENV PYTHONPATH=${FV3NET_DIR}/workflows/prognostic_c48_run:${FV3NET_DIR}/external/fv3fit:${FV3NET_DIR}/external/emulation:${FV3NET_DIR}/external/vcm:${FV3NET_DIR}/external/artifacts:${FV3NET_DIR}/external/loaders:${FV3NET_DIR}/external/fv3kube:${FV3NET_DIR}/workflows/post_process_run:${FV3NET_DIR}/external/radiation:${PYTHONPATH}
 
+# Set DGLBACKEND to pytorch to silence warnings that it is unset; if unset it is
+# set to pytorch, so this just makes it explicit.
+ENV DGLBACKEND=pytorch
+
 WORKDIR ${FV3NET_DIR}/workflows/prognostic_c48_run
 CMD ["bash"]

@@ -166,14 +166,6 @@ spec:
       container:
         <<: *prepare-config-container-fv3gfs
         image: us.gcr.io/vcm-ml/prognostic_run_shield
-        env:
-          # Without setting the DGLBACKEND some additional text gets added to
-          # the prepared config (a warning that the default backend was set to
-          # pytorch). I do not fully understand why this happens in this image
-          # but not the FV3GFS prognostic run image. Should I just set this in
-          # the Dockerfile itself?
-          - name: DGLBACKEND
-            value: pytorch
     - name: infer-wrapper
       inputs:
         artifacts:
