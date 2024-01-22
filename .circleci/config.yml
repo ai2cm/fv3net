@@ -204,39 +204,6 @@ jobs:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
-  # TODO: Removing this section until we fix the regression validation data
-  # https://github.com/ai2cm/fv3net/pull/2388
-  # validate_radiation_port:
-  #   machine:
-  #     image: ubuntu-2004:202111-02
-  #   environment:
-  #     GOOGLE_PROJECT_ID: vcm-ml
-  #     GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-  #   steps:
-  #     - checkout
-  #     - run:
-  #         name: "gcloud auth"
-  #         command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
-  #     - run:
-  #         name: "Install nix and cachix"
-  #         command: |
-  #           sh <(curl -L https://nixos.org/nix/install) --no-daemon
-  #           . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-  #           nix-env -iA cachix -f https://cachix.org/api/v1/install
-  #           cachix use vulcanclimatemodeling
-  #     - run:
-  #         name: "Get data"
-  #         command: |
-  #           cd external/radiation
-  #           . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-  #           nix-shell --command "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
-  #           nix-shell --command "./get_data.sh"
-  #     - run:
-  #         name: "Validate radiation port"
-  #         command: |
-  #           cd external/radiation
-  #           . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-  #           nix-shell --command "pytest -s tests/test_driver"
   build_and_test_scream:
     parameters:
       image:
