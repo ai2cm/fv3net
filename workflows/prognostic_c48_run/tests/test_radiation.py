@@ -153,11 +153,6 @@ def get_zarr(rundir, zarrname):
     return xr.open_zarr(zarrpath)
 
 
-# https://github.com/ai2cm/fv3net/pull/2388
-# We lost some combination of serialbox regression data stored
-# from a commit off of master on physics_standalone.  If we want
-# to recreate a regression test, we should redo this against
-# current outputs.
 @requires_fv3gfs_wrapper
 def test_radiation_diagnostics_output(completed_rundir):
     ds = get_zarr(completed_rundir, "radiation_diagnostics.zarr")
