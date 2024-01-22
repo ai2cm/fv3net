@@ -9,16 +9,6 @@ else
 
     export MYHOME=`pwd`
 
-    if [ ! -d "./data/fortran/radiation_driver)" ]; then
-        mkdir -p ./data/fortran/radiation_driver
-        gsutil -m cp -r gs://vcm-fv3gfs-serialized-regression-data/physics/radiation_driver/* ./data/fortran/radiation_driver
-        cd ./data/fortran/radiation_driver
-        tar -xzvf dat_files.tar.gz
-        cd $MYHOME
-    else
-        echo "Driver standalone data already present"
-    fi
-
     if [ ! -d "./data/lookupdata" ]; then
         cd ./data
         mkdir lookupdata
