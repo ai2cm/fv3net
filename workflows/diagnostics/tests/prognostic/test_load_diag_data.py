@@ -89,8 +89,8 @@ def test_evaluation_pair_to_input_data_one_day_only():
     catalog = vcm.catalog.catalog
     prognostic = load_diags.SegmentedRun(url, catalog)
     grid = load_diags.load_grid(catalog)
-    start_date = "2016-08-05"
-    end_date = "2016-08-05"
+    start_date = "2016-08-01"
+    end_date = "2016-08-01"
     input_data = load_diags.evaluation_pair_to_input_data(
         prognostic, prognostic, grid, start_date, end_date
     )
@@ -98,11 +98,11 @@ def test_evaluation_pair_to_input_data_one_day_only():
         for t in range(len(prognostic_run.time)):
             assert prognostic_run.time.values[t].year == 2016
             assert prognostic_run.time.values[t].month == 8
-            assert prognostic_run.time.values[t].day == 5
+            assert prognostic_run.time.values[t].day == 1
 
             assert verification.time.values[t].year == 2016
             assert verification.time.values[t].month == 8
-            assert verification.time.values[t].day == 5
+            assert verification.time.values[t].day == 1
 
 
 @pytest.mark.parametrize(
