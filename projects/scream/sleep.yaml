@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: scream-sleep-
+spec:
+  entrypoint: sleep-step
+  templates:
+    - name: sleep-step
+      container:
+        image: busybox
+        command: ["sleep"]
+        args: ["600"] # Sleep for 10 minutes (600 seconds)
+        resources:
+          requests:
+            cpu: "1"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "1"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gpu-sim-pool"
+          effect: "NoSchedule"

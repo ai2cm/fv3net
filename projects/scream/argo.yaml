@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: scream-job-
+spec:
+  entrypoint: scream-and-sleep
+  templates:
+    - name: scream-and-sleep
+      steps:
+      - - name: scream-job
+          template: scream-job
+      - - name: sleep-step
+          template: sleep-step
+    - name: scream-job
+      container:
+        image: us.gcr.io/vcm-ml/prognostic_scream_run:cuda-gpu-test
+        imagePullPolicy: Always
+        # command: [python]
+        # args: [test_device_usage.py]
+        command: ["bash", "-c", "-x", "-e"]
+        args:
+        - |
+            nvidia-smi
+            which nvidia-smi
+            nvcc --version
+            g++ --version
+            cd /src/build_scream
+            export CUDA_PATH=/usr/local/cuda
+            export SCREAM_INPUT_ROOT=/storage/inputdata
+            cmake -DCMAKE_CXX_COMPILER=$(which g++) -DCMAKE_Fortran_COMPILER=$(which mpifort) -DCMAKE_C_COMPILER=$(which mpicc) -DCMAKE_BUILD_TYPE=Debug -D SCREAM_DYNAMICS_DYCORE=HOMME -D SCREAM_FPE=TRUE -D SCREAM_PACK_SIZE=1 -D SCREAM_SMALL_PACK_SIZE=1 -D EKAT_DEFAULT_BFB=ON -D Kokkos_ENABLE_CUDA=TRUE -D CUDA_BUILD=TRUE -DCMAKE_CUDA_ARCHITECTURES=75 -C /src/E3SM/components/eamxx/cmake/machine-files/docker-scream.cmake /src/E3SM/components/eamxx
+            make -j8
+            cd /src/build_scream/tests/uncoupled/ml_correction
+            ./ml_correction_standalone
+        workingDir: /fv3net/projects/scream/working
+        resources:
+          requests:
+            cpu: "4"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "4"
+            memory: "4Gi"
+            nvidia.com/gpu: "1" # Add limit for nvidia.com/gpu resource
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gpu-sim-pool"
+          effect: "NoSchedule"
+    - name: sleep-step
+      container:
+        image: busybox
+        command: ["sleep"]
+        args: ["600"] # Sleep for 10 minutes (600 seconds)
+        resources:
+          requests:
+            cpu: "1"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "1"
+            memory: "4Gi"
+            nvidia.com/gpu: "1"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        - key: "dedicated"
+          operator: "Equal"
+          value: "gpu-sim-pool"
+          effect: "NoSchedule"
+
