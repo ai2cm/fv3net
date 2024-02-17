@@ -161,9 +161,3 @@ RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
 # I'll probably have to pip install cupy, and then no-dep install
 # cupy-xarray since both will be installed previously
 RUN mamba install cupy cupy-xarray h5py
-
-COPY projects/scream/working /fv3net/projects/scream/working
-
-COPY projects/scream/build_scream /src/build_scream
-
-WORKDIR /fv3net/projects/scream/working

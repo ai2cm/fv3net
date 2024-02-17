@@ -4,7 +4,7 @@ IMAGE = $(IMAGE_NAME):$(IMAGE_TAG)
 
 
 enter_scream:
-	docker run -it --rm \
+	docker run --gpus all -it --rm \
 		-w /storage/working \
 		-v /home/andrep/repos/fv3net/docker/prognostic_scream_run/scream:/src/E3SM \
 		-v ./inputdata:/storage/inputdata \
