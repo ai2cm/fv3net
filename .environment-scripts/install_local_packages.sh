@@ -10,7 +10,7 @@ rm -f "external/mappm/mappm/mappm.*.so"
 rm -rf external/mappm/build
 
 set -e
-pip install -c constraints.txt \
+uv pip install -c constraints.txt \
   -e external/artifacts \
   -e external/loaders \
   -e external/fv3fit \
