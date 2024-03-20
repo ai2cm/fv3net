@@ -8,7 +8,7 @@ import xarray as xr
 from .gsutil import authenticate, download_directory, cp
 
 MOSAIC_FILES_URL_DEFAULT = (
-    "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data"
+    "gs://vcm-ml-code-testing-data/gridspec-orography-and-mosaic-data"
 )
 
 
@@ -31,8 +31,8 @@ class FregridLatLon:
             nlat: length of target latitude dimension.
             nlon: length of target longitude dimension.
             mosaic_files_url: (optional) local or remote directory containing mosaic
-                files. Defaults to 'gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-
-                mosaic-data'.
+                files. Defaults to
+                'gs://vcm-ml-code-testing-data/gridspec-orography-and-mosaic-data'.
         """
         self.resolution = resolution
         self.nlat = nlat
