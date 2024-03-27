@@ -46,7 +46,7 @@ def test_invalid_vertical_coordinate_file():
         )
 
 
-@pytest.mark.parametrize("vertical_coordinate_file", [None, "/some/path"])
+@pytest.mark.parametrize("vertical_coordinate_file", [None, "some_path"])
 def test_c48_initial_conditions_overlay(regtest, vertical_coordinate_file):
 
     url = "some/url"

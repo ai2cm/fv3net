@@ -75,15 +75,15 @@ def get_default_config():
     )
 
     config = api.TrainConfig(
-        train_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/train",  # noqa E501
-        test_url="gs://vcm-ml-experiments/microphysics-emulation/2021-11-24/microphysics-training-data-v3-training_netcdfs/test",  # noqa E501
+        train_url="gs://vcm-ml-code-testing-data/microphysics/train",  # noqa E501
+        test_url="gs://vcm-ml-code-testing-data/microphysics/train",  # noqa E501
         out_url="gs://vcm-ml-scratch/andrep/test-train-emulation",
         model=model_config,
         tensor_transform=tensor_transforms,
         transform=transform,
         loss=loss,
-        nfiles=80,
-        nfiles_valid=80,
+        nfiles=30,
+        nfiles_valid=30,
         valid_freq=1,
         epochs=4,
         wandb=api.WandBConfig(job_type="training"),

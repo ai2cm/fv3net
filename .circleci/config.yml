@@ -78,13 +78,14 @@ jobs:
           path: /tmp/coverage/
   argo:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2024.01.2
     steps:
       - checkout
       - run: |
-            sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2
-            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates
+            sudo mkdir -p -m 755 /etc/apt/keyrings
+            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
             sudo apt-get update
             sudo apt-get install -y kubectl
       - run: sudo apt-get install make
