@@ -78,13 +78,11 @@ jobs:
           path: /tmp/coverage/
   argo:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2024.01.2
     steps:
       - checkout
       - run: |
             sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates
-            curl https://cli-assets.heroku.com/apt/release.key | sudo apt-key add -
-            wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
             sudo mkdir -p -m 755 /etc/apt/keyrings
             curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
             echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
