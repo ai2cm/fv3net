@@ -1,8 +1,12 @@
 import abc
 import numpy as np
+import cupy as cp
+import logging
 import os
 from typing import Sequence, Iterable, Hashable
 import xarray as xr
+# import cupy_xarray
+import tensorflow as tf
 import yaml
 
 from fv3fit._shared.halos import append_halos, append_halos_using_mpi
@@ -16,6 +20,8 @@ from fv3fit._shared import (
     put_dir,
 )
 
+# TODO: make cupy cupy_xarray optional imports
+logger = logging.getLogger(__name__)
 
 class ArrayPredictor(abc.ABC):
     @abc.abstractmethod
@@ -58,6 +64,36 @@ def _array_prediction_to_dataset(
     return ds
 
 
+def _cpu_predict(model, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
+    logger.info("Predicting on CPU")
+    inputs = [tf.convert_to_tensor(input_) for input_ in inputs]
+    outputs = model(inputs)
+    outputs = [np.asarray(output.numpy()) for output in outputs]
+    return outputs
+
+
+def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
+    device = inputs[0].device.id
+    with tf.device(f"/GPU:{device}"):
+        logger.info(f"Predicting on GPU device {device}")    
+        inputs = [tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs]
+        outputs = model(inputs)
+        if isinstance(outputs, tf.Tensor):
+            outputs = [outputs]
+        outputs = [cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output)) for output in outputs]
+        return outputs
+
+
+def _predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
+    # TODO: make sure if inputs are not cupy, just revert to cpu prediction
+    data = inputs[0]
+    is_cupy = hasattr(data, "device")
+    if is_cupy and data.device.id >= 0:
+        return _gpu_predict(model, inputs)
+    else:
+        return _cpu_predict(model, inputs)
+
+
 def predict_on_dataset(
     model: ArrayPredictor,
     X: xr.Dataset,
@@ -78,10 +114,8 @@ def predict_on_dataset(
         else:
             X = append_halos(ds=X, n_halo=n_halo)
     X_stacked = stack(X, unstacked_dims=unstacked_dims)
-    inputs = [X_stacked[name].values for name in input_variables]
-    outputs = model.predict(inputs)
-    if isinstance(outputs, np.ndarray):
-        outputs = [outputs]
+    inputs = [X_stacked[name].data for name in input_variables]
+    outputs = _predict(model, inputs)
     return_ds = _array_prediction_to_dataset(
         names=output_variables,
         outputs=outputs,

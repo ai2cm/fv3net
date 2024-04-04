@@ -40,7 +40,7 @@ push_scream:
 
 build_local_pm:
     . /usr/share/lmod/8.3.1/init/sh && \
-	module unload cray-hdf5-parallel cray-netcdf-hdf5parallel 
+	module unload cray-hdf5-parallel cray-netcdf-hdf5parallel \
 		cray-parallel-netcdf cray-netcdf cray-hdf5 PrgEnv-gnu PrgEnv-intel PrgEnv-nvidia PrgEnv-cray \
 		PrgEnv-aocc intel intel-oneapi nvidia aocc cudatoolkit climate-utils craype-accel-nvidia80 \
 		craype-accel-host perftools-base perftools darshan && \
@@ -74,3 +74,27 @@ build_local_pm:
 		-D SCREAM_INPUT_ROOT:PATH=$(LOCAL_SCREAM_INPUT) \
 		$(SCREAM_DIR)/components/eamxx && \
 	make -j$(NUM_PARALLEL_JOBS)
+
+
+gpu_env:
+	. /usr/share/lmod/8.3.1/init/sh \
+	&& module unload cray-hdf5-parallel cray-netcdf-hdf5parallel cray-parallel-netcdf cray-netcdf \
+		cray-hdf5 PrgEnv-gnu PrgEnv-intel PrgEnv-nvidia PrgEnv-cray PrgEnv-aocc intel intel-oneapi \
+		nvidia aocc cudatoolkit climate-utils craype-accel-nvidia80 craype-accel-host perftools-base \
+		perftools darshan \
+	&& module load PrgEnv-gnu/8.3.3 gcc/11.2.0 cudatoolkit/11.7 craype-accel-nvidia80 \
+		cray-libsci/23.02.1.1 craype/2.7.20 cray-mpich/8.1.25 cray-hdf5-parallel/1.12.2.3 \
+		cray-netcdf-hdf5parallel/4.9.0.3 cray-parallel-netcdf/1.12.3.3 cudnn/8.9.3_cuda12 \
+	&& export MPICH_ENV_DISPLAY=1 \
+	&& export MPICH_VERSION_DISPLAY=1 \
+	&& export OMP_STACKSIZE=128M \
+	&& export OMP_PROC_BIND=spread \
+	&& export OMP_PLACES=threads \
+	&& export HDF5_USE_FILE_LOCKING=FALSE \
+	&& export PERL5LIB=/global/cfs/cdirs/e3sm/perl/lib/perl5-only-switch \
+	&& export MPICH_COLL_SYNC=MPI_Bcast \
+	&& export NETCDF_PATH=/opt/cray/pe/netcdf-hdf5parallel/4.9.0.3/gnu/9.1 \
+	&& export PNETCDF_PATH=/opt/cray/pe/parallel-netcdf/1.12.3.3/gnu/9.1 \
+	&& export MPICH_GPU_SUPPORT_ENABLED=1 \
+	&& export ADIOS2_ROOT=/global/cfs/cdirs/e3sm/3rdparty/adios2/2.9.1/cray-mpich-8.1.25/gcc-11.2.0
+
