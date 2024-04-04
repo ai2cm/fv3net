@@ -9,7 +9,7 @@ from fv3net.diagnostics._shared.constants import (
 import logging
 import numpy as np
 import pandas as pd
-from typing import Sequence, Tuple, Dict, List
+from typing import Sequence, Tuple, Dict
 import xarray as xr
 
 import vcm
@@ -60,11 +60,10 @@ def compute_diagnostics(
     target: xr.Dataset,
     grid: xr.Dataset,
     delp: xr.DataArray,
-    horizontal_dims: List[str],
     n_jobs: int = -1,
 ):
     return diagnostics_registry.compute(
-        DiagArg(prediction, target, grid, delp, horizontal_dims), n_jobs=n_jobs,
+        DiagArg(prediction, target, grid, delp), n_jobs=n_jobs,
     )
 
 

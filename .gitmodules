@@ -1,3 +1,6 @@
 [submodule "external/fv3gfs-fortran"]
 	path = external/fv3gfs-fortran
 	url = https://github.com/ai2cm/fv3gfs-fortran.git
+[submodule "external/SHiELD-wrapper"]
+	path = external/SHiELD-wrapper
+	url = https://github.com/ai2cm/SHiELD-wrapper.git

@@ -78,13 +78,14 @@ jobs:
           path: /tmp/coverage/
   argo:
     machine:
-      image: ubuntu-2004:202111-02
+      image: ubuntu-2004:2024.01.2
     steps:
       - checkout
       - run: |
-            sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2
-            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates
+            sudo mkdir -p -m 755 /etc/apt/keyrings
+            curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
             sudo apt-get update
             sudo apt-get install -y kubectl
       - run: sudo apt-get install make
@@ -97,6 +98,7 @@ jobs:
         enum:
           - prognostic_run
           - prognostic_run_gpu
+          - prognostic_run_shield
           - post_process_run
           - fv3net
           - fv3fit
@@ -203,37 +205,6 @@ jobs:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
-  validate_radiation_port:
-    machine:
-      image: ubuntu-2004:202111-02
-    environment:
-      GOOGLE_PROJECT_ID: vcm-ml
-      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-    steps:
-      - checkout
-      - run:
-          name: "gcloud auth"
-          command: echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
-      - run:
-          name: "Install nix and cachix"
-          command: |
-            sh <(curl -L https://nixos.org/nix/install) --no-daemon
-            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-            nix-env -iA cachix -f https://cachix.org/api/v1/install
-            cachix use vulcanclimatemodeling
-      - run:
-          name: "Get data"
-          command: |
-            cd external/radiation
-            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-            nix-shell --command "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
-            nix-shell --command "./get_data.sh"
-      - run:
-          name: "Validate radiation port"
-          command: |
-            cd external/radiation
-            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-            nix-shell --command "pytest -s tests/test_driver"
   build_and_test_scream:
     parameters:
       image:
@@ -312,6 +283,7 @@ workflows:
               image:
                 - prognostic_run
                 - prognostic_run_gpu
+                - prognostic_run_shield
                 - post_process_run
                 - fv3net
                 - artifacts
@@ -347,7 +319,6 @@ workflows:
               only: /^v.*/
             branches:
               only: master
-      - validate_radiation_port
   weekly-workflow:
     when: << pipeline.parameters.run-weekly-workflow >>
     jobs:

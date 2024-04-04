@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: reservoir-sweep-agents-
+spec:
+  entrypoint: sweep-agent
+  arguments:
+    parameters:
+    - name: sweep-id
+    - name: sweep-config
+    - name: training-config
+    - name: training-data-config
+    - name: validation-data-config
+  templates:
+  - name: sweep-agent
+    container:
+      image: us.gcr.io/vcm-ml/fv3fit:latest
+      command: ["bash", "-c"]
+      args:
+        - |
+          cat <<EOF > sweep-config.yaml
+          {{inputs.parameters.sweep-config}}
+          EOF
+          cat <<EOF > training-config.yaml
+          {{inputs.parameters.training-config}}
+          EOF
+          cat <<EOF > training-data.yaml
+          {{inputs.parameters.training-data-config}}
+          EOF
+          cat <<EOF > validation-data.yaml
+          {{inputs.parameters.validation-data-config}}
+          EOF
+
+          echo "Starting sweep agent"
+          wandb agent {{inputs.parameters.sweep-id}}
+      envFrom:
+        - secretRef:
+            name: wandb-service-token
+      resources:
+        requests:
+          cpu: 2
+          memory: 6Gi
+        limits:
+          cpu: 8
+          memory: 12Gi
+    inputs:
+      parameters:
+      - name: sweep-id
+      - name: sweep-config
+      - name: training-config
+      - name: training-data-config
+      - name: validation-data-config
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "med-sim-pool"
+      effect: "NoSchedule"
+
+

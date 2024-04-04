@@ -27,12 +27,12 @@ do
 done
 
 # download orographic data
-gridFiles=2020-11-12-gridspec-orography-and-mosaic-data/$resolution
+gridFiles=gridspec-orography-and-mosaic-data/$resolution
 mosaic=$gridFiles/grid_spec.nc
 if [ ! -f $mosaic ]
 then
     mkdir -p $gridFiles
-    gsutil -m cp gs://vcm-ml-raw/$gridFiles/* $gridFiles
+    gsutil -m cp gs://vcm-ml-code-testing-data/$gridFiles/* $gridFiles
 fi
 remapFile=${resolution}_to_${nlat}x${nlon}.nc
 

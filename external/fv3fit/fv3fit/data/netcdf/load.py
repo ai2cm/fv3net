@@ -1,8 +1,10 @@
 import logging
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Mapping, Optional, Sequence
 
 from pathlib import Path
+import fsspec
 import numpy as np
 import re
 import tensorflow as tf
@@ -116,9 +118,84 @@ def to_tensor(
     return {key: tf.convert_to_tensor(ds[key], dtype=dtype) for key in variable_names}
 
 
+def open_netcdf_file(path: str) -> xr.Dataset:
+    """Open a netcdf from a local/remote path"""
+    with fsspec.open(path) as f:
+        ds = xr.open_dataset(f, engine="h5netcdf")
+        return ds.load()
+
+
+class _BaseNCLoader(TFDatasetLoader):
+    @property
+    @abstractmethod
+    def dim_order(self) -> Optional[Sequence[str]]:
+        pass
+
+    @property
+    def dtype(self):
+        return tf.float32
+
+    def convert(
+        self, ds: xr.Dataset, variables: Sequence[str]
+    ) -> Mapping[str, tf.Tensor]:
+        tensors = {}
+        for key in variables:
+            data_array = self._ensure_consistent_dims(ds[key])
+            tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
+        return tensors
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "TFDatasetLoader":
+        return dacite.from_dict(cls, d, config=dacite.Config(strict=True))
+
+    def _ensure_consistent_dims(self, data_array: xr.DataArray):
+        if self.dim_order:
+            extra_dims_in_data_array = set(data_array.dims) - set(self.dim_order)
+            missing_dims_in_data_array = set(self.dim_order) - set(data_array.dims)
+            if len(extra_dims_in_data_array) > 0:
+                raise ValueError(
+                    f"Extra dimensions {extra_dims_in_data_array} in data that are not "
+                    f"included in configured dimension order {self.dim_order}."
+                    "Make sure these are included in the configuration dim_order."
+                )
+            for missing_dim in missing_dims_in_data_array:
+                data_array = data_array.expand_dims(dim=missing_dim)
+            data_array = data_array.transpose(*self.dim_order)
+        return data_array
+
+
 @register_tfdataset_loader
 @dataclass
-class NCDirLoader(TFDatasetLoader):
+class NCFileLoader(_BaseNCLoader):
+    """
+    Loads a single remote/local netCDF file into a dataset.  Useful for the
+    case where the directory contains multiple netcdf files for different
+    purposes vs. having to create a new directory for each set of
+    training/validation files.
+
+    Attributes:
+        filepath: a path (local or remote) to the netcdf file
+        dim_order: Order of dimensions in tensors.
+    """
+
+    filepath: str = ""
+    dim_order: Optional[Sequence[str]] = None
+
+    def open_tfdataset(
+        self, local_download_path: Optional[str], variable_names: Sequence[str],
+    ) -> tf.data.Dataset:
+        def convert(x):
+            return self.convert(x, variable_names)
+
+        transform = compose_left(open_netcdf_file, convert)
+        return iterable_to_tfdataset(
+            [self.filepath], transform, varying_first_dim=False
+        ).prefetch(tf.data.AUTOTUNE)
+
+
+@register_tfdataset_loader
+@dataclass
+class NCDirLoader(_BaseNCLoader):
     """Loads a folder of netCDF files at given path
 
     Each file must have identical CDL scheme returned by ``ncdump -h``.
@@ -151,26 +228,14 @@ class NCDirLoader(TFDatasetLoader):
 
     """
 
-    url: str
+    url: str = ""
+    dim_order: Optional[Sequence[str]] = None
     nfiles: Optional[int] = None
     shuffle: bool = True
     seed: int = 0
-    dim_order: Optional[Sequence[str]] = None
     varying_first_dim: bool = False
     sort_files: bool = False
-
-    @property
-    def dtype(self):
-        return tf.float32
-
-    def convert(
-        self, ds: xr.Dataset, variables: Sequence[str]
-    ) -> Mapping[str, tf.Tensor]:
-        tensors = {}
-        for key in variables:
-            data_array = self._ensure_consistent_dims(ds[key])
-            tensors[key] = tf.convert_to_tensor(data_array, dtype=self.dtype)
-        return tensors
+    match: Optional[str] = None
 
     def open_tfdataset(
         self, local_download_path: Optional[str], variable_names: Sequence[str],
@@ -187,23 +252,5 @@ class NCDirLoader(TFDatasetLoader):
             cache=local_download_path,
             varying_first_dim=self.varying_first_dim,
             sort_files=self.sort_files,
+            match=self.match,
         )
-
-    @classmethod
-    def from_dict(cls, d: dict) -> "TFDatasetLoader":
-        return dacite.from_dict(cls, d, config=dacite.Config(strict=True))
-
-    def _ensure_consistent_dims(self, data_array: xr.DataArray):
-        if self.dim_order:
-            extra_dims_in_data_array = set(data_array.dims) - set(self.dim_order)
-            missing_dims_in_data_array = set(self.dim_order) - set(data_array.dims)
-            if len(extra_dims_in_data_array) > 0:
-                raise ValueError(
-                    f"Extra dimensions {extra_dims_in_data_array} in data that are not "
-                    f"included in configured dimension order {self.dim_order}."
-                    "Make sure these are included in the configuration dim_order."
-                )
-            for missing_dim in missing_dims_in_data_array:
-                data_array = data_array.expand_dims(dim=missing_dim)
-            data_array = data_array.transpose(*self.dim_order)
-        return data_array

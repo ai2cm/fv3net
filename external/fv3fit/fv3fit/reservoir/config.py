@@ -1,6 +1,6 @@
 import dacite
 from dataclasses import dataclass, asdict
-from typing import Sequence, Optional, Set, Tuple
+from typing import Sequence, Tuple, Optional, Set
 import fsspec
 import yaml
 from .._shared.training_config import Hyperparameters
@@ -88,9 +88,15 @@ class ReservoirTrainingConfig(Hyperparameters):
         predictions in Wikner+2020 (https://doi.org/10.1063/5.0005541)
     transformers: optional TransformerConfig for autoencoders to use in
         encoding input, output, and/or hybrid variable sets.
-    mask_variable: if specified, save mask array that is multiplied to the input array
-        before multiplication with W_in. This applies a mask using the
-        mask_variable field.
+    mask_reservoir_inputs: Apply the mask_variable to the reservoir inputs (not the
+        hybrid, which is specified by mask_hybrid_inputs). Mask is applied to the input
+        array before multiplication with W_in.
+    mask_hybrid_inputs: Apply the mask_variable to the hybrid inputs.  Applied prior
+        to input to the readout layer.
+    mask_variable: mask variable to use if mask_reservoir_inputs or mask_readout
+        are specified, or to use for validation if validate_sst_only is specified.
+    validate_sst_only: if True, perform the SST validation instead of the atmosphere
+        validation code
     """
 
     input_variables: Sequence[str]
@@ -105,7 +111,10 @@ class ReservoirTrainingConfig(Hyperparameters):
     n_jobs: Optional[int] = 1
     square_half_hidden_state: bool = False
     hybrid_variables: Optional[Sequence[str]] = None
+    mask_reservoir_inputs: bool = False
+    mask_hybrid_inputs: bool = False
     mask_variable: Optional[str] = None
+    validate_sst_only: bool = False
     _METADATA_NAME = "reservoir_training_config.yaml"
 
     def __post_init__(self):
@@ -118,6 +127,10 @@ class ReservoirTrainingConfig(Hyperparameters):
                     f"Hybrid variables {self.hybrid_variables} cannot overlap with "
                     f"input variables {self.input_variables}."
                 )
+        if (
+            self.mask_reservoir_inputs or self.mask_hybrid_inputs
+        ) and self.mask_variable is None:
+            raise ValueError("mask_variable must be specified if masking is enabled")
 
     @property
     def variables(self) -> Set[str]:
@@ -171,6 +184,13 @@ class ReservoirTrainingConfig(Hyperparameters):
             "readout_hyperparameters": asdict(self.readout_hyperparameters),
             "subdomain": asdict(self.subdomain),
             "transformers": asdict(self.transformers),
+            "input_variables": self.input_variables,
+            "output_variables": self.output_variables,
+            "hybrid_variables": self.hybrid_variables,
+            "mask_reservoir_inputs": self.mask_reservoir_inputs,
+            "mask_hybrid_inputs": self.mask_hybrid_inputs,
+            "mask_variable": self.mask_variable,
+            "validate_sst_only": self.validate_sst_only,
         }
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         fs.makedirs(path, exist_ok=True)

@@ -53,8 +53,10 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
     and attributes.  The naming is used by report generation to determine the
     component shorthand.  E.g., diurn_component_<component_name>
     """
-
-    evap = vcm.latent_heat_flux_to_evaporation(diurnal_cycles["LHTFLsfc"])
+    if "surf_evap" in diurnal_cycles.variables:
+        evap = diurnal_cycles.surf_evap
+    else:
+        evap = vcm.latent_heat_flux_to_evaporation(diurnal_cycles["LHTFLsfc"])
     evap *= SECONDS_PER_DAY
     evap.attrs = {"long_name": "Evaporation", "units": "mm/day"}
     diurnal_cycles["diurn_component_evaporation"] = evap

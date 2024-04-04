@@ -158,7 +158,7 @@ def test_round_time_numpy():
 
 
 @pytest.mark.parametrize(
-    "res, expected", [("c12", "fv3"), ("c48", "fv3"), ("ne30", "scream"),],
+    "res, expected", [("c12", "fv3gfs"), ("c48", "fv3gfs"), ("ne30", "scream"),],
 )
 def test_gsrm_name(res, expected):
     assert gsrm_name_from_resolution_string(res) == expected

@@ -183,7 +183,7 @@ class HighLevelConfig(UserConfig, FV3Config):
             self._to_fv3config_specific().asdict(),
             _diag_table_overlay(self.fortran_diagnostics),
             file_configs_to_namelist_settings(
-                self.fortran_diagnostics, self._physics_timestep()
+                self.fortran_diagnostics, self._physics_timestep(), self.wrapper
             ),
             {"zhao_carr_emulation": self.zhao_carr_emulation.to_dict()},
         )

@@ -1,5 +1,6 @@
 import argparse
 import logging
+import tempfile
 import os
 from typing import Optional, Sequence, Tuple
 import tensorflow as tf
@@ -10,6 +11,7 @@ from fv3fit._shared.training_config import (
     to_nested_dict,
 )
 from fv3fit._shared import put_dir
+from vcm import get_fs
 
 import yaml
 import fsspec
@@ -102,7 +104,6 @@ def load_data(
 
 
 def main(args, unknown_args=None):
-
     with open(args.training_config, "r") as f:
         config_dict = yaml.safe_load(f)
         if unknown_args is not None:
@@ -173,7 +174,18 @@ def main(args, unknown_args=None):
         model = fv3fit.DerivedModel(model, training_config.derived_output_variables)
     if len(training_config.output_transforms) > 0:
         model = fv3fit.TransformedPredictor(model, training_config.output_transforms)
-    fv3fit.dump(model, args.output_path)
+
+    # There is a test in test_main.py of fv3fit, "test_main_dumps_correct_predictor",
+    # that checks the output path used in the dump call.  Not sure if it's
+    # necessary, but to be safe this change preserves that test while allowing
+    # remote saving of models with mixed components
+    fs = get_fs(args.output_path)
+    if "gs" in fs.protocol:
+        with put_dir(args.output_path) as path:
+            fv3fit.dump(model, path)
+    else:
+        fv3fit.dump(model, args.output_path)
+
     StepMetadata(
         job_type="training", url=args.output_path, args=sys.argv[1:],
     ).print_json()
@@ -195,22 +207,36 @@ def disable_tensorflow_gpu_preallocation():
         logging.info("%d physical gpus, %d logical gpus", len(gpus), len(logical_gpus))
 
 
+def ensure_configs_in_abs_path(args):
+    """
+    We need to change to a temporary directory, ensure config paths are absolute.
+    """
+    args.training_config = os.path.abspath(args.training_config)
+    args.training_data_config = os.path.abspath(args.training_data_config)
+    if args.validation_data_config is not None:
+        args.validation_data_config = os.path.abspath(args.validation_data_config)
+
+
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     parser = get_parser()
     args, unknown_args = parser.parse_known_args()
     disable_tensorflow_gpu_preallocation()
-    os.makedirs("artifacts", exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d : %(message)s",
-        handlers=[
-            logging.FileHandler("artifacts/training.log"),
-            logging.StreamHandler(),
-        ],
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    main(args, unknown_args)
-
-    with put_dir(args.output_path) as path:
-        shutil.move("artifacts", os.path.join(path, "artifacts"))
+    with tempfile.TemporaryDirectory() as tempdir:
+        ensure_configs_in_abs_path(args)
+        os.chdir(tempdir)
+        os.makedirs(os.path.join(tempdir, "artifacts"), exist_ok=True)
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(filename)s::L%(lineno)d: %(message)s",
+            handlers=[
+                logging.FileHandler(f"{tempdir}/artifacts/training.log"),
+                logging.StreamHandler(),
+            ],
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        main(args, unknown_args)
+        with put_dir(args.output_path) as path:
+            shutil.move(
+                os.path.join(tempdir, "artifacts"), os.path.join(path, "artifacts")
+            )

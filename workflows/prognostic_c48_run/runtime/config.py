@@ -1,5 +1,6 @@
 from typing import List, Optional, Union, Iterable
 import dataclasses
+import importlib
 import yaml
 import f90nml
 
@@ -18,6 +19,7 @@ from runtime.steppers.interval import IntervalConfig
 from runtime.transformers.tendency_prescriber import TendencyPrescriberConfig
 import runtime.transformers.fv3fit
 from runtime.steppers.radiation import RadiationStepperConfig
+from runtime.types import WrapperModuleName
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 FV3CONFIG_KEYS = {
@@ -56,6 +58,8 @@ class UserConfig:
             from a dataset.
         reservoir_corrector: configuration for using a reservoir computing model to
             correct the final model state
+        wrapper: Python wrapper used for the simulation (default "fv3gfs.wrapper").
+            Supported values are "fv3gfs.wrapper" or "shield.wrapper".
     """
 
     diagnostics: List[DiagnosticFileConfig] = dataclasses.field(default_factory=list)
@@ -73,6 +77,7 @@ class UserConfig:
     radiation_scheme: Optional[RadiationStepperConfig] = None
     bias_correction: Optional[Union[PrescriberConfig, IntervalConfig]] = None
     reservoir_corrector: Optional[ReservoirConfig] = None
+    wrapper: WrapperModuleName = "fv3gfs.wrapper"
 
     @property
     def diagnostic_variables(self) -> Iterable[str]:
@@ -123,3 +128,13 @@ def get_model_urls(config_dict: dict) -> List[str]:
         for entry in prephysics_config:
             urls += entry.get("model", [])
     return urls
+
+
+def get_wrapper(config: UserConfig):
+    """Import the appropriate wrapper based on the config"""
+    try:
+        return importlib.import_module(config.wrapper)
+    except ModuleNotFoundError:
+        raise ImportError(
+            f"Required wrapper {config.wrapper!r} not installed in environment"
+        )

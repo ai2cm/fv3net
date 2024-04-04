@@ -137,7 +137,10 @@ def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
-            long_name = v.long_name
+            if hasattr(v, "long_name"):
+                long_name = v.long_name
+            else:
+                long_name = varname
             hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                 line_dash=style, color=color
             )
@@ -160,10 +163,17 @@ def plot_1d_min_max_with_region_bar(
             vmax = run_diags.get_variable(run, max_var).rename("max")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
-            long_name = vmin.long_name
+            if hasattr(vmin, "long_name"):
+                long_name = vmin.long_name
+            else:
+                long_name = min_var
+            if hasattr(vmin, "units"):
+                units = vmin.units
+            else:
+                units = "unknown"
             region = min_var.split("_")[-1]
             # Area plot doesn't automatically add correct y label
-            ylabel = f'{vmin.attrs["long_name"]} {vmin.attrs["units"]}'
+            ylabel = f"{long_name} {units}"
             hmap[(long_name, region, run)] = hv.Area(
                 (vmin.time, vmin, vmax), label="Min/max", vdims=["y", "y2"]
             ).options(line_dash=style, color=color, alpha=0.6, ylabel=ylabel)
@@ -181,7 +191,10 @@ def plot_1d_with_region_bar(run_diags: RunDiagnostics, varfilter: str) -> HVPlot
             v = run_diags.get_variable(run, varname).rename("value")
             style = "solid" if run_diags.is_baseline(run) else "dashed"
             color = "black" if run_diags.is_verification(run) else COLOR_CYCLE
-            long_name = v.long_name
+            if hasattr(v, "long_name"):
+                long_name = v.long_name
+            else:
+                long_name = varname
             region = varname.split("_")[-1]
             hmap[(long_name, region, run)] = hv.Curve(v, label=varfilter,).options(
                 line_dash=style, color=color

@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import subprocess
+from fv3post.gsutil import authenticate
 from runtime.segmented_run.append import read_last_segment
 from runtime.segmented_run.run import compose_simulation_command, runfile
 from vcm.cloud import get_fs
@@ -26,6 +27,12 @@ def test_read_last_segment_gcs(tmp_path: Path):
     # (https://cloud.google.com/storage/docs/consistency)
     # and also any integrations with fsspec which has several layers of internal
     # caching which can break this.
+
+    # Note that we must ensure that we are authenticated
+    # with gcloud, which can be accomplished by calling the authenticate
+    # function from fv3post.gsutil.
+    authenticate()
+
     id_ = uuid.uuid4().hex
     url = "gs://vcm-ml-scratch/test_data" + "/" + id_
     last_segment = None

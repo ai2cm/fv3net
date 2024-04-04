@@ -1,0 +1,2 @@
+filepath: gs://vcm-ml-intermediate/reservoir/era5_training/val_tile${TILE}.nc
+dim_order: ["time", "x", "y"]

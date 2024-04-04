@@ -38,25 +38,57 @@ spec:
               - {name: bucket, value: "{{inputs.parameters.bucket}}"}
               - {name: project, value: "{{inputs.parameters.project}}"}
               - {name: tag, value: "{{inputs.parameters.tag}}"}
-      - - name: prepare-config
-          template: prepare-config
+      - - name: convert-input-config-to-artifact
+          template: convert-input-config-to-artifact
           arguments:
             parameters:
               - {name: config, value: "{{inputs.parameters.config}}"}
-      - - name: run-model
+      - - template: infer-wrapper
+          name: infer-wrapper
+          arguments:
+            artifacts:
+              - name: config
+                from: "{{steps.convert-input-config-to-artifact.outputs.artifacts.config}}"
+            parameters:
+              - {name: config, value: "{{inputs.parameters.config}}"}
+      - - &prepare-config-step-fv3gfs
+          name: prepare-config-fv3gfs
+          template: prepare-config-fv3gfs
+          when: "'{{steps.infer-wrapper.outputs.result}}' == 'fv3gfs.wrapper'"
+          arguments:
+            artifacts:
+              - name: config
+                from: "{{steps.convert-input-config-to-artifact.outputs.artifacts.config}}"
+      - - <<: *prepare-config-step-fv3gfs
+          name: prepare-config-shield
+          template: prepare-config-shield
+          when: "'{{steps.infer-wrapper.outputs.result}}' == 'shield.wrapper'"
+      - - &run-model-step-fv3gfs
+          name: run-model-fv3gfs
           continueOn:
             failed: true
+          when: "'{{steps.infer-wrapper.outputs.result}}' == 'fv3gfs.wrapper'"
           templateRef:
-            name: run-fv3gfs
+            name: run-simulation
             template: run-fv3gfs
           arguments:
             artifacts:
-              - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
-            parameters:
+              - {name: fv3config, from: "{{steps.prepare-config-fv3gfs.outputs.artifacts.fv3config}}"}
+            parameters: &run-model-step-parameters-fv3gfs
               - {name: output-url, value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run"}
               - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
+      - - <<: *run-model-step-fv3gfs
+          name: run-model-shield
+          when: "'{{steps.infer-wrapper.outputs.result}}' == 'shield.wrapper'"
+          templateRef:
+            name: run-simulation
+            template: run-shield
+          arguments:
+            artifacts:
+              - {name: fv3config, from: "{{steps.prepare-config-shield.outputs.artifacts.fv3config}}"}
+            parameters: *run-model-step-parameters-fv3gfs
       - - name: online-diags
           when: "{{inputs.parameters.online-diags}} == true"
           templateRef:
@@ -81,19 +113,39 @@ spec:
                   value: "{{steps.resolve-output-url.outputs.result}}/fv3gfs_run_diagnostics"
       - - name: exit
           template: exit
-          when: "{{steps.run-model.status}} == Failed"
+          when: "{{steps.run-model-fv3gfs.status}} == Failed || {{steps.run-model-shield.status}} == Failed"
     - name: exit
       container:
         image: ubuntu:20.04
         command: ["exit", "1"]
-    - name: prepare-config
+    - name: convert-input-config-to-artifact
       inputs:
         parameters:
           - name: config
       outputs:
         artifacts:
-          - {name: fv3config, path: /tmp/fv3config.yaml}
+          - {name: config, path: /tmp/config.yaml}
       container:
+        image: bash
+        command: ["bash", "-c", "-x", "-e"]
+        volumeMounts:
+          - name: workdir
+            mountPath: /tmp
+        args:
+          - |
+            cat << EOF > /tmp/config.yaml
+            {{inputs.parameters.config}}
+            EOF
+    - &prepare-config-fv3gfs
+      name: prepare-config-fv3gfs
+      inputs:
+        artifacts:
+          - name: config
+            path: /tmp/config.yaml
+      outputs:
+        artifacts:
+          - {name: fv3config, path: /tmp/fv3config.yaml}
+      container: &prepare-config-container-fv3gfs
         image: us.gcr.io/vcm-ml/prognostic_run
         resources:
           requests:
@@ -108,11 +160,22 @@ spec:
           - name: workdir
             mountPath: /tmp
         args:
-          - |
-            cat << EOF > config.yaml
-            {{inputs.parameters.config}}
-            EOF
-
-            prepare-config \
-              config.yaml \
-              > /tmp/fv3config.yaml
+          - prepare-config /tmp/config.yaml > /tmp/fv3config.yaml
+    - <<: *prepare-config-fv3gfs
+      name: prepare-config-shield
+      container:
+        <<: *prepare-config-container-fv3gfs
+        image: us.gcr.io/vcm-ml/prognostic_run_shield
+    - name: infer-wrapper
+      inputs:
+        artifacts:
+          - name: config
+            path: /mnt/data/config.yaml
+      script:
+        image: us.gcr.io/vcm-ml/fv3net
+        command: [python]
+        source: |
+          import yaml
+          with open("/mnt/data/config.yaml", "r") as file:
+              config = yaml.safe_load(file)
+          print(config.get("wrapper", "fv3gfs.wrapper"))

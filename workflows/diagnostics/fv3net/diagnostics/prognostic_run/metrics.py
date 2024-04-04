@@ -12,8 +12,12 @@ Usage:
 from typing import Mapping, Sequence, Tuple
 import numpy as np
 import xarray as xr
-from fv3net.diagnostics._shared.constants import HORIZONTAL_DIMS_FV3
+from fv3net.diagnostics._shared.constants import (
+    HORIZONTAL_DIMS_FV3,
+    HORIZONTAL_DIMS_SCREAM,
+)
 from fv3net.diagnostics._shared.registry import Registry
+from vcm import check_if_scream_dataset
 from .derived_diagnostics import derived_registry
 from .constants import (
     PERCENTILES,
@@ -149,9 +153,11 @@ for mask_type in ["global", "land", "sea"]:
         if len(time_mean_value) == 0:
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
-        time_and_global_mean_value = weighted_mean(
-            time_mean_value, masked_area, HORIZONTAL_DIMS_FV3
-        )
+        if check_if_scream_dataset(time_mean_value):
+            dims = HORIZONTAL_DIMS_SCREAM
+        else:
+            dims = HORIZONTAL_DIMS_FV3
+        time_and_global_mean_value = weighted_mean(time_mean_value, masked_area, dims)
         restore_units(time_mean_value, time_and_global_mean_value)
         return time_and_global_mean_value
 
@@ -164,9 +170,11 @@ for mask_type in ["global", "land", "sea"]:
         if len(time_mean_bias) == 0:
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
-        time_and_domain_mean_bias = weighted_mean(
-            time_mean_bias, masked_area, HORIZONTAL_DIMS_FV3
-        )
+        if check_if_scream_dataset(time_mean_bias):
+            dims = HORIZONTAL_DIMS_SCREAM
+        else:
+            dims = HORIZONTAL_DIMS_FV3
+        time_and_domain_mean_bias = weighted_mean(time_mean_bias, masked_area, dims)
         restore_units(time_mean_bias, time_and_domain_mean_bias)
         return time_and_domain_mean_bias
 
@@ -179,8 +187,12 @@ for mask_type, suffix in zip(["global", "land", "sea"], ["", "_land", "_sea"]):
         if len(time_mean_bias) == 0:
             return xr.Dataset()
         masked_area = _mask_array(mask_type, diags["area"], diags["land_sea_mask"])
+        if check_if_scream_dataset(time_mean_bias):
+            dims = HORIZONTAL_DIMS_SCREAM
+        else:
+            dims = HORIZONTAL_DIMS_FV3
         rms_of_time_mean_bias = np.sqrt(
-            weighted_mean(time_mean_bias ** 2, masked_area, HORIZONTAL_DIMS_FV3)
+            weighted_mean(time_mean_bias ** 2, masked_area, dims)
         )
         restore_units(time_mean_bias, rms_of_time_mean_bias)
         return rms_of_time_mean_bias
@@ -259,7 +271,10 @@ def compute_percentile(
 
 def restore_units(source, target):
     for variable in target:
-        target[variable].attrs["units"] = source[variable].attrs["units"]
+        if "units" in source[variable].attrs:
+            target[variable].attrs["units"] = source[variable].attrs["units"]
+        else:
+            target[variable].attrs["units"] = "unknown"
 
 
 def register_parser(subparsers):

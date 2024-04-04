@@ -153,7 +153,7 @@ def insert_rmse(ds: xr.Dataset):
 def load_grid_info(catalog: intake.Catalog, res: str = "c48"):
     if gsrm_name_from_resolution_string(res) == "scream":
         return load_grid_info_scream(catalog, res)
-    elif gsrm_name_from_resolution_string(res) == "fv3":
+    elif gsrm_name_from_resolution_string(res) == "fv3gfs":
         return load_grid_info_fv3(catalog, res)
     else:
         raise ValueError(f"Unknown evaluation grid {res}.")

@@ -1,8 +1,8 @@
 from typing import Sequence, Mapping, Hashable, Any, Optional
 import dataclasses
 
-LOOKUP_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/lookupdata/lookup.tar.gz"  # noqa: E501
-FORCING_DATA_PATH = "gs://vcm-fv3gfs-serialized-regression-data/physics/forcing/data.tar.gz"  # noqa: 501
+LOOKUP_DATA_PATH = "gs://vcm-ml-intermediate/radiation/lookupdata/lookup.tar.gz"  # noqa
+FORCING_DATA_PATH = "gs://vcm-ml-intermediate/radiation/forcing/data.tar.gz"  # noqa
 
 
 @dataclasses.dataclass()
