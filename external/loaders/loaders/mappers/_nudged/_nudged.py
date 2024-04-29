@@ -291,6 +291,13 @@ def open_nudge_to_fine_scream(
         "tendency_of_V_due_to_scream_physics": "pQv",
         "tendency_of_T_mid_due_to_scream_physics": "pQ1",
         "tendency_of_qv_due_to_scream_physics": "pQ2",
+        "LW_flux_dn_at_model_bot": "total_sky_downward_longwave_flux_at_surface",
+        "LW_flux_up_at_model_bot": "total_sky_upward_longwave_flux_at_surface",
+        "LW_flux_up_at_model_top": "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+        "SW_flux_dn_at_model_bot": "total_sky_downward_shortwave_flux_at_surface",
+        "SW_flux_up_at_model_bot": "total_sky_upward_shortwave_flux_at_surface",
+        "SW_flux_up_at_model_top": "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+        "SW_flux_dn_at_model_top": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
     }
     rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
     return XarrayMapper(ds.rename(rename_vars))
