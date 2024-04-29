@@ -3,6 +3,7 @@ import xarray as xr
 from typing import Mapping, Hashable, List
 import vcm
 import os
+from dask.distributed import Client
 from util import (
     convert_npdatetime_to_cftime,
     rename_lev_to_z,
@@ -301,6 +302,7 @@ def determine_tendency_variables(ds: xr.Dataset, run_label: str):
 if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
+    client = Client(n_workers=32)
     ds = xr.open_mfdataset(args.input_data, compat="override", coords="minimal")
     if args.subset:
         logger.info("Subset to the first 100 timesteps")
