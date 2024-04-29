@@ -34,7 +34,7 @@ class Registry:
     @staticmethod
     def load(name, func, *args, **kwargs):
         _start_logger_if_necessary()
-        return name, func(*args, **kwargs).load()
+        return name, func(*args, **kwargs).compute()
 
 
 def _start_logger_if_necessary():

@@ -2,7 +2,6 @@ import argparse
 import logging
 
 from fv3net.diagnostics.prognostic_run import compute, metrics, shell
-from fv3net.diagnostics.prognostic_run.apps import log_viewer
 from fv3net.diagnostics.prognostic_run.emulation import single_run
 from fv3net.diagnostics.prognostic_run.views import movies, static_report
 
@@ -22,7 +21,6 @@ def get_parser():
 
     for entrypoint in [
         compute,
-        log_viewer,
         metrics,
         movies,
         shell,
