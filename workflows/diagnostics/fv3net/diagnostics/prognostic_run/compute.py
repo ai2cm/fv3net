@@ -118,12 +118,9 @@ def _merge_diag_computes(
 
     batch_size = 16
     computed_outputs = []
-    gc.disable()
     for i in range(0, len(merged_input_data), batch_size):
         futures = client.map(_compute, merged_input_data[i : i + batch_size])
         computed_outputs += client.gather(futures)
-        client.restart()
-    gc.enable()
     # computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
     #     delayed(_compute)(*compute_args) for compute_args in merged_input_data
     # )
