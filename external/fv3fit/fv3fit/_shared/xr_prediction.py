@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Sequence, Iterable, Hashable
 import xarray as xr
-# import cupy_xarray
+import cupy_xarray
 import tensorflow as tf
 import yaml
 
@@ -88,6 +88,8 @@ def _predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
     # TODO: make sure if inputs are not cupy, just revert to cpu prediction
     data = inputs[0]
     is_cupy = hasattr(data, "device")
+    logger.info(type(data))
+    logger.info(f"Current device: {str(tf.config.get_visible_devices())}")
     if is_cupy and data.device.id >= 0:
         return _gpu_predict(model, inputs)
     else:
