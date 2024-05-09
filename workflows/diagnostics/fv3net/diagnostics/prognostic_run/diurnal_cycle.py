@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import xarray as xr
+import flox.xarray
 
 import vcm
 
@@ -36,14 +37,24 @@ def _calc_ds_diurnal_cycle(ds):
     local_time = vcm.local_time(ds, time="time", lon_var="lon")
     local_time.attrs = {"long_name": "local time", "units": "hour"}
 
-    local_time = np.floor(local_time)  # equivalent to hourly binning
-    ds["local_time"] = local_time
+    local_time = np.floor(local_time).load() # equivalent to hourly binning
+    labels = np.unique(local_time)
+    
     diurnal_cycles = xr.Dataset()
     for var in ds.data_vars:
+        logger.info(f"Calculating diurnal cycle for {var}")
         with xr.set_options(keep_attrs=True):
-            diurnal_cycles[var] = (
-                ds[[var, "local_time"]].groupby("local_time").mean()[var].load()
-            )
+            diurnal_cycles[var] = flox.xarray.xarray_reduce(
+                ds[var], 
+                local_time.rename("local_time"),
+                func="nanmean", 
+                expected_groups=(labels,),
+                method="map-reduce",
+                engine="flox"
+            ).compute()
+            # diurnal_cycles[var] = (
+            #     ds[[var, "local_time"]].load().dropna().groupby("local_time").mean(method="map-reduce", engine="flox")[var].load()
+            # )
     return diurnal_cycles
 
 

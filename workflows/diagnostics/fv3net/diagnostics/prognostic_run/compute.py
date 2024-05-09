@@ -17,14 +17,9 @@ import sys
 
 import datetime
 import intake
-import numpy as np
 import xarray as xr
-from dask.diagnostics import ProgressBar
-from dask import delayed
-from dask.distributed import Client, worker_client
-import gc
+from dask.distributed import Client, worker_client, worker_client
 import fsspec
-# from joblib import Parallel, delayed
 
 
 from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence
@@ -88,7 +83,7 @@ def _merge_diag_computes(
 ) -> Mapping[str, xr.DataArray]:
     # Flattens list of all computations across registries before
     # parallelizing the computation.
-    merged_input_data = []
+    merged_input_data = {"2d": [], "3d": []}
     for registry_key, (prog, verif, grid) in input_data.items():
 
         if len(prog) == 0:
@@ -106,7 +101,7 @@ def _merge_diag_computes(
             continue
 
         diag_arg = DiagArg(prog, verif, grid)
-        merged_input_data += [
+        merged_input_data[registry_key] += [
             (func_name, func, registry_key, diag_arg)
             for func_name, func in registries[registry_key].funcs.items()
         ]
@@ -116,15 +111,17 @@ def _merge_diag_computes(
         with worker_client() as client:
             return registries[key].load(func_name, func, diag_arg)
 
-    batch_size = 16
     computed_outputs = []
-    for i in range(0, len(merged_input_data), batch_size):
-        futures = client.map(_compute, merged_input_data[i : i + batch_size])
-        computed_outputs += client.gather(futures)
-    # computed_outputs = Parallel(n_jobs=n_jobs, verbose=True)(
-    #     delayed(_compute)(*compute_args) for compute_args in merged_input_data
-    # )
+    
+    # batch_size = 2
+    # for i in range(0, len(merged_input_data["3d"]), batch_size):
+    #     futures = client.map(_compute, merged_input_data["3d"][i : i + batch_size])
+    #     computed_outputs += client.gather(futures)
 
+    batch_size = 8
+    for i in range(0, len(merged_input_data["2d"]), batch_size):
+        futures = client.map(_compute, merged_input_data["2d"][i : i + batch_size])
+        computed_outputs += client.gather(futures)
 
     return merge_diags(computed_outputs)
 
@@ -168,9 +165,7 @@ def ignore_nan_values(x, y, w):
 
 def rms(x, y, w, dims):
     with xr.set_options(keep_attrs=True):
-        if np.isnan(x).any() or np.isnan(y).any():
-            x, y, w = ignore_nan_values(x, y, w)
-        return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
+        return xr.ufuncs.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
 
 def bias(truth, prediction):
@@ -178,15 +173,43 @@ def bias(truth, prediction):
         return prediction - truth
 
 
+def _per_var_wrapper(func, num_ds_args=1):
+    # Using to avoid many small tasks being submitted to the cluster
+    # by pre-loading individual variable and then performing calculation.
+    # Only using for 2d variables for now.  Obviously the full timeseries
+    # Needs to fit in worker memory.  For 2-years ~ 1.5GB per variable
+    # of scream ne30 data.  Since FV3 segments are shorter, I believe this
+    # will be ok.
+    def per_variable(ds, *args, **kwargs):
+        if num_ds_args > 1:
+            dataset_args = args[:(num_ds_args - 1)]
+            args = args[(num_ds_args - 1):]
+        else:
+            dataset_args = []
+        
+        out = xr.Dataset()
+        for var in ds.keys():
+            logger.info(f"Computing {func.__name__} for {var}")
+            try:
+                data_inputs = [d[var].load() for d in [ds] + list(dataset_args)]
+            except KeyError:
+                logger.info(f"Variable {var} not found in dataset. Skipping.")
+                continue
+            out[var] = func(*data_inputs, *args, **kwargs)
+        return out
+    
+    return per_variable
+
+
 def weighted_mean(ds, weights, dims):
     with xr.set_options(keep_attrs=True):
         return (ds * weights).sum(dims) / weights.sum(dims)
 
 
-def time_mean(ds: xr.Dataset, dim: str = "time") -> xr.Dataset:
+def time_mean(da: xr.DataArray, dim: str = "time") -> xr.Dataset:
     with xr.set_options(keep_attrs=True):
-        result = ds.mean(dim)
-    return _assign_diagnostic_time_attrs(result, ds)
+        result = da.mean(dim)
+    return _assign_diagnostic_time_attrs(result, da)
 
 
 def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Optional[Mapping[str, str]]:
@@ -199,13 +222,11 @@ def _get_time_attrs(ds: Union[xr.Dataset, xr.DataArray]) -> Optional[Mapping[str
 
 
 def _assign_diagnostic_time_attrs(
-    diagnostics_ds: xr.Dataset, source_ds: xr.Dataset
-) -> xr.Dataset:
-    for variable in diagnostics_ds:
-        if variable in source_ds:
-            attrs = _get_time_attrs(source_ds[variable])
-            diagnostics_ds[variable] = diagnostics_ds[variable].assign_attrs(attrs)
-    return diagnostics_ds
+    diagnostics_da: xr.DataArray, source_da: xr.DataArray
+) -> xr.DataArray:
+    attrs = _get_time_attrs(source_da)
+    diagnostics_da = diagnostics_da.assign_attrs(attrs)
+    return diagnostics_da
 
 
 def _assign_source_attrs(
@@ -230,9 +251,26 @@ def rms_errors(diag_arg: DiagArg):
         diag_arg.verification,
         diag_arg.grid,
     )
-    rms_errors = rms(prognostic, verification, grid.area, dims=diag_arg.horizontal_dims)
+
+    rms_errors = _per_var_wrapper(rms, num_ds_args=2)(prognostic, verification, grid.area.load(), dims=diag_arg.horizontal_dims)
 
     return rms_errors
+
+
+def _zonal_and_time_mean(prognostic: xr.DataArray, grid: xr.Dataset):
+    zonal_mean = vcm.zonal_average_approximate(
+        grid.lat, prognostic, lat_name="latitude"
+    )
+    return time_mean(zonal_mean).load()
+
+
+def _zonal_mean(da: xr.DataArray, grid: xr.Dataset):
+    # mainly using to re-order args so I can use per_var wrapper
+    return vcm.zonal_average_approximate(grid.lat, da, lat_name="latitude").load()
+
+
+def _meridional_mean(da: xr.DataArray, grid: xr.Dataset):
+    return vcm.meridional_average_approximate(grid.lon, da, lon_name="longitude").load()
 
 
 @registry_2d.register("zonal_and_time_mean")
@@ -241,10 +279,7 @@ def rms_errors(diag_arg: DiagArg):
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = vcm.zonal_average_approximate(
-        grid.lat, prognostic, lat_name="latitude"
-    )
-    return time_mean(zonal_means)
+    return _per_var_wrapper(_zonal_and_time_mean)(prognostic, grid.load())
 
 
 @registry_3d.register("pressure_level_zonal_time_mean")
@@ -310,14 +345,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
         return xr.Dataset()
 
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
-    zonal_means = xr.Dataset()
-    for var in common_vars:
-        logger.info(f"Computing zonal+time mean biases (2d) for {var}")
-        zonal_mean_bias = vcm.zonal_average_approximate(
-            grid.lat, bias_[[var]], lat_name="latitude"
-        )
-        zonal_means[var] = time_mean(zonal_mean_bias)[var].load()
-    return zonal_means
+    return _per_var_wrapper(_zonal_and_time_mean)(bias_[common_vars], grid.load())
 
 
 @registry_2d.register("zonal_mean_value")
@@ -327,14 +355,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 def zonal_mean_hovmoller(diag_arg: DiagArg):
     logger.info(f"Preparing zonal mean values (2d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
-    zonal_means = xr.Dataset()
-    for var in prognostic.data_vars:
-        logger.info(f"Computing zonal mean (2d) over time for {var}")
-        with xr.set_options(keep_attrs=True):
-            zonal_means[var] = vcm.zonal_average_approximate(
-                grid.lat, prognostic[[var]], lat_name="latitude"
-            )[var].load()
-    return zonal_means
+    return _per_var_wrapper(_zonal_mean)(prognostic, grid.load())
 
 
 @registry_2d.register("zonal_mean_bias")
@@ -355,27 +376,7 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
         return xr.Dataset()
 
     common_vars = list(set(prognostic.data_vars).intersection(verification.data_vars))
-    zonal_means = xr.Dataset()
-    for var in common_vars:
-        logger.info(f"Computing zonal mean biases (2d) over time for {var}")
-        with xr.set_options(keep_attrs=True):
-            zonal_means[var] = vcm.zonal_average_approximate(
-                grid.lat, bias_[var], lat_name="latitude",
-            ).load()
-    return zonal_means
-
-
-def _compute_deep_tropical_meridional_mean(
-    ds: xr.Dataset, grid: xr.Dataset
-) -> xr.Dataset:
-    deep_tropical_means = xr.Dataset()
-    for var in ds.data_vars:
-        logger.info(f"Computing deep tropical meridional mean (2d) over time for {var}")
-        with xr.set_options(keep_attrs=True):
-            deep_tropical_means[var] = vcm.meridional_average_approximate(
-                grid.lon, ds[[var]], lon_name="longitude", weights=grid.area,
-            )[var].load()
-    return deep_tropical_means
+    return _per_var_wrapper(_zonal_mean)(bias_[common_vars], grid.load())
 
 
 @registry_2d.register("deep_tropical_meridional_mean_value")
@@ -384,7 +385,7 @@ def _compute_deep_tropical_meridional_mean(
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
     logger.info(f"Preparing deep tropical meridional mean values (2d)")
-    result = _compute_deep_tropical_meridional_mean(diag_arg.prediction, diag_arg.grid)
+    result = _per_var_wrapper(_meridional_mean)(diag_arg.prediction, diag_arg.grid.load())
     return result.rename({"time": "high_frequency_time"})
 
 
@@ -394,10 +395,30 @@ def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def deep_tropical_mean_hovmoller_bias(diag_arg: DiagArg):
     logger.info(f"Preparing deep tropical meridional mean biases (2d)")
-    grid = diag_arg.grid
-    prediction = _compute_deep_tropical_meridional_mean(diag_arg.prediction, grid)
-    verification = _compute_deep_tropical_meridional_mean(diag_arg.verification, grid)
-    return bias(verification, prediction).rename({"time": "high_frequency_time"})
+    grid = diag_arg.grid.load()
+    trop_bias = bias(diag_arg.verification, diag_arg.prediction)
+    return _per_var_wrapper(_meridional_mean)(trop_bias, grid).rename(
+        {"time": "high_frequency_time"}
+    )
+    prediction = _per_var_wrapper(_zonal_mean)(diag_arg.prediction, grid)
+    verification = _per_var_wrapper(_zonal_mean)(diag_arg.verification, grid)
+    # prediction = _compute_deep_tropical_meridional_mean(diag_arg.prediction, grid)
+    # verification = _compute_deep_tropical_meridional_mean(diag_arg.verification, grid)
+    return bias(verification, prediction).rename({"time": "high_frequency_time"}).load()
+
+
+def _per_variable_masked(
+    func: str, mask: xr.DataArray, prognostic: xr.Dataset, horizontal_dims:  Tuple[str, ...]
+) -> xr.Dataset:
+    
+    out = xr.Dataset()
+    for var, da in prognostic.items():
+        da = da.load()
+        masked = da.where(mask)
+        with xr.set_options(keep_attrs=True):
+            out[var] = getattr(masked, func)(dim=horizontal_dims).load()
+    
+    return out
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -410,9 +431,15 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def spatial_min(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing minimum for variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        masked = prognostic.where(~grid["area"].isnull())
-        with xr.set_options(keep_attrs=True):
-            return masked.min(dim=diag_arg.horizontal_dims)
+        return _per_variable_masked(
+            "min",
+            ~grid["area"].isnull().load(),
+            prognostic,
+            diag_arg.horizontal_dims
+        )
+        # masked = prognostic.where(~grid["area"].isnull())
+        # with xr.set_options(keep_attrs=True):
+        #     return masked.min(dim=diag_arg.horizontal_dims)
 
     @registry_2d.register(f"spatial_max_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -422,9 +449,15 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def spatial_max(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing maximum for variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        masked = prognostic.where(~grid["area"].isnull())
-        with xr.set_options(keep_attrs=True):
-            return masked.max(dim=diag_arg.horizontal_dims)
+        return _per_variable_masked(
+            "min",
+            ~grid["area"].isnull().load(),
+            prognostic,
+            diag_arg.horizontal_dims
+        )
+        # masked = prognostic.where(~grid["area"].isnull())
+        # with xr.set_options(keep_attrs=True):
+        #     return masked.max(dim=diag_arg.horizontal_dims)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
@@ -437,7 +470,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def global_averages_2d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing averages for 2d variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        return weighted_mean(prognostic, grid.area, diag_arg.horizontal_dims)
+        return _per_var_wrapper(weighted_mean)(prognostic, grid.area.load(), diag_arg.horizontal_dims)
 
     @registry_2d.register(f"mean_bias_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -452,8 +485,8 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             diag_arg.grid,
         )
         bias_errors = bias(verification, prognostic)
-        mean_bias_errors = weighted_mean(
-            bias_errors, grid.area, diag_arg.horizontal_dims
+        mean_bias_errors = _per_var_wrapper(weighted_mean)(
+            bias_errors, grid.area.load(), diag_arg.horizontal_dims
         )
         return mean_bias_errors
 
@@ -464,7 +497,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 def time_means_2d(diag_arg: DiagArg):
     logger.info("Preparing time means for 2d variables")
     prognostic = diag_arg.prediction
-    return time_mean(prognostic)
+    return _per_var_wrapper(time_mean)(prognostic)
 
 
 @registry_2d.register("time_mean_bias")
@@ -473,7 +506,7 @@ def time_means_2d(diag_arg: DiagArg):
 def time_mean_biases_2d(diag_arg: DiagArg):
     logger.info("Preparing time mean biases for 2d variables")
     prognostic, verification = diag_arg.prediction, diag_arg.verification
-    return time_mean(bias(verification, prognostic))
+    return _per_var_wrapper(time_mean)(bias(verification, prognostic))
 
 
 for mask_type in ["global", "land", "sea"]:
@@ -495,7 +528,7 @@ for mask_type in ["global", "land", "sea"]:
         if _is_empty(prognostic):
             return xr.Dataset({})
         else:
-            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid).load()
+            diag = diurnal_cycle.calc_diagnostics(prognostic, verification, grid)
             return _assign_diagnostic_time_attrs(diag, prognostic)
 
 
@@ -508,7 +541,7 @@ def compute_histogram(diag_arg: DiagArg):
     counts = xr.Dataset()
     for varname in prognostic.data_vars:
         count, width = vcm.histogram(
-            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+            prognostic[varname].load(), bins=HISTOGRAM_BINS[varname], density=True
         )
         counts[varname] = count
         counts[f"{varname}_bin_width"] = width
@@ -526,10 +559,10 @@ def compute_histogram_bias(diag_arg: DiagArg):
     counts = xr.Dataset()
     for varname in prognostic.data_vars:
         prognostic_count, _ = vcm.histogram(
-            prognostic[varname], bins=HISTOGRAM_BINS[varname], density=True
+            prognostic[varname].load(), bins=HISTOGRAM_BINS[varname], density=True
         )
         verification_count, _ = vcm.histogram(
-            verification[varname], bins=HISTOGRAM_BINS[varname], density=True
+            verification[varname].load(), bins=HISTOGRAM_BINS[varname], density=True
         )
         counts[varname] = bias(verification_count, prognostic_count)
     return _assign_source_attrs(
@@ -600,7 +633,7 @@ def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
     bins = [HISTOGRAM_BINS[WVP], HISTOGRAM_BINS[COL_DRYING]]
-    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP], ds[COL_DRYING], bins=bins)
+    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP].load(), ds[COL_DRYING].load(), bins=bins)
     return xr.Dataset(
         {
             f"{WVP}_versus_{COL_DRYING}": counts,
@@ -691,7 +724,8 @@ def get_verification(args, catalog, join_2d="outer"):
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
-    client = Client(n_workers=56, threads_per_worker=4)
+    # client = Client(n_workers=20, threads_per_worker=8)
+    client = Client(scheduler_file="/pscratch/sd/a/andrep/scheduler_file.json")
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 

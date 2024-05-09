@@ -302,7 +302,7 @@ def determine_tendency_variables(ds: xr.Dataset, run_label: str):
 if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
-    client = Client(n_workers=32)
+    client = Client(n_workers=50, threads_per_worker=4)
     ds = xr.open_mfdataset(args.input_data, compat="override", coords="minimal")
     if args.subset:
         logger.info("Subset to the first 100 timesteps")

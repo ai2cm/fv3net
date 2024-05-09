@@ -36,7 +36,6 @@ class Registry:
         _start_logger_if_necessary()
         return name, func(*args, **kwargs).compute()
 
-
 def _start_logger_if_necessary():
     # workaround for joblib.Parallel logging from
     # https://github.com/joblib/joblib/issues/1017

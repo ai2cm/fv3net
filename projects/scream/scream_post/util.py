@@ -2,6 +2,10 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import cftime
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def convert_npdatetime_to_cftime(ds: xr.Dataset):
@@ -51,6 +55,10 @@ def add_rad_fluxes(ds: xr.Dataset):
         DSWRFsfc = ds.DSWRFsfc
         DSWRFtoa = ds.DSWRFtoa
         DLWRFsfc = ds.DLWRFsfc
+    else:
+        logger.warning("No radiation fluxes found in dataset. Skipping radiation calculations.")
+        return ds
+
     shortwave_transmissivity_of_atmospheric_column = DSWRFsfc / DSWRFtoa
     shortwave_transmissivity_of_atmospheric_column = shortwave_transmissivity_of_atmospheric_column.where(  # noqa
         DSWRFtoa != 0.0, 0.0
