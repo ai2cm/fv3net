@@ -724,7 +724,7 @@ def get_verification(args, catalog, join_2d="outer"):
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
-    # client = Client(n_workers=20, threads_per_worker=8)
+    # client = Client(n_workers=2, threads_per_worker=8)
     client = Client(scheduler_file="/pscratch/sd/a/andrep/scheduler_file.json")
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)

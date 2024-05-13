@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from typing import Tuple, Mapping, MutableMapping
 import xarray as xr
+from joblib import delayed, Parallel
 
 import cartopy.crs as ccrs
 import jinja2
@@ -62,6 +63,28 @@ CONTOUR_LEVELS = {
 }
 
 
+def _plot_2d_panel(v, varname, run, x, y, ylabel, contour, figsize, opts):
+    logging.info(f"plotting {varname} in {run}")
+    long_name = v.attrs.get("long_name", varname)
+    units = v.attrs.get("units", "")
+    long_name_and_units = f"{long_name} [{units}]"
+    fig, ax = plt.subplots(figsize=figsize)
+    if contour:
+        levels = CONTOUR_LEVELS.get(varname)
+        xr.plot.contourf(
+            v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
+        )
+    else:
+        v.plot(ax=ax, x=x, y=y, **opts)
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    ax.set_title(long_name_and_units)
+    plt.tight_layout()
+    figure = MatplotlibFigure(fig, width="500px")
+    plt.close(fig)
+    return figure
+
+
 def plot_2d_matplotlib(
     run_diags: RunDiagnostics,
     varfilter: str,
@@ -81,32 +104,27 @@ def plot_2d_matplotlib(
     ylabel = opts.pop("ylabel", "")
     x, y = dims
 
+    args = []
     variables_to_plot = run_diags.matching_variables(varfilter, varnames=plot_vars)
     for varname in variables_to_plot:
         if not contour:
+            opts = dict(**opts)
             opts["vmin"], opts["vmax"], opts["cmap"] = _get_cmap_kwargs(
                 run_diags, varname, robust=False, ignore_poles=True
             )
         for run in run_diags.runs:
-            logging.info(f"plotting {varname} in {run}")
             v = run_diags.get_variable(run, varname)
-            long_name = v.attrs.get("long_name", varname)
-            units = v.attrs.get("units", "")
-            long_name_and_units = f"{long_name} [{units}]"
-            fig, ax = plt.subplots(figsize=figsize)
-            if contour:
-                levels = CONTOUR_LEVELS.get(varname)
-                xr.plot.contourf(
-                    v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
-                )
-            else:
-                v.plot(ax=ax, x=x, y=y, **opts)
-            if ylabel:
-                ax.set_ylabel(ylabel)
-            ax.set_title(long_name_and_units)
-            plt.tight_layout()
-            data[varname][run] = MatplotlibFigure(fig, width="500px")
-            plt.close(fig)
+            args.append((v, run, varname, x, y, ylabel, contour, figsize, opts))
+
+    jobs = [delayed(_plot_2d_panel)(*args) for args in args]
+    with Parallel(n_jobs=8, verbose=10) as parallel:
+        results = parallel(jobs)
+
+    for args, figure in zip(args, results):
+        run = args[1]
+        varname = args[2]
+        data[varname][run] = figure
+            
     return RawHTML(
         template.render(
             images=data,
@@ -116,6 +134,35 @@ def plot_2d_matplotlib(
             variable_long_names=run_diags.long_names,
         )
     )
+
+
+def _plot_cubed_sphere_panel(ds, run, varname, vmin, vmax, cmap, metrics_for_title, run_diags, run_metrics, varfilter):
+    logging.info(f"plotting {varname} in {run}")
+    shortname = varname.split(varfilter)[0][:-1]
+    plot_title = _render_map_title(
+        run_metrics, shortname, run, metrics_for_title
+    )
+    fig, ax = plt.subplots(
+        figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
+    )
+    if "ncol" in ds.sizes:
+        grid_metadata = GridMetadataScream("ncol", "lon", "lat")
+        fv3viz.plot_cube(
+            ds,
+            varname,
+            grid_metadata=grid_metadata,
+            ax=ax,
+            vmin=vmin,
+            vmax=vmax,
+            cmap=cmap,
+        )
+    else:
+        fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
+    ax.set_title(plot_title)
+    plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
+    figure = MatplotlibFigure(fig, width="500px")
+    plt.close(fig)
+    return figure
 
 
 def plot_cubed_sphere_map(
@@ -142,40 +189,27 @@ def plot_cubed_sphere_map(
     if metrics_for_title is None:
         metrics_for_title = {}
 
+
     variables_to_plot = run_diags.matching_variables(varfilter)
+    job_args = []
+    if "lonb" and "latb" in run_diags.variables:
+        coord_vars = ["lon", "lat", "lonb", "latb"]
+    else:
+        coord_vars = ["lon", "lat"]
     for varname in variables_to_plot:
         vmin, vmax, cmap = _get_cmap_kwargs(run_diags, varname, robust=True)
         for run in run_diags.runs:
-            logging.info(f"plotting {varname} in {run}")
-            shortname = varname.split(varfilter)[0][:-1]
-            if "lonb" and "latb" in run_diags.variables:
-                COORD_VARS = ["lon", "lat", "lonb", "latb"]
-            else:
-                COORD_VARS = ["lon", "lat"]
-            ds = run_diags.get_variables(run, COORD_VARS + [varname])
-            plot_title = _render_map_title(
-                run_metrics, shortname, run, metrics_for_title
-            )
-            fig, ax = plt.subplots(
-                figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
-            )
-            if "ncol" in ds.sizes:
-                grid_metadata = GridMetadataScream("ncol", "lon", "lat")
-                fv3viz.plot_cube(
-                    ds,
-                    varname,
-                    grid_metadata=grid_metadata,
-                    ax=ax,
-                    vmin=vmin,
-                    vmax=vmax,
-                    cmap=cmap,
-                )
-            else:
-                fv3viz.plot_cube(ds, varname, ax=ax, vmin=vmin, vmax=vmax, cmap=cmap)
-            ax.set_title(plot_title)
-            plt.subplots_adjust(left=0.01, right=0.75, bottom=0.02)
-            data[varname][run] = MatplotlibFigure(fig, width="500px")
-            plt.close(fig)
+            ds = run_diags.get_variables(run, coord_vars + [varname])
+            job_args.append((ds, run, varname, vmin, vmax, cmap, metrics_for_title, run_diags, run_metrics, varfilter))
+    
+    jobs = [delayed(_plot_cubed_sphere_panel)(*args) for args in job_args]
+    with Parallel(n_jobs=8, verbose=10) as parallel:
+        results = parallel(jobs)
+    for args, figure in zip(job_args, results):
+        run = args[1]
+        varname = args[2]
+        data[varname][run] = figure
+
     return RawHTML(
         template.render(
             images=data,

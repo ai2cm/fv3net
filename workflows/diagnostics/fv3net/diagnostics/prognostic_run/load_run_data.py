@@ -159,6 +159,41 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
     return ds
 
 
+def _get_physics_only_contribution(ds):
+    
+    _tendencies_to_separate = {
+        "dQ1": "air_temperature",
+        "dQ2": "specific_humidity",
+        "dQu": "eastward_wind",
+        "dQv": "northward_wind",
+        "air_temperature_tendency_due_to_nudging": "air_temperature",
+        "specific_humidity_tendency_due_to_nudging": "specific_humidity",
+        "eastward_wind_tendency_due_to_nudging": "eastward_wind",
+        "northward_wind_tendency_due_to_nudging": "northward_wind",
+    }
+
+    adjusted_physics = {}
+    for adjustment_key, physics_varname in _tendencies_to_separate.items():
+        if adjustment_key in ds:
+            logger.info(f"Removing {adjustment_key} tendency from total scream physics tendency")
+            adjustment_tend = ds[adjustment_key]
+            physics_key = f"{physics_varname}_tendency_due_to_scream_physics"
+            total_physics = ds[physics_key]
+            adjusted_physics[physics_key] = total_physics - adjustment_tend
+    
+    return ds.update(adjusted_physics)
+
+
+def _change_net_moistening_to_mm_per_day(ds):
+
+    key = "net_moistening_due_to_machine_learning"
+    if key in ds:
+        logger.info("Changing units of ml net moistening to mm/day")
+        ds[key] = ds[key] * derived_variables.SECONDS_PER_DAY
+    
+    return ds
+
+
 def load_scream_data(path) -> xr.Dataset:
     logger.info(f"Opening prognostic run data at {path}")
 
@@ -167,7 +202,9 @@ def load_scream_data(path) -> xr.Dataset:
         m = fsspec.get_mapper(path)
         ds = xr.open_zarr(m, consolidated=True, decode_times=False)
         ds = standardize_scream_diagnostics(ds)
-    except (FileNotFoundError, KeyError):
+        ds = _get_physics_only_contribution(ds)
+        ds = _change_net_moistening_to_mm_per_day(ds)
+    except (FileNotFoundError):
         warnings.warn(UserWarning(f"{path} not found. Returning empty dataset."))
         ds = xr.Dataset()
     return ds

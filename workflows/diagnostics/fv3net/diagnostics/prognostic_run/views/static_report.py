@@ -6,6 +6,7 @@ import fsspec
 import numpy as np
 import pandas as pd
 import holoviews as hv
+from joblib import delayed, Parallel
 
 from fv3net.diagnostics.prognostic_run.computed_diagnostics import (
     ComputedDiagnosticsList,
@@ -122,8 +123,12 @@ class PlotManager:
         return func
 
     def make_plots(self, data) -> Iterable:
+        # jobs = [delayed(func)(data) for func in self._diags]
+        # with Parallel(n_jobs=8, verbose=10) as pool:
+        #     return pool(jobs)
         for func in self._diags:
             yield func(data)
+
 
 
 def plot_1d(run_diags: RunDiagnostics, varfilter: str) -> HVPlot:

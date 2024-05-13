@@ -321,9 +321,10 @@ class DiagnosticFolder:
     @property
     def diagnostics(self) -> xr.Dataset:
         path = os.path.join(self.path, "diags.nc")
+        return xr.open_dataset(path, engine="h5netcdf").compute()
+        # TODO: have an option for local rather than remote computation
         with tempfile.NamedTemporaryFile() as f:
             self.fs.get(path, f.name)
-            return xr.open_dataset(f.name, engine="h5netcdf").compute()
 
     @property
     def movie_urls(self) -> Sequence[str]:
