@@ -24,6 +24,10 @@ SCREAM_TO_FV3_CONVENTION = {
     "nudging_qv_tend": "specific_humidity_tendency_due_to_nudging",
     "nudging_U_tend": "eastward_wind_tendency_due_to_nudging",
     "nudging_V_tend": "northward_wind_tendency_due_to_nudging",
+    "T_mid_tendency_due_to_nudging": "air_temperature_tendency_due_to_nudging",
+    "U_tendency_due_to_nudging": "eastward_wind_tendency_due_to_nudging",
+    "V_tendency_due_to_nudging": "northward_wind_tendency_due_to_nudging",
+    "qv_tendency_due_to_nudging": "specific_humidity_tendency_due_to_nudging",
     "physics_T_mid_tend": "air_temperature_tendency_due_to_scream_physics",
     "physics_qv_tend": "specific_humidity_tendency_due_to_scream_physics",
     "physics_U_tend": "eastward_wind_tendency_due_to_scream_physics",
@@ -289,21 +293,49 @@ def rename_ML_correction_to_machine_learning(ds: xr.Dataset):
     return ds.rename(rename_vars)
 
 
-def determine_tendency_variables(ds: xr.Dataset, run_label: str):
-    pattern = rf"^{run_label}_(.*)_tend$"
-    tendency_variables = []
+def _get_variable_names(ds: xr.Dataset, pattern: str):
+
+    variable_names = []
     for var in ds.variables:
         match = re.match(pattern, var)
         if match:
-            tendency_variables.append(match.group(1))
-    return tendency_variables
+            variable_names.append(match.group(1)) 
+    
+    return variable_names
+
+def determine_tendency_variables(ds: xr.Dataset, run_label: str):
+    # from original scream output files
+    tendency_variables = _get_variable_names(ds, rf"^{run_label}_(.*)_tend$")
+    # from zarr files produced by format_output.py
+    tendency_variables += _get_variable_names(ds, rf"^(.*?)_tendency_due_to_nudging")
+    return list(set(tendency_variables))
+
+
+def open_dataset(input_data: str):
+    if "*" in input_data and ".nc" in input_data:
+        logger.info("Opening multiple netcdf files")
+        ds = xr.open_mfdataset(input_data, compat="override", coords="minimal")
+    elif ".nc" in input_data:
+        logger.info("Opening a single netcdf file")
+        ds = xr.open_dataset(input_data, use_cftime=True)
+    else:
+        dataset_members = (
+            "physics_tendencies.zarr",
+            "nudging_tendencies.zarr",
+            "state_after_timestep.zarr",
+        )
+        logger.info("Opening directory of zarrs produced by scream-post format_output.py")
+        ds = xr.merge(
+            [xr.open_zarr(os.path.join(input_data, member), use_cftime=True) for member in dataset_members]
+        )
+    return ds
 
 
 if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
     client = Client(n_workers=50, threads_per_worker=4)
-    ds = xr.open_mfdataset(args.input_data, compat="override", coords="minimal")
+    ds = open_dataset(args.input_data)
     if args.subset:
         logger.info("Subset to the first 100 timesteps")
         ds = ds.isel(time=slice(100))
@@ -320,9 +352,9 @@ if __name__ == "__main__":
     ds_2d = ds[get_2d_vars(ds)]
     ds_3d = ds[get_3d_vars(ds)]
     if args.variable_category == "2d":
-        ds_2d.to_zarr(os.path.join(args.output_path, "data_2d.zarr"))
+        ds_2d.to_zarr(os.path.join(args.output_path, "data_2d.zarr"), safe_chunks=False)
     elif args.variable_category == "3d":
-        ds_3d.to_zarr(os.path.join(args.output_path, "data_3d.zarr"))
+        ds_3d.to_zarr(os.path.join(args.output_path, "data_3d.zarr"), safe_chunks=False)
     elif args.variable_category == "all":
         ds_2d.to_zarr(os.path.join(args.output_path, "data_2d.zarr"))
         ds_3d.to_zarr(os.path.join(args.output_path, "data_3d.zarr"))
