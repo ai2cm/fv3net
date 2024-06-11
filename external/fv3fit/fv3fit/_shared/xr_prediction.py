@@ -4,7 +4,9 @@ import numpy as np
 try:
     import cupy as cp
 except ImportError:
-    cp = None
+    from fv3fit._shared.config import NoCupy
+
+    cp = NoCupy()
 import logging
 import os
 from typing import Sequence, Iterable, Hashable
@@ -70,8 +72,9 @@ def _array_prediction_to_dataset(
 def _cpu_predict(model, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
     logger.info("Predicting on CPU")
     inputs = [tf.convert_to_tensor(input_) for input_ in inputs]
-    outputs = model(inputs)
-    outputs = [np.asarray(output.numpy()) for output in outputs]
+    outputs = model.predict(inputs)
+    if isinstance(outputs, np.ndarray):
+        outputs = [outputs]
     return outputs
 
 
@@ -93,7 +96,6 @@ def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
 
 
 def _predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
-    # TODO: make sure if inputs are not cupy, just revert to cpu prediction
     data = inputs[0]
     is_cupy = hasattr(data, "device")
     logger.info(type(data))

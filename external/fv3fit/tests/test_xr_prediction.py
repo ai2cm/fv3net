@@ -8,6 +8,7 @@ import tensorflow as tf
 import xarray
 
 
+@register("test-constant-predictor")
 class ConstantArrayPredictor:
     """
     A simple predictor meant to be used for testing.
