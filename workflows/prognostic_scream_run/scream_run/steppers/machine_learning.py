@@ -95,19 +95,29 @@ def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     )
 
 
-def predict(model: MultiModelAdapter, state: State, dt: float) -> State:
+def _to_state(ds: xr.Dataset) -> State:
+    return {key: cast(xr.DataArray, ds[key]) for key in ds.data_vars}
+
+
+def predict(model: MultiModelAdapter, state: State) -> State:
     """Given ML model and state, return prediction"""
     state_loaded = {key: state[key] for key in model.input_variables}
     ds = xr.Dataset(state_loaded)  # type: ignore
-    output = model.predict(ds)
-    output = enforce_non_negative_humidity(
+    return _to_state(model.predict(ds))
+
+
+def predict_with_qv_constraint(
+    model: MultiModelAdapter, state: State, dt: float
+) -> State:
+    """Given ML model and state, return prediction"""
+    output = predict(model, state)
+    return enforce_non_negative_humidity(
         output, state, dt, model.mse_conserving_limiter
     )
-    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
 def enforce_non_negative_humidity(
-    prediction: dict, state: State, dt: float, mse_conserving_limiter: bool = True,
+    prediction: State, state: State, dt: float, mse_conserving_limiter: bool = True,
 ):
     dQ1_initial = prediction.get("dQ1", xr.zeros_like(state[SPHUM]))
     dQ2_initial = prediction.get("dQ2", xr.zeros_like(state[SPHUM]))
