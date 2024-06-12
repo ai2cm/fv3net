@@ -334,7 +334,7 @@ def open_dataset(input_data: str):
 if __name__ == "__main__":
     parser = _get_parser()
     args = parser.parse_args()
-    client = Client(n_workers=50, threads_per_worker=4)
+    client = Client(n_workers=50, threads_per_worker=2)
     ds = open_dataset(args.input_data)
     if args.subset:
         logger.info("Subset to the first 100 timesteps")
