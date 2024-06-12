@@ -162,4 +162,4 @@ def test_DatasetPredictor_gpu_predict():
             {"in0": (["_fv3net_sample", "z"], cp.random.rand(n_samples, input_shape))}
         )
         out = predictor.predict(in_xr)
-        np.testing.assert_allclose(in_xr["in0"], out["out0"])
+        np.testing.assert_allclose(in_xr["in0"].data.get(), out["out0"].data.get())
