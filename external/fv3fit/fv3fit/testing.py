@@ -85,9 +85,15 @@ class ConstantOutputPredictor(Predictor):
             if isinstance(output, np.ndarray):
                 array = np.repeat(output[None, :], repeats=n_samples, axis=0)
                 data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME, "z"])
-            elif isinstance(output, cp.ndarray):
-                array = cp.repeat(output[None, :], repeats=n_samples, axis=0)
-                data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME, "z"])
+            elif cp is not None:
+                if isinstance(output, cp.ndarray):
+                    array = cp.repeat(output[None, :], repeats=n_samples, axis=0)
+                    data_vars[name] = xr.DataArray(
+                        data=array, dims=[SAMPLE_DIM_NAME, "z"]
+                    )
+                else:
+                    array = cp.full([n_samples], float(output))
+                    data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME])
             else:
                 array = np.full([n_samples], float(output))
                 data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME])
