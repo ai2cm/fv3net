@@ -85,7 +85,7 @@ def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
         inputs = [
             tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs
         ]
-        outputs = model(inputs)
+        outputs = model.predict(inputs)
         if isinstance(outputs, tf.Tensor):
             outputs = [outputs]
         outputs = [
