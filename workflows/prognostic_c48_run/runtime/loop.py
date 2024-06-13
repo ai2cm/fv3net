@@ -602,10 +602,11 @@ class TimeLoop(
             if self._reservoir_predict_stepper.is_diagnostic:  # type: ignore
                 rename_diagnostics(diags, label="reservoir_predictor")
 
-            state_updates[TOTAL_PRECIP] = precipitation_sum(
-                self._state[TOTAL_PRECIP], net_moistening, self._timestep,
+            precip = self._reservoir_predict_stepper.update_precip(  # type: ignore
+                self._state[TOTAL_PRECIP], net_moistening
             )
-
+            diags.update(precip)
+            state_updates[TOTAL_PRECIP] = precip[TOTAL_PRECIP]
             self._state.update_mass_conserving(state_updates)
 
             diags.update({name: self._state[name] for name in self._states_to_output})
@@ -615,9 +616,7 @@ class TimeLoop(
                     "cnvprcp_after_python": self._wrapper.get_diagnostic_by_name(
                         "cnvprcp"
                     ).data_array,
-                    TOTAL_PRECIP_RATE: precipitation_rate(
-                        self._state[TOTAL_PRECIP], self._timestep
-                    ),
+                    TOTAL_PRECIP_RATE: diags["total_precip_rate_res_interval_avg"],
                 }
             )
 
