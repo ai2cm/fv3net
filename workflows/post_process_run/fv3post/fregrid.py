@@ -8,7 +8,7 @@ import xarray as xr
 from .gsutil import authenticate, download_directory, cp
 
 MOSAIC_FILES_URL_DEFAULT = (
-    "gs://vcm-ml-raw/2020-11-12-gridspec-orography-and-mosaic-data"
+    "gs://vcm-ml-code-testing-data/gridspec-orography-and-mosaic-data"
 )
 
 
