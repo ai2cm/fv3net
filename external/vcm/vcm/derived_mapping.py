@@ -222,6 +222,17 @@ def downward_shortwave_sfc_flux_via_transmissivity(self):
     toa_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
     transmissivity = self["shortwave_transmissivity_of_atmospheric_column"]
     return transmissivity * toa_flux
+@DerivedMapping.register(
+    "downward_shortwave_sfc_flux_via_transmissivity",
+    required_inputs=[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+        "shortwave_transmissivity_of_atmospheric_column",
+    ],
+)
+def downward_shortwave_sfc_flux_via_transmissivity(self):
+    toa_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
+    transmissivity = self["shortwave_transmissivity_of_atmospheric_column"]
+    return transmissivity * toa_flux
 
 
 @DerivedMapping.register(
@@ -235,6 +246,53 @@ def net_shortwave_sfc_flux_via_transmissivity(self):
     downward_sfc_shortwave_flux = self["downward_shortwave_sfc_flux_via_transmissivity"]
     albedo = self["surface_diffused_shortwave_albedo"]
     return _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo)
+
+
+# TODO: make congruent with fv3net naming and make sure renames happen on load
+# This section of radiation is for EAMXX radiation model
+@DerivedMapping.register("shortwave_transmissivity_of_atmospheric_column", required_inputs=["SW_flux_dn_at_model_bot", "SW_flux_dn_at_model_top"], use_nonderived_if_exists=True)
+def shortwave_transmissivity_of_atmospheric_column(self):
+    return self["SW_flux_dn_at_model_bot"] / self["SW_flux_dn_at_model_top"]
+
+
+@DerivedMapping.register("downward_shortwave_total_nir", required_inputs=["sfc_flux_dir_nir", "sfc_flux_dif_nir"])
+def downward_shortwave_total_nir(self):
+    return self["sfc_flux_dir_nir"] + self["sfc_flux_dif_nir"]
+
+
+@DerivedMapping.register("downward_shortwave_total_vis", required_inputs=["sfc_flux_dir_vis", "sfc_flux_dif_vis"])
+def downward_shortwave_total_vis(self):
+    return self["sfc_flux_dir_vis"] + self["sfc_flux_dif_vis"]
+
+
+@DerivedMapping.register("downward_shortwave_fraction_nir", required_inputs=["SW_flux_dn_at_model_bot", "downward_shortwave_total_nir"], use_nonderived_if_exists=True)
+def downward_shortwave_fraction_nir(self):
+    return self["downward_shortwave_total_nir"] / self["SW_flux_dn_at_model_bot"]
+
+
+@DerivedMapping.register("downward_shortwave_fraction_vis", required_inputs=["SW_flux_dn_at_model_bot", "downward_shortwave_total_vis"], use_nonderived_if_exists=True)
+def downward_shortwave_fraction_vis(self):
+    return self["downward_shortwave_total_vis"] / self["SW_flux_dn_at_model_bot"]
+
+
+@DerivedMapping.register("downward_vis_diffuse_fraction", required_inputs=["downward_shortwave_total_vis", "sfc_flux_dif_vis"], use_nonderived_if_exists=True)
+def downward_vis_diffuse_fraction(self):
+    return self["sfc_flux_dif_vis"] / self["downward_shortwave_total_vis"]
+
+
+@DerivedMapping.register("downward_vis_direct_fraction", required_inputs=["donward_vis_diffuse_fraction"])
+def downward_vis_direct_fraction(self):
+    return 1 - self["downward_vis_diffuse_fraction"]
+
+
+@DerivedMapping.register("downward_nir_diffuse_fraction", required_inputs=["downward_shortwave_total_nir", "sfc_flux_dif_nir"], use_nonderived_if_exists=True)
+def downward_nir_diffuse_fraction(self):
+    return self["sfc_flux_dif_nir"] / self["downward_shortwave_total_nir"]
+
+
+@DerivedMapping.register("downward_nir_direct_fraction", required_inputs=["downward_nir_diffuse_fraction"])
+def downward_nir_direct_fraction(self):
+    return 1 - self["downward_nir_diffuse_fraction"]
 
 
 @DerivedMapping.register(
