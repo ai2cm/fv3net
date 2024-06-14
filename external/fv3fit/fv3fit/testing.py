@@ -12,6 +12,7 @@ import numpy as np
 
 try:
     import cupy as cp
+    import cupy_xarray  # noqa: F401
 except ImportError:
     cp = None
 import xarray as xr
