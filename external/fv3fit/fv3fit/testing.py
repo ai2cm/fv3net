@@ -9,6 +9,12 @@ from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Union
 from fv3fit._shared.novelty_detector import NoveltyDetector
 from ._shared import Predictor, io, SAMPLE_DIM_NAME
 import numpy as np
+
+try:
+    import cupy as cp
+    import cupy_xarray  # noqa: F401
+except ImportError:
+    cp = None
 import xarray as xr
 import os
 import yaml
@@ -80,6 +86,15 @@ class ConstantOutputPredictor(Predictor):
             if isinstance(output, np.ndarray):
                 array = np.repeat(output[None, :], repeats=n_samples, axis=0)
                 data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME, "z"])
+            elif cp is not None:
+                if isinstance(output, cp.ndarray):
+                    array = cp.repeat(output[None, :], repeats=n_samples, axis=0)
+                    data_vars[name] = xr.DataArray(
+                        data=array, dims=[SAMPLE_DIM_NAME, "z"]
+                    )
+                else:
+                    array = cp.full([n_samples], float(output))
+                    data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME])
             else:
                 array = np.full([n_samples], float(output))
                 data_vars[name] = xr.DataArray(data=array, dims=[SAMPLE_DIM_NAME])

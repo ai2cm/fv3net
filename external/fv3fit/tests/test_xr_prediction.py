@@ -6,8 +6,18 @@ import os
 import pytest
 import tensorflow as tf
 import xarray
+import unittest
+
+try:
+    import cupy as cp
+
+    cupy_available = True
+except ImportError:
+    cp = None
+    cupy_available = False
 
 
+@register("test-constant-predictor")
 class ConstantArrayPredictor:
     """
     A simple predictor meant to be used for testing.
@@ -131,3 +141,25 @@ def test_DatasetPredictor_dump_load(tmpdir):
         np.testing.assert_allclose(
             loaded_predictor.predict(in_xr)["out0"], in_xr["in0"]
         )
+
+
+@unittest.skipIf(not cupy_available, "cupy not available")
+def test_DatasetPredictor_gpu_predict():
+    with registration_context():
+        input_vars = ["in0"]
+        output_vars = ["out0"]
+        input_shape = 5
+        n_samples = 3
+        base_model = ConstantArrayPredictor(model=_get_dummy_model(input_shape))
+        predictor = DatasetPredictor(
+            input_variables=input_vars,
+            output_variables=output_vars,
+            model=base_model,
+            unstacked_dims=["z"],
+            n_halo=0,
+        )
+        in_xr = xarray.Dataset(
+            {"in0": (["_fv3net_sample", "z"], cp.random.rand(n_samples, input_shape))}
+        )
+        out = predictor.predict(in_xr)
+        np.testing.assert_allclose(in_xr["in0"].data.get(), out["out0"].data.get())
