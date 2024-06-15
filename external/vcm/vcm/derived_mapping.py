@@ -250,8 +250,7 @@ def net_shortwave_sfc_flux_via_transmissivity(self):
     use_nonderived_if_exists=True
 )
 def shortwave_transmissivity_of_atmospheric_column(self):
-    transmissivity = self["total_sky_downward_shortwave_flux_at_surface"] / self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
-    return transmissivity.where(transmissivity.notnull(), 0.0) 
+    return self["total_sky_downward_shortwave_flux_at_surface"] / self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
 
 
 @DerivedMapping.register("downward_shortwave_total_nir_at_surface", required_inputs=["sfc_flux_dir_nir", "sfc_flux_dif_nir"])
@@ -270,40 +269,35 @@ def downward_shortwave_total_vis_at_surface(self):
     use_nonderived_if_exists=True
 )
 def downward_visible_fraction_at_surface(self):
-    vis_frac_sfc = self["downward_shortwave_total_vis_at_surface"] / self["total_sky_downward_shortwave_flux_at_surface"]
-    return vis_frac_sfc.where(vis_frac_sfc.notnull(), 0.0)
+    return self["downward_shortwave_total_vis_at_surface"] / self["total_sky_downward_shortwave_flux_at_surface"]
+
 
 @DerivedMapping.register(
     "downward_nir_fraction_at_surface",
     required_inputs=["downward_visible_fraction_at_surface"]
 )
 def downward_nir_fraction_at_surface(self):
-    vis_frac_sfc = self["downward_visible_fraction_at_surface"]
-    return (1 - vis_frac_sfc).where(vis_frac_sfc != 0.0, 0.0)
+    return 1 - self["downward_visible_fraction_at_surface"]
 
 
 @DerivedMapping.register("downward_vis_diffuse_fraction_at_surface", required_inputs=["downward_shortwave_total_vis_at_surface", "sfc_flux_dif_vis"], use_nonderived_if_exists=True)
 def downward_vis_diffuse_fraction_at_surface(self):
-    dif_frac_vis = self["sfc_flux_dif_vis"] / self["downward_shortwave_total_vis_at_surface"]
-    return dif_frac_vis.where(dif_frac_vis.notnull(), 0.0)
+    return self["sfc_flux_dif_vis"] / self["downward_shortwave_total_vis_at_surface"]
 
 
 @DerivedMapping.register("downward_vis_direct_fraction_at_surface", required_inputs=["donward_vis_diffuse_fraction"])
 def downward_vis_direct_fraction_at_surface(self):
-    dif_frac_vis = self["downward_vis_diffuse_fraction_at_surface"]
-    return (1 - dif_frac_vis).where(dif_frac_vis != 0.0, 0.0) 
+    return 1 - self["downward_vis_diffuse_fraction_at_surface"]
 
 
 @DerivedMapping.register("downward_nir_diffuse_fraction_at_surface", required_inputs=["downward_shortwave_total_nir_at_surface", "sfc_flux_dif_nir"], use_nonderived_if_exists=True)
 def downward_nir_diffuse_fraction_at_surface(self):
-    dif_frac_nir = self["sfc_flux_dif_nir"] / self["downward_shortwave_total_nir_at_surface"]
-    return dif_frac_nir.where(dif_frac_nir.notnull(), 0.0)
+    return self["sfc_flux_dif_nir"] / self["downward_shortwave_total_nir_at_surface"]
 
 
 @DerivedMapping.register("downward_nir_direct_fraction_at_surface", required_inputs=["downward_nir_diffuse_fraction_at_surface"])
 def downward_nir_direct_fraction(self):
-    dif_frac_nir = self["downward_nir_diffuse_fraction_at_surface"]
-    return (1 - dif_frac_nir).where(dif_frac_nir != 0.0, 0.0)
+    return 1 - self["downward_nir_diffuse_fraction_at_surface"]
 
 
 @DerivedMapping.register(
