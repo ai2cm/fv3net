@@ -10,11 +10,6 @@ from .._xarray import XarrayMapper
 from loaders._config import mapper_functions
 from loaders.typing import Mapper
 
-try:
-    import vcm
-except ImportError:
-    vcm = None
-
 logger = logging.getLogger(__name__)
 
 Z_DIM_NAME = "z"
@@ -305,7 +300,4 @@ def open_nudge_to_fine_scream(
         "SW_flux_dn_at_model_top": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
     }
     rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
-    mapper = XarrayMapper(ds.rename(rename_vars))
-    if vcm is not None:
-        mapper = vcm.DerivedMapping(mapper)
-    return mapper
+    return XarrayMapper(ds.rename(rename_vars))
