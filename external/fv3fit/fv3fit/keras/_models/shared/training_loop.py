@@ -74,6 +74,7 @@ class TrainingLoopConfig:
     shuffle_buffer_size: int = 50_000
     batch_size: int = 16
     in_memory: bool = True
+    log_verbosity: int = 1
 
     def __post_init__(self):
         if self.in_memory:
@@ -110,6 +111,7 @@ class TrainingLoopConfig:
                 y=Xy_fit[1],
                 validation_data=validation_fit,
                 batch_size=self.batch_size,
+                verbose=self.log_verbosity,
                 **fit_kwargs,
             )
         else:
@@ -128,4 +130,4 @@ class TrainingLoopConfig:
                 )
             else:
                 validation_fit = None
-            model.fit(Xy_fit, validation_data=validation_fit, **fit_kwargs)
+            model.fit(Xy_fit, validation_data=validation_fit, verbose=self.log_verbosity, **fit_kwargs)
