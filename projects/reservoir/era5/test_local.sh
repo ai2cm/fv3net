@@ -1,9 +1,9 @@
 #!/bin/bash
 
-python daily_avg.py \
-    gs://gcp-public-data-arco-era5/co/single-level-reanalysis.zarr \
-    --output_path gs://vcm-ml-scratch/andrep/era5_regrid/test_regridded.zarr \
-    --daily_template_path single_day_template.nc \
+python3 regrid_latlon_era5.py \
+    gs://vcm-ml-scratch/andrep/reservoir/era5/era5_daily_all_360x180_v2.zarr \
+    gs://vcm-ml-scratch/andrep/era5_regrid/test_c48_regrid.zarr \
+    --template_path gs://vcm-ml-scratch/andrep/reservoir/era5/c48_template.nc \
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-scratch/andrep/temp/ \
