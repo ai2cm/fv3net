@@ -140,3 +140,8 @@ class SquashedOutputConfig:
                 self.squash_to,
             )
         return squashed_predictions
+
+
+class NoCupy:
+    def __getattribute__(self, name):
+        return None

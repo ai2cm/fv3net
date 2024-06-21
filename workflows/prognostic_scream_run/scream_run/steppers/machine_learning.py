@@ -110,7 +110,9 @@ def predict(model: MultiModelAdapter, state: State) -> State:
     return _to_state(model.predict(ds))
 
 
-def predict_with_qv_constraint(model: MultiModelAdapter, state: State, dt: float) -> State:
+def predict_with_qv_constraint(
+    model: MultiModelAdapter, state: State, dt: float
+) -> State:
     """Given ML model and state, return prediction"""
     output = predict(model, state)
     return enforce_non_negative_humidity(

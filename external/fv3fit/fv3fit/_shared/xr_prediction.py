@@ -1,11 +1,17 @@
 import abc
 import numpy as np
-import cupy as cp
+
+try:
+    import cupy as cp
+    import cupy_xarray  # noqa: F401
+except ImportError:
+    from fv3fit._shared.config import NoCupy
+
+    cp = NoCupy()
 import logging
 import os
 from typing import Sequence, Iterable, Hashable
 import xarray as xr
-import cupy_xarray
 import tensorflow as tf
 import yaml
 
@@ -20,8 +26,8 @@ from fv3fit._shared import (
     put_dir,
 )
 
-# TODO: make cupy cupy_xarray optional imports
 logger = logging.getLogger(__name__)
+
 
 class ArrayPredictor(abc.ABC):
     @abc.abstractmethod
@@ -76,16 +82,19 @@ def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
     device = inputs[0].device.id
     with tf.device(f"/GPU:{device}"):
         logger.info(f"Predicting on GPU device {device}")    
-        inputs = [tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs]
+        inputs = [
+            tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs
+        ]
         outputs = model(inputs)
         if isinstance(outputs, tf.Tensor):
             outputs = [outputs]
-        outputs = [cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output)) for output in outputs]
+        outputs = [
+            cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output)) for output in outputs
+        ]
         return outputs
 
 
 def _predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
-    # TODO: make sure if inputs are not cupy, just revert to cpu prediction
     data = inputs[0]
     is_cupy = hasattr(data, "device")
     logger.info(type(data))
