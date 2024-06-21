@@ -65,7 +65,7 @@ def _array_prediction_to_dataset(
 
 
 def _cpu_predict(model, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
-    logger.info("Predicting on CPU")
+    logger.debug("Predicting on CPU")
     inputs = [tf.convert_to_tensor(input_) for input_ in inputs]
     outputs = model(inputs)
     outputs = [np.asarray(output.numpy()) for output in outputs]
@@ -75,7 +75,7 @@ def _cpu_predict(model, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
 def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
     device = inputs[0].device.id
     with tf.device(f"/GPU:{device}"):
-        logger.info(f"Predicting on GPU device {device}")    
+        logger.debug(f"Predicting on GPU device {device}")    
         inputs = [tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs]
         outputs = model(inputs)
         if isinstance(outputs, tf.Tensor):
@@ -88,8 +88,6 @@ def _predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
     # TODO: make sure if inputs are not cupy, just revert to cpu prediction
     data = inputs[0]
     is_cupy = hasattr(data, "device")
-    logger.info(type(data))
-    logger.info(f"Current device: {str(tf.config.get_visible_devices())}")
     if is_cupy and data.device.id >= 0:
         return _gpu_predict(model, inputs)
     else:
