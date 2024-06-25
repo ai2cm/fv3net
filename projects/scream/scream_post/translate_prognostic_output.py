@@ -312,7 +312,8 @@ def determine_tendency_variables(ds: xr.Dataset, run_label: str):
 
 
 def open_dataset(input_data: str):
-    if "*" in input_data and ".nc" in input_data:
+    logger.info(f"Opening dataset {input_data}, {'.nc' in input_data} {'*' in input_data}")
+    if "*" in input_data and ".nc" in input_data or "*nc" in input_data:
         logger.info("Opening multiple netcdf files")
         ds = xr.open_mfdataset(input_data, compat="override", coords="minimal")
     elif ".nc" in input_data:
@@ -332,6 +333,7 @@ def open_dataset(input_data: str):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     parser = _get_parser()
     args = parser.parse_args()
     client = Client(n_workers=50, threads_per_worker=2)
