@@ -184,12 +184,24 @@ def _get_physics_only_contribution(ds):
     return ds.update(adjusted_physics)
 
 
-def _change_net_moistening_to_mm_per_day(ds):
+def _fix_moistening_and_prate_units_for_diags(ds):
 
-    key = "net_moistening_due_to_machine_learning"
-    if key in ds:
+    prate_key = "PRATEsfc"
+    dq2_key = "net_moistening_due_to_machine_learning"
+    if prate_key in ds and dq2_key in ds:
+        if ds[prate_key].units == "kg/m^2/s" and ds[dq2_key].units == "kg/m^2/s":
+            logger.info("Removing ML precip from SCREAM PRATEsfc")
+            ds[prate_key] = ds[prate_key] - ds[dq2_key]
+        else:
+            logger.warning(
+                "PRATEsfc and net_moistening_due_to_machine_learning "
+                "units do not match, could not remove ML precip from PRATEsfc. "
+                "physics heating and moistening diagnostics may be incorrect."
+            )
+
+    if dq2_key in ds:
         logger.info("Changing units of ml net moistening to mm/day")
-        ds[key] = ds[key] * derived_variables.SECONDS_PER_DAY
+        ds[dq2_key] = ds[dq2_key] * derived_variables.SECONDS_PER_DAY
     
     return ds
 
@@ -203,7 +215,7 @@ def load_scream_data(path) -> xr.Dataset:
         ds = xr.open_zarr(m, consolidated=True, decode_times=False)
         ds = standardize_scream_diagnostics(ds)
         ds = _get_physics_only_contribution(ds)
-        ds = _change_net_moistening_to_mm_per_day(ds)
+        ds = _fix_moistening_and_prate_units_for_diags(ds)
     except (FileNotFoundError):
         warnings.warn(UserWarning(f"{path} not found. Returning empty dataset."))
         ds = xr.Dataset()
