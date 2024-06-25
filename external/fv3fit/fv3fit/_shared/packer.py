@@ -15,6 +15,7 @@ from .config import PackerConfig, SliceConfig
 import dataclasses
 import numpy as np
 import xarray as xr
+import cupy_xarray
 import pandas as pd
 import tensorflow as tf
 
@@ -120,9 +121,9 @@ def pack(
 
     data_clipped = xr.Dataset(clip(data, config.clip))
     stacked = data_clipped.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
-    stacked = stacked.dropna(feature_dim_name)
+    # stacked = stacked.dropna(feature_dim_name)
     return (
-        stacked.transpose(*sample_dims, feature_dim_name).values,
+        stacked.transpose(*sample_dims, feature_dim_name).data,
         stacked.indexes[feature_dim_name],
     )
 
