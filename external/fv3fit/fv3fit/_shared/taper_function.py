@@ -1,6 +1,24 @@
 from typing import Callable
 import numpy as np
 import xarray as xr
+import logging
+
+try:
+    import cupy as cp
+    import cupy_xarray
+    CUPY_AVAILABLE = True
+except ImportError:
+    CUPY_AVAILABLE = False
+
+
+logger = logging.getLogger(__name__)
+
+
+def _is_cupy_array(arr):
+    return CUPY_AVAILABLE and isinstance(arr, cp.ndarray)
+
+def get_xpy_module(arr):
+    return cp if _is_cupy_array(arr) else np
 
 
 def taper_mask(
@@ -10,7 +28,10 @@ def taper_mask(
         Completely suppresses the output if the novelty scores is larger that
         some cutoff and does nothing otherwise.
     """
-    return xr.where(novelty_score > cutoff, 0, 1)
+    arr = novelty_score.data
+    xp = get_xpy_module(arr)
+    logger.info(f"In taper_mask array type and device: {type(arr)} {arr.device} {arr.dtype}")
+    return xr.where(novelty_score > cutoff, xp.asarray(0), xp.asarray(1))
 
 
 def taper_ramp(
@@ -20,8 +41,9 @@ def taper_ramp(
         Linearly interpolates between complete suppression when the novelty score
         is larger than ramp_max and complete expression when smaller than ramp_min.
     """
+    xp = get_xpy_module(novelty_score)
     unclipped = (ramp_max - novelty_score) / (ramp_max - ramp_min)
-    return np.clip(unclipped, 0, 1)
+    return xp.clip(unclipped, 0, 1)
 
 
 def taper_decay(
@@ -32,7 +54,8 @@ def taper_decay(
         expressed. Otherwise, the fraction of the tendency not suppressed decays
         exponentially with the base rate in [0, 1].
     """
-    return np.minimum(rate ** (novelty_score - threshold), 1)
+    xp = get_xpy_module(novelty_score)
+    return xp.minimum(rate ** (novelty_score - threshold), 1)
 
 
 def get_taper_function(
