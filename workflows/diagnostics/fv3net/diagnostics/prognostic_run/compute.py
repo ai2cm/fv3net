@@ -22,7 +22,7 @@ from dask.distributed import Client, worker_client
 import fsspec
 
 
-from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence
+from typing import Optional, Mapping, MutableMapping, Union, Tuple, Sequence, List
 
 import vcm
 
@@ -84,7 +84,7 @@ def _merge_diag_computes(
 ) -> Mapping[str, xr.DataArray]:
     # Flattens list of all computations across registries before
     # parallelizing the computation.
-    merged_input_data = {"2d": [], "3d": []}
+    merged_input_data: MutableMapping[str, List] = {"2d": [], "3d": []}
     for registry_key, (prog, verif, grid) in input_data.items():
 
         if len(prog) == 0:
@@ -110,21 +110,24 @@ def _merge_diag_computes(
     def _compute(arg):
         func_name, func, key, diag_arg = arg
         # Retrieve the parent client to add current tasks to the same scheduler
-        with worker_client() as client:
+        with worker_client() as client:  # noqa
             return registries[key].load(func_name, func, diag_arg)
 
     computed_outputs = []
 
     # 2D batches
     for i in range(0, len(merged_input_data["2d"]), n_concurrent_2d_calcs):
-        futures = client.map(_compute, merged_input_data["2d"][i : i + n_concurrent_2d_calcs])
+        futures = client.map(
+            _compute, merged_input_data["2d"][i : i + n_concurrent_2d_calcs]
+        )
         computed_outputs += client.gather(futures)
 
     # 3D batches
     for i in range(0, len(merged_input_data["3d"]), n_concurrent_3d_calcs):
-        futures = client.map(_compute, merged_input_data["3d"][i : i + n_concurrent_3d_calcs])
+        futures = client.map(
+            _compute, merged_input_data["3d"][i : i + n_concurrent_3d_calcs]
+        )
         computed_outputs += client.gather(futures)
-    
 
     return merge_diags(computed_outputs)
 
@@ -186,11 +189,11 @@ def _per_var_wrapper(func, num_ds_args=1):
     def per_variable(ds, *args, **kwargs):
         # handles cases where the function is called with multiple datasets
         if num_ds_args > 1:
-            dataset_args = args[:(num_ds_args - 1)]
-            args = args[(num_ds_args - 1):]
+            dataset_args = args[: (num_ds_args - 1)]
+            args = args[(num_ds_args - 1) :]
         else:
             dataset_args = []
-        
+
         out = xr.Dataset()
         for var in ds.keys():
             logger.info(f"Computing {func.__name__} for {var}")
@@ -201,7 +204,7 @@ def _per_var_wrapper(func, num_ds_args=1):
                 continue
             out[var] = func(*data_inputs, *args, **kwargs)
         return out
-    
+
     return per_variable
 
 
@@ -256,7 +259,9 @@ def rms_errors(diag_arg: DiagArg):
         diag_arg.grid,
     )
 
-    rms_errors = _per_var_wrapper(rms, num_ds_args=2)(prognostic, verification, grid.area.load(), dims=diag_arg.horizontal_dims)
+    rms_errors = _per_var_wrapper(rms, num_ds_args=2)(
+        prognostic, verification, grid.area.load(), dims=diag_arg.horizontal_dims
+    )
 
     return rms_errors
 
@@ -389,7 +394,9 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
     logger.info(f"Preparing deep tropical meridional mean values (2d)")
-    result = _per_var_wrapper(_meridional_mean)(diag_arg.prediction, diag_arg.grid.load())
+    result = _per_var_wrapper(_meridional_mean)(
+        diag_arg.prediction, diag_arg.grid.load()
+    )
     return result.rename({"time": "high_frequency_time"})
 
 
@@ -407,16 +414,19 @@ def deep_tropical_mean_hovmoller_bias(diag_arg: DiagArg):
 
 
 def _per_variable_masked(
-    func: str, mask: xr.DataArray, prognostic: xr.Dataset, horizontal_dims:  Tuple[str, ...]
+    func: str,
+    mask: xr.DataArray,
+    prognostic: xr.Dataset,
+    horizontal_dims: Tuple[str, ...],
 ) -> xr.Dataset:
-    
+
     out = xr.Dataset()
     for var, da in prognostic.items():
         da = da.load()
         masked = da.where(mask)
         with xr.set_options(keep_attrs=True):
             out[var] = getattr(masked, func)(dim=horizontal_dims).load()
-    
+
     return out
 
 
@@ -431,10 +441,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing minimum for variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         return _per_variable_masked(
-            "min",
-            ~grid["area"].isnull().load(),
-            prognostic,
-            diag_arg.horizontal_dims
+            "min", ~grid["area"].isnull().load(), prognostic, diag_arg.horizontal_dims
         )
 
     @registry_2d.register(f"spatial_max_{mask_type}")
@@ -446,10 +453,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
         logger.info(f"Preparing maximum for variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
         return _per_variable_masked(
-            "min",
-            ~grid["area"].isnull().load(),
-            prognostic,
-            diag_arg.horizontal_dims
+            "min", ~grid["area"].isnull().load(), prognostic, diag_arg.horizontal_dims
         )
 
 
@@ -463,7 +467,9 @@ for mask_type in ["global", "land", "sea", "tropics"]:
     def global_averages_2d(diag_arg: DiagArg, mask_type=mask_type):
         logger.info(f"Preparing averages for 2d variables ({mask_type})")
         prognostic, grid = diag_arg.prediction, diag_arg.grid
-        return _per_var_wrapper(weighted_mean)(prognostic, grid.area.load(), diag_arg.horizontal_dims)
+        return _per_var_wrapper(weighted_mean)(
+            prognostic, grid.area.load(), diag_arg.horizontal_dims
+        )
 
     @registry_2d.register(f"mean_bias_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -626,7 +632,9 @@ def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
 def _compute_wvp_vs_q2_histogram(ds: xr.Dataset) -> xr.Dataset:
     counts = xr.Dataset()
     bins = [HISTOGRAM_BINS[WVP], HISTOGRAM_BINS[COL_DRYING]]
-    counts, wvp_bins, q2_bins = vcm.histogram2d(ds[WVP].load(), ds[COL_DRYING].load(), bins=bins)
+    counts, wvp_bins, q2_bins = vcm.histogram2d(
+        ds[WVP].load(), ds[COL_DRYING].load(), bins=bins
+    )
     return xr.Dataset(
         {
             f"{WVP}_versus_{COL_DRYING}": counts,
@@ -761,9 +769,11 @@ def main(args):
     )
 
     computed_diags = _merge_diag_computes(
-        input_data, registries, client
+        input_data,
+        registries,
+        client,
         n_concurrent_2d_calcs=args.num_concurrent_2d_calcs,
-        n_concurrent_3d_calcs=args.num_concurrent_3d_calcs,    
+        n_concurrent_3d_calcs=args.num_concurrent_3d_calcs,
     )
     diags.update(computed_diags)
 

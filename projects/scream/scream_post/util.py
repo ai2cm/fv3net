@@ -56,7 +56,9 @@ def add_rad_fluxes(ds: xr.Dataset):
         DSWRFtoa = ds.DSWRFtoa
         DLWRFsfc = ds.DLWRFsfc
     else:
-        logger.warning("No radiation fluxes found in dataset. Skipping radiation calculations.")
+        logger.warning(
+            "No radiation fluxes found in dataset. Skipping radiation calculations."
+        )
         return ds
 
     shortwave_transmissivity_of_atmospheric_column = DSWRFsfc / DSWRFtoa

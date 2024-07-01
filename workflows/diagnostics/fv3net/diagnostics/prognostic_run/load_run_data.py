@@ -160,7 +160,7 @@ def load_coarse_data(path, catalog) -> xr.Dataset:
 
 
 def _get_physics_only_contribution(ds):
-    
+
     _tendencies_to_separate = {
         "dQ1": "air_temperature",
         "dQ2": "specific_humidity",
@@ -175,12 +175,14 @@ def _get_physics_only_contribution(ds):
     adjusted_physics = {}
     for adjustment_key, physics_varname in _tendencies_to_separate.items():
         if adjustment_key in ds:
-            logger.info(f"Removing {adjustment_key} tendency from total scream physics tendency")
+            logger.info(
+                f"Removing {adjustment_key} tendency from total scream physics tendency"
+            )
             adjustment_tend = ds[adjustment_key]
             physics_key = f"{physics_varname}_tendency_due_to_scream_physics"
             total_physics = ds[physics_key]
             adjusted_physics[physics_key] = total_physics - adjustment_tend
-    
+
     return ds.update(adjusted_physics)
 
 
@@ -195,7 +197,7 @@ def _fix_moistening_and_prate_units_for_ml_diags(ds):
     if dq2_key in ds:
         logger.info("Changing units of ml net moistening to mm/day")
         ds[dq2_key] = ds[dq2_key] * derived_variables.SECONDS_PER_DAY
-    
+
     return ds
 
 

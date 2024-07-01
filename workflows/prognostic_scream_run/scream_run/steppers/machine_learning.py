@@ -87,6 +87,7 @@ class MultiModelAdapter:
 
 def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
     import fv3fit
+
     model_paths = config.models
     models = []
     for path in model_paths:

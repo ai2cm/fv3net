@@ -311,9 +311,10 @@ def _get_variable_names(ds: xr.Dataset, pattern: str):
     for var in ds.variables:
         match = re.match(pattern, var)
         if match:
-            variable_names.append(match.group(1)) 
-    
+            variable_names.append(match.group(1))
+
     return variable_names
+
 
 def determine_tendency_variables(ds: xr.Dataset, run_label: str):
     # from original scream output files
@@ -324,7 +325,9 @@ def determine_tendency_variables(ds: xr.Dataset, run_label: str):
 
 
 def open_dataset(input_data: str):
-    logger.info(f"Opening dataset {input_data}, {'.nc' in input_data} {'*' in input_data}")
+    logger.info(
+        f"Opening dataset {input_data}, {'.nc' in input_data} {'*' in input_data}"
+    )
     if "*" in input_data and ".nc" in input_data or "*nc" in input_data:
         logger.info("Opening multiple netcdf files")
         ds = xr.open_mfdataset(input_data, compat="override", coords="minimal")
@@ -337,9 +340,14 @@ def open_dataset(input_data: str):
             "nudging_tendencies.zarr",
             "state_after_timestep.zarr",
         )
-        logger.info("Opening directory of zarrs produced by scream-post format_output.py")
+        logger.info(
+            "Opening directory of zarrs produced by scream-post format_output.py"
+        )
         ds = xr.merge(
-            [xr.open_zarr(os.path.join(input_data, member), use_cftime=True) for member in dataset_members]
+            [
+                xr.open_zarr(os.path.join(input_data, member), use_cftime=True)
+                for member in dataset_members
+            ]
         )
     return ds
 
@@ -348,7 +356,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = _get_parser()
     args = parser.parse_args()
-    client = Client(n_workers=args.num_workers, threads_per_worker=args.threads_per_worker)
+    client = Client(
+        n_workers=args.num_workers, threads_per_worker=args.threads_per_worker
+    )
     ds = open_dataset(args.input_data)
     if args.subset:
         logger.info("Subset to the first 100 timesteps")

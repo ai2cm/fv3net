@@ -71,9 +71,7 @@ def _plot_2d_panel(v, varname, run, x, y, ylabel, contour, figsize, opts):
     fig, ax = plt.subplots(figsize=figsize)
     if contour:
         levels = CONTOUR_LEVELS.get(varname)
-        xr.plot.contourf(
-            v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts
-        )
+        xr.plot.contourf(v, ax=ax, x=x, y=y, levels=levels, extend="both", **opts)
     else:
         v.plot(ax=ax, x=x, y=y, **opts)
     if ylabel:
@@ -120,11 +118,11 @@ def plot_2d_matplotlib(
     with Parallel(n_jobs=8, verbose=10) as parallel:
         results = parallel(jobs)
 
-    for args, figure in zip(args, results):
-        run = args[1]
-        varname = args[2]
+    for fig_args, figure in zip(args, results):
+        run = fig_args[1]
+        varname = fig_args[2]
         data[varname][run] = figure
-            
+
     return RawHTML(
         template.render(
             images=data,
@@ -136,15 +134,22 @@ def plot_2d_matplotlib(
     )
 
 
-def _plot_cubed_sphere_panel(ds, run, varname, vmin, vmax, cmap, metrics_for_title, run_diags, run_metrics, varfilter):
+def _plot_cubed_sphere_panel(
+    ds,
+    run,
+    varname,
+    vmin,
+    vmax,
+    cmap,
+    metrics_for_title,
+    run_diags,
+    run_metrics,
+    varfilter,
+):
     logging.info(f"plotting {varname} in {run}")
     shortname = varname.split(varfilter)[0][:-1]
-    plot_title = _render_map_title(
-        run_metrics, shortname, run, metrics_for_title
-    )
-    fig, ax = plt.subplots(
-        figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()}
-    )
+    plot_title = _render_map_title(run_metrics, shortname, run, metrics_for_title)
+    fig, ax = plt.subplots(figsize=(6, 3), subplot_kw={"projection": ccrs.Robinson()})
     if "ncol" in ds.sizes:
         grid_metadata = GridMetadataScream("ncol", "lon", "lat")
         fv3viz.plot_cube(
@@ -189,7 +194,6 @@ def plot_cubed_sphere_map(
     if metrics_for_title is None:
         metrics_for_title = {}
 
-
     variables_to_plot = run_diags.matching_variables(varfilter)
     job_args = []
     if "lonb" and "latb" in run_diags.variables:
@@ -200,8 +204,21 @@ def plot_cubed_sphere_map(
         vmin, vmax, cmap = _get_cmap_kwargs(run_diags, varname, robust=True)
         for run in run_diags.runs:
             ds = run_diags.get_variables(run, coord_vars + [varname])
-            job_args.append((ds, run, varname, vmin, vmax, cmap, metrics_for_title, run_diags, run_metrics, varfilter))
-    
+            job_args.append(
+                (
+                    ds,
+                    run,
+                    varname,
+                    vmin,
+                    vmax,
+                    cmap,
+                    metrics_for_title,
+                    run_diags,
+                    run_metrics,
+                    varfilter,
+                )
+            )
+
     jobs = [delayed(_plot_cubed_sphere_panel)(*args) for args in job_args]
     with Parallel(n_jobs=8, verbose=10) as parallel:
         results = parallel(jobs)

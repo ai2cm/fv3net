@@ -81,7 +81,7 @@ def _cpu_predict(model, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
 def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
     device = inputs[0].device.id
     with tf.device(f"/GPU:{device}"):
-        logger.info(f"Predicting on GPU device {device}")    
+        logger.info(f"Predicting on GPU device {device}")
         inputs = [
             tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs
         ]
@@ -89,7 +89,8 @@ def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
         if isinstance(outputs, tf.Tensor):
             outputs = [outputs]
         outputs = [
-            cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output)) for output in outputs
+            cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output))
+            for output in outputs
         ]
         return outputs
 
