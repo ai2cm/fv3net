@@ -16,6 +16,7 @@ install_requirements = [
     "cftime",
     "intake",
     "numpy",
+    "flox",
     "google-cloud-storage",
     "toolz",
     "cartopy",

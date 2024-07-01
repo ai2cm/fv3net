@@ -33,6 +33,9 @@ def _calc_ds_diurnal_cycle(ds):
     """
     Calculates the diurnal cycle for all variables.  Expects
     time dimension and longitude variable "lon".
+
+    Uses flox.xarray.xarray_reduce to speed up the diurnal cycle calc
+    See https://xarray.dev/blog/flox
     """
     local_time = vcm.local_time(ds, time="time", lon_var="lon")
     local_time.attrs = {"long_name": "local time", "units": "hour"}
@@ -52,9 +55,6 @@ def _calc_ds_diurnal_cycle(ds):
                 method="map-reduce",
                 engine="flox"
             ).compute()
-            # diurnal_cycles[var] = (
-            #     ds[[var, "local_time"]].load().dropna().groupby("local_time").mean(method="map-reduce", engine="flox")[var].load()
-            # )
     return diurnal_cycles
 
 
