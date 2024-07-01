@@ -184,6 +184,7 @@ def _per_var_wrapper(func, num_ds_args=1):
     # of scream ne30 data.  Since FV3 segments are shorter, I believe this
     # will be ok.
     def per_variable(ds, *args, **kwargs):
+        # handles cases where the function is called with multiple datasets
         if num_ds_args > 1:
             dataset_args = args[:(num_ds_args - 1)]
             args = args[(num_ds_args - 1):]
@@ -403,11 +404,6 @@ def deep_tropical_mean_hovmoller_bias(diag_arg: DiagArg):
     return _per_var_wrapper(_meridional_mean)(trop_bias, grid).rename(
         {"time": "high_frequency_time"}
     )
-    prediction = _per_var_wrapper(_zonal_mean)(diag_arg.prediction, grid)
-    verification = _per_var_wrapper(_zonal_mean)(diag_arg.verification, grid)
-    # prediction = _compute_deep_tropical_meridional_mean(diag_arg.prediction, grid)
-    # verification = _compute_deep_tropical_meridional_mean(diag_arg.verification, grid)
-    return bias(verification, prediction).rename({"time": "high_frequency_time"}).load()
 
 
 def _per_variable_masked(
@@ -440,9 +436,6 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             prognostic,
             diag_arg.horizontal_dims
         )
-        # masked = prognostic.where(~grid["area"].isnull())
-        # with xr.set_options(keep_attrs=True):
-        #     return masked.min(dim=diag_arg.horizontal_dims)
 
     @registry_2d.register(f"spatial_max_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
@@ -458,9 +451,6 @@ for mask_type in ["global", "land", "sea", "tropics"]:
             prognostic,
             diag_arg.horizontal_dims
         )
-        # masked = prognostic.where(~grid["area"].isnull())
-        # with xr.set_options(keep_attrs=True):
-        #     return masked.max(dim=diag_arg.horizontal_dims)
 
 
 for mask_type in ["global", "land", "sea", "tropics"]:
