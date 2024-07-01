@@ -125,7 +125,6 @@ def enforce_non_negative_humidity(
 ):
     dQ1_initial = prediction.get("dQ1", xr.zeros_like(state[SPHUM]))
     dQ2_initial = prediction.get("dQ2", xr.zeros_like(state[SPHUM]))
-    logger.info(f"Non-neg humidity dtype: {dQ1_initial.dtype}")
     if mse_conserving_limiter:
         dQ2_updated, dQ1_updated = vcm.non_negative_sphum_mse_conserving(
             state[SPHUM], dQ2_initial, dt, q1=dQ1_initial,
@@ -138,5 +137,4 @@ def enforce_non_negative_humidity(
         prediction.update({"dQ1": dQ1_updated})
     if "dQ2" in prediction:
         prediction.update({"dQ2": dQ2_updated})
-    logger.info(f"Non-neg humidity dtype: {dQ1_updated.dtype}")
     return prediction
