@@ -18,7 +18,7 @@ import sys
 import datetime
 import intake
 import xarray as xr
-from dask.distributed import Client, worker_client, worker_client
+from dask.distributed import Client, worker_client
 import fsspec
 
 
@@ -78,8 +78,9 @@ def _prepare_diag_dict(suffix: str, ds: xr.Dataset) -> Mapping[str, xr.DataArray
 def _merge_diag_computes(
     input_data: Mapping[str, Tuple[xr.Dataset, xr.Dataset, xr.Dataset]],
     registries: Mapping[str, Registry],
-    n_jobs: int,
     client: Client,
+    n_concurrent_2d_calcs: int = 8,
+    n_concurrent_3d_calcs: int = 2,
 ) -> Mapping[str, xr.DataArray]:
     # Flattens list of all computations across registries before
     # parallelizing the computation.
@@ -108,20 +109,22 @@ def _merge_diag_computes(
 
     def _compute(arg):
         func_name, func, key, diag_arg = arg
+        # Retrieve the parent client to add current tasks to the same scheduler
         with worker_client() as client:
             return registries[key].load(func_name, func, diag_arg)
 
     computed_outputs = []
-    
-    # batch_size = 2
-    # for i in range(0, len(merged_input_data["3d"]), batch_size):
-    #     futures = client.map(_compute, merged_input_data["3d"][i : i + batch_size])
-    #     computed_outputs += client.gather(futures)
 
-    batch_size = 8
-    for i in range(0, len(merged_input_data["2d"]), batch_size):
-        futures = client.map(_compute, merged_input_data["2d"][i : i + batch_size])
+    # 2D batches
+    for i in range(0, len(merged_input_data["2d"]), n_concurrent_2d_calcs):
+        futures = client.map(_compute, merged_input_data["2d"][i : i + n_concurrent_2d_calcs])
         computed_outputs += client.gather(futures)
+
+    # 3D batches
+    for i in range(0, len(merged_input_data["3d"]), n_concurrent_3d_calcs):
+        futures = client.map(_compute, merged_input_data["3d"][i : i + n_concurrent_3d_calcs])
+        computed_outputs += client.gather(futures)
+    
 
     return merge_diags(computed_outputs)
 
@@ -693,11 +696,30 @@ def register_parser(subparsers):
     parser.add_argument(
         "--n-jobs",
         type=int,
-        help="Parallelism for the computation of diagnostics. "
+        help="Parallelism for dask computation of diagnostics. "
         "Defaults to using all available cores. Can set to a lower fixed value "
         "if you are often running  into read errors when multiple processes "
-        "access data concurrently.",
-        default=-1,
+        "access data concurrently.  Ignored if a scheduler file is passed.",
+        default=None,
+    )
+    parser.add_argument(
+        "--scheduler-file",
+        type=str,
+        help="Path to dask scheduler file. If passed, the client will connect to the "
+        "scheduler instead of creating a new one.",
+        default=None,
+    )
+    parser.add_argument(
+        "--num-concurrent-2d-calcs",
+        type=int,
+        help="Number of 2d diagnostics functions to compute concurrently.",
+        default=8,
+    )
+    parser.add_argument(
+        "--num-concurrent-3d-calcs",
+        type=int,
+        help="Number of 3d diagnostics functions to compute concurrently.",
+        default=2,
     )
     parser.add_argument(
         "--gsrm",
@@ -724,8 +746,10 @@ def get_verification(args, catalog, join_2d="outer"):
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
-    # client = Client(n_workers=2, threads_per_worker=8)
-    client = Client(scheduler_file="/pscratch/sd/a/andrep/scheduler_file.json")
+    if args.scheduler_file is not None:
+        client = Client(scheduler_file=args.scheduler_file)
+    else:
+        client = Client(n_workers=args.n_jobs)
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
@@ -746,7 +770,11 @@ def main(args):
         prognostic, verification, grid, args.start_date, args.end_date
     )
 
-    computed_diags = _merge_diag_computes(input_data, registries, args.n_jobs, client)
+    computed_diags = _merge_diag_computes(
+        input_data, registries, client
+        n_concurrent_2d_calcs=args.num_concurrent_2d_calcs,
+        n_concurrent_3d_calcs=args.num_concurrent_3d_calcs,    
+    )
     diags.update(computed_diags)
 
     # add grid vars
