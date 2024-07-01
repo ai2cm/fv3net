@@ -211,30 +211,30 @@ def net_shortwave_sfc_flux_derived(self):
     return _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo)
 
 
-# @DerivedMapping.register(
-#     "downward_shortwave_sfc_flux_via_transmissivity",
-#     required_inputs=[
-#         "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
-#         "shortwave_transmissivity_of_atmospheric_column",
-#     ],
-# )
-# def downward_shortwave_sfc_flux_via_transmissivity(self):
-#     toa_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
-#     transmissivity = self["shortwave_transmissivity_of_atmospheric_column"]
-#     return transmissivity * toa_flux
+@DerivedMapping.register(
+    "downward_shortwave_sfc_flux_via_transmissivity",
+    required_inputs=[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+        "shortwave_transmissivity_of_atmospheric_column",
+    ],
+)
+def downward_shortwave_sfc_flux_via_transmissivity(self):
+    toa_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
+    transmissivity = self["shortwave_transmissivity_of_atmospheric_column"]
+    return transmissivity * toa_flux
 
 
-# @DerivedMapping.register(
-#     "net_shortwave_sfc_flux_via_transmissivity",
-#     required_inputs=[
-#         "surface_diffused_shortwave_albedo",
-#         "downward_shortwave_sfc_flux_via_transmissivity",
-#     ],
-# )
-# def net_shortwave_sfc_flux_via_transmissivity(self):
-#     downward_sfc_shortwave_flux = self["downward_shortwave_sfc_flux_via_transmissivity"]
-#     albedo = self["surface_diffused_shortwave_albedo"]
-#     return _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo)
+@DerivedMapping.register(
+    "net_shortwave_sfc_flux_via_transmissivity",
+    required_inputs=[
+        "surface_diffused_shortwave_albedo",
+        "downward_shortwave_sfc_flux_via_transmissivity",
+    ],
+)
+def net_shortwave_sfc_flux_via_transmissivity(self):
+    downward_sfc_shortwave_flux = self["downward_shortwave_sfc_flux_via_transmissivity"]
+    albedo = self["surface_diffused_shortwave_albedo"]
+    return _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo)
 
 
 @DerivedMapping.register(

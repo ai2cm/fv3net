@@ -158,7 +158,7 @@ update_scream_repository: clone_scream_repository
 	git submodule update --init --recursive; \
 	git submodule sync --recursive; \
 
-build_image_prognostic_scream_run:
+build_image_prognostic_scream_run: update_scream_repository
 	tools/docker_build_cached.sh $(REGISTRY)/prognostic_scream_run:$(CACHE_TAG) \
 		-f docker/prognostic_scream_run/Dockerfile -t $(REGISTRY)/prognostic_scream_run:$(VERSION) .
 

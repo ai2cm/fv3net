@@ -1,5 +1,5 @@
 ARG MAMBAFORGE_VERSION=4.14.0-0
-FROM nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04 AS base
+FROM condaforge/mambaforge:${MAMBAFORGE_VERSION} AS base
 
 ARG PNETCDF_VERSION=1.12.3
 ENV PNETCDF_VERSION=${PNETCDF_VERSION}
@@ -20,15 +20,6 @@ ENV USER=root
 ENV LOGNAME=root
 
 SHELL ["/bin/bash", "-c"]
-
-# install wget
-RUN apt-get update && apt-get install -y wget g++
-
-# install miniforge mamba
-RUN wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" && \
-    chmod +x Miniforge3-$(uname)-$(uname -m).sh && ./Miniforge3-$(uname)-$(uname -m).sh -b -p "/opt/conda"
-
-ENV PATH "/opt/conda/bin:${PATH}"
 
 # Install common packages
 RUN mamba install --yes -c conda-forge \
@@ -105,7 +96,7 @@ COPY docker/prognostic_scream_run/scream/components/eamxx/docker/requirements.tx
 RUN pip install -r /tmp/requirements.txt
 
 # install gcloud
-RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext git
+RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
 
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
@@ -156,14 +147,3 @@ ENV GOOGLE_APPLICATION_CREDENTIALS /tmp/key.json
 RUN --mount=type=secret,id=gcp,dst=/tmp/key.json \
     export FSSPEC_GS_TOKEN=/tmp/key.json && \
     /src/precompile_scream.sh
-
-# If I don't want to mix up library stuff for scream
-# I'll probably have to pip install cupy, and then no-dep install
-# cupy-xarray since both will be installed previously
-RUN mamba install cupy cupy-xarray h5py
-
-COPY projects/scream/working /fv3net/projects/scream/working
-
-COPY projects/scream/build_scream /src/build_scream
-
-WORKDIR /fv3net/projects/scream/working
