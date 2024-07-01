@@ -34,7 +34,8 @@ class Registry:
     @staticmethod
     def load(name, func, *args, **kwargs):
         _start_logger_if_necessary()
-        return name, func(*args, **kwargs).compute()
+        return name, func(*args, **kwargs).load()
+
 
 def _start_logger_if_necessary():
     # workaround for joblib.Parallel logging from
