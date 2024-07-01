@@ -105,6 +105,18 @@ def _get_parser() -> argparse.ArgumentParser:
         help="Whether to subset to a smaller set of timesteps",
         action="store_true",
     )
+    parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=50,
+        help="Number of workers for the dask distributed client.",
+    )
+    parser.add_argument(
+        "--threads_per_worker",
+        type=int,
+        default=2,
+        help="Number of threads per worker for the dask distributed client.",
+    )
     return parser
 
 
@@ -336,7 +348,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = _get_parser()
     args = parser.parse_args()
-    client = Client(n_workers=50, threads_per_worker=2)
+    client = Client(n_workers=args.num_workers, threads_per_worker=args.threads_per_worker)
     ds = open_dataset(args.input_data)
     if args.subset:
         logger.info("Subset to the first 100 timesteps")
