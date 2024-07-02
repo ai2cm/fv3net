@@ -749,7 +749,7 @@ def main(args):
     else:
         client = Client(n_workers=args.n_jobs)
     attrs = vars(args)
-    attrs = {k: "null" for k, v in attrs.items() if v is None}
+    attrs.update({k: "null" for k, v in attrs.items() if v is None})
     attrs["history"] = " ".join(sys.argv)
 
     # begin constructing diags
