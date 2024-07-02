@@ -130,4 +130,9 @@ class TrainingLoopConfig:
                 )
             else:
                 validation_fit = None
-            model.fit(Xy_fit, validation_data=validation_fit, verbose=self.log_verbosity, **fit_kwargs)
+            model.fit(
+                Xy_fit,
+                validation_data=validation_fit,
+                verbose=self.log_verbosity,
+                **fit_kwargs,
+            )

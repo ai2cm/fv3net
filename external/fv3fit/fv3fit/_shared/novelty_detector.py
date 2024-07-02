@@ -2,12 +2,15 @@ import abc
 from typing import Hashable, Iterable, Tuple
 from fv3fit._shared.predictor import Predictor
 import xarray as xr
+
 try:
     import cupy as cp
-    import cupy_xarray
+    import cupy_xarray  # noqa
+
     xp = cp
 except ImportError:
     import numpy as np
+
     xp = np
 
 import logging
@@ -46,11 +49,7 @@ class NoveltyDetector(Predictor, abc.ABC):
         diagnostics = self.predict(X)
 
         arr = diagnostics[self._CENTERED_SCORE_OUTPUT_VAR].data
-        logger.info(f"In predict_novelty array type and device: {type(arr)} {arr.device} {arr.dtype}")
-
-        is_novelty = xr.where(
-            diagnostics[self._CENTERED_SCORE_OUTPUT_VAR] > cutoff, np.asarray(1), np.asarray(0)
-        )
+        is_novelty = xr.where(arr > cutoff, np.asarray(1), np.asarray(0),)
         diagnostics[self._NOVELTY_OUTPUT_VAR] = is_novelty
 
         return diagnostics[self._CENTERED_SCORE_OUTPUT_VAR], diagnostics

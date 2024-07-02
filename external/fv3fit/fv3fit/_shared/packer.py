@@ -19,7 +19,7 @@ import pandas as pd
 import tensorflow as tf
 
 try:
-    import cupy_xarray
+    import cupy_xarray  # noqa
 except ImportError:
     pass
 

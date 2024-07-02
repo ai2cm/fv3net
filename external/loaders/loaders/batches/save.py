@@ -75,7 +75,9 @@ def save_batches(batches, output_path, num_jobs):
     logger.info(f"batches object created, saving {n_batches} batches to {output_path}")
     os.makedirs(output_path, exist_ok=True)
 
-    jobs = [joblib.delayed(_save_batch)((i, batches, output_path)) for i in range(n_batches)]
+    jobs = [
+        joblib.delayed(_save_batch)((i, batches, output_path)) for i in range(n_batches)
+    ]
     joblib.Parallel(n_jobs=num_jobs)(jobs)
 
 
