@@ -705,7 +705,7 @@ def register_parser(subparsers):
         type=str,
         help="Path to dask scheduler file. If passed, the client will connect to the "
         "scheduler instead of creating a new one.",
-        default=None,
+        default="",
     )
     parser.add_argument(
         "--num-concurrent-2d-calcs",
@@ -744,7 +744,7 @@ def get_verification(args, catalog, join_2d="outer"):
 def main(args):
 
     logging.basicConfig(level=logging.INFO)
-    if args.scheduler_file is not None:
+    if args.scheduler_file:
         client = Client(scheduler_file=args.scheduler_file)
     else:
         client = Client(n_workers=args.n_jobs)
