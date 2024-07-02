@@ -307,7 +307,7 @@ def downward_vis_diffuse_fraction_at_surface(self):
     return _limit_sw_positive(vis_diffuse_fraction, downward_toa_shortwave_flux)
 
 
-@DerivedMapping.register("downward_vis_direct_fraction_at_surface", required_inputs=["downward_vis_diffuse_fraction_at_surface", "total_sky_downward_shortwave_flux_at_top_of_atmosphere"])
+@DerivedMapping.register("downward_vis_direct_fraction_at_surface", required_inputs=["downward_vis_diffuse_fraction_at_surface", "total_sky_downward_shortwave_flux_at_top_of_atmosphere"], use_nonderived_if_exists=True)
 def downward_vis_direct_fraction_at_surface(self):
     downward_toa_shortwave_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
     return _limit_sw_positive(1 - self["downward_vis_diffuse_fraction_at_surface"], downward_toa_shortwave_flux)
@@ -320,7 +320,7 @@ def downward_nir_diffuse_fraction_at_surface(self):
     return _limit_sw_positive(nir_diffuse_fraction, downward_toa_shortwave_flux)
 
 
-@DerivedMapping.register("downward_nir_direct_fraction_at_surface", required_inputs=["downward_nir_diffuse_fraction_at_surface", "total_sky_downward_shortwave_flux_at_top_of_atmosphere"])
+@DerivedMapping.register("downward_nir_direct_fraction_at_surface", required_inputs=["downward_nir_diffuse_fraction_at_surface", "total_sky_downward_shortwave_flux_at_top_of_atmosphere"], use_nonderived_if_exists=True)
 def downward_nir_direct_fraction(self):
     downward_toa_shortwave_flux = self["total_sky_downward_shortwave_flux_at_top_of_atmosphere"]
     return _limit_sw_positive(1 - self["downward_nir_diffuse_fraction_at_surface"], downward_toa_shortwave_flux)
