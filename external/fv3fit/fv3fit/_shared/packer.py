@@ -20,6 +20,7 @@ import tensorflow as tf
 
 try:
     import cupy_xarray  # noqa
+
     CUPY_AVAILABLE = True
 except ImportError:
     CUPY_AVAILABLE = False
