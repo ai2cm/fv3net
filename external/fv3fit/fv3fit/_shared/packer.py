@@ -24,7 +24,6 @@ try:
     CUPY_AVAILABLE = True
 except ImportError:
     CUPY_AVAILABLE = False
-    pass
 
 
 def _feature_dims(data: xr.Dataset, sample_dims: Sequence[str]) -> Sequence[str]:

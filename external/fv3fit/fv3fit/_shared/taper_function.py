@@ -32,9 +32,6 @@ def taper_mask(
     """
     arr = novelty_score.data
     xp = get_xpy_module(arr)
-    logger.info(
-        f"In taper_mask array type and device: {type(arr)} {arr.device} {arr.dtype}"
-    )
     return xr.where(novelty_score > cutoff, xp.asarray(0), xp.asarray(1))
 
 
