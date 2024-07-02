@@ -248,7 +248,7 @@ def _assign_source_attrs(
 
 
 @registry_2d.register("rms_global")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 @transform.apply(transform.subset_variables, RMSE_VARS)
 def rms_errors(diag_arg: DiagArg):
@@ -283,7 +283,7 @@ def _meridional_mean(da: xr.DataArray, grid: xr.Dataset):
 
 
 @registry_2d.register("zonal_and_time_mean")
-@transform.apply(transform.resample_time, "1h")
+@transform.apply(transform.resample_time, "1H")
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_means_2d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (2d)")
@@ -294,7 +294,7 @@ def zonal_means_2d(diag_arg: DiagArg):
 @registry_3d.register("pressure_level_zonal_time_mean")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
 @transform.apply(transform.skip_if_3d_output_absent)
-@transform.apply(transform.resample_time, "3h")
+@transform.apply(transform.resample_time, "3H")
 def zonal_means_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal+time means (3d)")
     prognostic, grid = diag_arg.prediction, diag_arg.grid
@@ -313,7 +313,7 @@ def zonal_means_3d(diag_arg: DiagArg):
 @registry_3d.register("pressure_level_zonal_bias")
 @transform.apply(transform.subset_variables, PRESSURE_INTERPOLATED_VARS)
 @transform.apply(transform.skip_if_3d_output_absent)
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 def zonal_bias_3d(diag_arg: DiagArg):
     logger.info("Preparing zonal mean bias (3d)")
     prognostic, verification, grid = (
@@ -339,7 +339,7 @@ def zonal_bias_3d(diag_arg: DiagArg):
 
 
 @registry_2d.register("zonal_bias")
-@transform.apply(transform.resample_time, "1h")
+@transform.apply(transform.resample_time, "1H")
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
     prognostic, verification, grid = (
@@ -358,7 +358,7 @@ def zonal_and_time_mean_biases_2d(diag_arg: DiagArg):
 
 
 @registry_2d.register("zonal_mean_value")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_mean_hovmoller(diag_arg: DiagArg):
@@ -368,7 +368,7 @@ def zonal_mean_hovmoller(diag_arg: DiagArg):
 
 
 @registry_2d.register("zonal_mean_bias")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
 def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
@@ -389,7 +389,7 @@ def zonal_mean_bias_hovmoller(diag_arg: DiagArg):
 
 
 @registry_2d.register("deep_tropical_meridional_mean_value")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
@@ -401,7 +401,7 @@ def deep_tropical_mean_hovmoller_value(diag_arg: DiagArg):
 
 
 @registry_2d.register("deep_tropical_meridional_mean_bias")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.subset_variables, ["total_precip_to_surface", "ULWRFtoa"])
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def deep_tropical_mean_hovmoller_bias(diag_arg: DiagArg):
@@ -434,7 +434,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"spatial_min_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
-    @transform.apply(transform.resample_time, "3h")
+    @transform.apply(transform.resample_time, "3H")
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
     @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
     def spatial_min(diag_arg: DiagArg, mask_type=mask_type):
@@ -446,7 +446,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"spatial_max_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
-    @transform.apply(transform.resample_time, "3h")
+    @transform.apply(transform.resample_time, "3H")
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
     @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
     def spatial_max(diag_arg: DiagArg, mask_type=mask_type):
@@ -461,7 +461,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"spatial_mean_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
-    @transform.apply(transform.resample_time, "3h")
+    @transform.apply(transform.resample_time, "3H")
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
     @transform.apply(transform.subset_variables, GLOBAL_AVERAGE_VARS)
     def global_averages_2d(diag_arg: DiagArg, mask_type=mask_type):
@@ -473,7 +473,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
     @registry_2d.register(f"mean_bias_{mask_type}")
     @transform.apply(transform.mask_area, mask_type)
-    @transform.apply(transform.resample_time, "3h", inner_join=True)
+    @transform.apply(transform.resample_time, "3H", inner_join=True)
     @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
     @transform.apply(transform.subset_variables, GLOBAL_BIAS_VARS)
     def global_biases_2d(diag_arg: DiagArg, mask_type=mask_type):
@@ -491,7 +491,7 @@ for mask_type in ["global", "land", "sea", "tropics"]:
 
 
 @registry_2d.register("time_mean_value")
-@transform.apply(transform.resample_time, "1h", inner_join=True)
+@transform.apply(transform.resample_time, "1H", inner_join=True)
 @transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_means_2d(diag_arg: DiagArg):
     logger.info("Preparing time means for 2d variables")
@@ -500,7 +500,7 @@ def time_means_2d(diag_arg: DiagArg):
 
 
 @registry_2d.register("time_mean_bias")
-@transform.apply(transform.resample_time, "1h", inner_join=True)
+@transform.apply(transform.resample_time, "1H", inner_join=True)
 @transform.apply(transform.subset_variables, TIME_MEAN_VARS)
 def time_mean_biases_2d(diag_arg: DiagArg):
     logger.info("Preparing time mean biases for 2d variables")
@@ -512,7 +512,7 @@ for mask_type in ["global", "land", "sea"]:
 
     @registry_2d.register(f"diurnal_{mask_type}")
     @transform.apply(transform.mask_to_sfc_type, mask_type)
-    @transform.apply(transform.resample_time, "1h", inner_join=True)
+    @transform.apply(transform.resample_time, "1H", inner_join=True)
     @transform.apply(transform.subset_variables, DIURNAL_CYCLE_VARS)
     def _diurnal_func(diag_arg: DiagArg, mask_type=mask_type) -> xr.Dataset:
         # mask_type is added as a kwarg solely to give the logging access to the info
@@ -532,7 +532,7 @@ for mask_type in ["global", "land", "sea"]:
 
 
 @registry_2d.register("histogram")
-@transform.apply(transform.resample_time, "3h", inner_join=True, method="mean")
+@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
 @transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
 def compute_histogram(diag_arg: DiagArg):
     logger.info("Computing histograms for physics diagnostics")
@@ -550,7 +550,7 @@ def compute_histogram(diag_arg: DiagArg):
 
 
 @registry_2d.register("hist_bias")
-@transform.apply(transform.resample_time, "3h", inner_join=True, method="mean")
+@transform.apply(transform.resample_time, "3H", inner_join=True, method="mean")
 @transform.apply(transform.subset_variables, list(HISTOGRAM_BINS.keys()))
 def compute_histogram_bias(diag_arg: DiagArg):
     logger.info("Computing histogram biases for physics diagnostics")
@@ -570,7 +570,7 @@ def compute_histogram_bias(diag_arg: DiagArg):
 
 
 @registry_2d.register("hist_2d")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.mask_to_sfc_type, "sea")
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def compute_hist_2d(diag_arg: DiagArg):
@@ -580,7 +580,7 @@ def compute_hist_2d(diag_arg: DiagArg):
 
 
 @registry_2d.register("hist2d_bias")
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.mask_to_sfc_type, "sea")
 @transform.apply(transform.mask_to_sfc_type, "tropics20")
 def compute_hist_2d_bias(diag_arg: DiagArg):
@@ -596,7 +596,7 @@ def compute_hist_2d_bias(diag_arg: DiagArg):
 @registry_3d.register("300_700_zonal_mean_value")
 @transform.apply(transform.subset_variables, ["northward_wind"])
 @transform.apply(transform.skip_if_3d_output_absent)
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 def time_dependent_mass_streamfunction(diag_arg: DiagArg):
     logger.info("Computing mid-troposphere averaged mass streamfunction")
@@ -614,7 +614,7 @@ def time_dependent_mass_streamfunction(diag_arg: DiagArg):
 @registry_3d.register("300_700_zonal_mean_bias")
 @transform.apply(transform.subset_variables, ["northward_wind"])
 @transform.apply(transform.skip_if_3d_output_absent)
-@transform.apply(transform.resample_time, "3h", inner_join=True)
+@transform.apply(transform.resample_time, "3H", inner_join=True)
 @transform.apply(transform.daily_mean, datetime.timedelta(days=10))
 def time_dependent_mass_streamfunction_bias(diag_arg: DiagArg):
     logger.info("Computing mid-troposphere averaged mass streamfunction bias")
