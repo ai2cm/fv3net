@@ -6,6 +6,7 @@ try:
     import cupy_xarray  # noqa: F401
 except ImportError:
     from fv3fit._shared.config import NoCupy
+
     cp = NoCupy()
 
 import logging
@@ -28,6 +29,7 @@ from fv3fit._shared import (
 
 # TODO: make cupy cupy_xarray optional imports
 logger = logging.getLogger(__name__)
+
 
 class ArrayPredictor(abc.ABC):
     @abc.abstractmethod
@@ -83,12 +85,17 @@ def _cpu_predict(model, inputs: Sequence[np.ndarray]) -> Sequence[np.ndarray]:
 def _gpu_predict(model, inputs: Sequence[cp.ndarray]) -> Sequence[cp.ndarray]:
     device = inputs[0].device.id
     with tf.device(f"/GPU:{device}"):
-        logger.debug(f"Predicting on GPU device {device}")    
-        inputs = [tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs]
+        logger.debug(f"Predicting on GPU device {device}")
+        inputs = [
+            tf.experimental.dlpack.from_dlpack(input_.toDlpack()) for input_ in inputs
+        ]
         outputs = model(inputs)
         if not isinstance(outputs, Sequence):
             outputs = [outputs]
-        outputs = [cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output)) for output in outputs]
+        outputs = [
+            cp.fromDlpack(tf.experimental.dlpack.to_dlpack(output))
+            for output in outputs
+        ]
         return outputs
 
 

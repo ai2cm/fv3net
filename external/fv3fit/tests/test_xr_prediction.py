@@ -37,7 +37,6 @@ class ConstantArrayPredictor:
         """
         self.model = model
 
-
     def __call__(self, X):
         return self.model(X)
 
