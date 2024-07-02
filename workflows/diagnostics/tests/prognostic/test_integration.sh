@@ -74,13 +74,13 @@ prognostic_run_diags shell --catalog_path=$tmpdir/catalog.yaml $tmpdir/report.sc
 rm image.png  # cleanup
 
 # compute diagnostics/mterics for a short sample prognostic run
-prognostic_run_diags save $RUN $tmpdir/diags.nc --n-jobs=4
+prognostic_run_diags save $RUN $tmpdir/diags.nc --n-jobs=2 --num-concurrent-2d-calcs 1 --num-concurrent-3d-calcs 1
 prognostic_run_diags metrics $tmpdir/diags.nc > $tmpdir/metrics.json
 gsutil cp $tmpdir/diags.nc $OUTPUT/run1/diags.nc
 gsutil cp $tmpdir/metrics.json $OUTPUT/run1/metrics.json
 
 # generate movies for short sample prognostic run
-prognostic_run_diags movie --n_jobs 1 --n_timesteps 2 $RUN $OUTPUT/run1
+prognostic_run_diags movie --n_jobs 1 --n_timesteps 2  $RUN $OUTPUT/run1
 
 # generate report based on diagnostics computed above
 prognostic_run_diags report $OUTPUT $OUTPUT
