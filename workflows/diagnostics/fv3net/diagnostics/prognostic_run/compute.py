@@ -680,6 +680,8 @@ def clean_up_diags_attrs(diags: xr.Dataset) -> xr.Dataset:
         diags.attrs["start_date"] = str(diags.attrs["start_date"])
     if "end_date" in diags.attrs:
         diags.attrs["end_date"] = str(diags.attrs["end_date"])
+
+    diags.attrs.update({k: "null" for k, v in diags.attrs.items() if v is None})
     return diags
 
 
@@ -749,7 +751,6 @@ def main(args):
     else:
         client = Client(n_workers=args.n_jobs)
     attrs = vars(args)
-    attrs.update({k: "null" for k, v in attrs.items() if v is None})
     attrs["history"] = " ".join(sys.argv)
 
     # begin constructing diags
