@@ -51,7 +51,7 @@ def test_time_mean():
         data_vars={"temperature": (["time", "x"], np.zeros((ntimes, 10)))},
         coords={"time": time_coord},
     )
-    diagnostic = savediags.time_mean(ds)
+    diagnostic = savediags._per_var_wrapper(savediags.time_mean)(ds)
     assert diagnostic.temperature.attrs["diagnostic_start_time"] == str(time_coord[0])
     assert diagnostic.temperature.attrs["diagnostic_end_time"] == str(time_coord[-1])
 
