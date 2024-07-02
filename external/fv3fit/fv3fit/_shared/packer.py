@@ -15,9 +15,13 @@ from .config import PackerConfig, SliceConfig
 import dataclasses
 import numpy as np
 import xarray as xr
-import cupy_xarray
 import pandas as pd
 import tensorflow as tf
+
+try:
+    import cupy_xarray
+except ImportError:
+    pass
 
 
 def _feature_dims(data: xr.Dataset, sample_dims: Sequence[str]) -> Sequence[str]:

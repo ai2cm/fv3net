@@ -6,7 +6,13 @@ import dacite
 import fsspec
 import joblib
 import numpy as np
-import cupy as cp
+
+try:
+    import cupy as cp
+    import cupy_xarray
+    xp = cp
+except ImportError:
+    xp = np
 
 from sklearn.pipeline import Pipeline, make_pipeline
 import yaml
@@ -130,7 +136,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
         )
         stacked_scores = -1 * self.pipeline.score_samples(X.get())
-        stacked_scores = cp.asarray(stacked_scores)
+        stacked_scores = xp.asarray(stacked_scores)
         self.logger.info(
             f"stcked_scores type and device {type(stacked_scores)} "
             f"{stacked_scores.device} {stacked_scores.dtype}"
