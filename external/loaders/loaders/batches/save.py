@@ -49,13 +49,18 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(data_config: str, output_path: str, variable_names: Sequence[str]):
+def main(
+    data_config: str,
+    output_path: str,
+    variable_names: Sequence[str],
+    num_workers: int = 1,
+):
     with open(data_config, "r") as f:
         config = yaml.safe_load(f)
     loader = BatchesLoader.from_dict(config)
     logger.info("configuration loaded, creating batches object")
     batches = loader.load_batches(variables=variable_names)
-    save_batches(batches, output_path, num_jobs=args.num_workers)
+    save_batches(batches, output_path, num_workers=num_workers)
 
 
 def _save_batch(args):
@@ -70,7 +75,7 @@ def _save_batch(args):
         )
 
 
-def save_batches(batches, output_path, num_jobs):
+def save_batches(batches, output_path, num_workers):
     n_batches = len(batches)
     logger.info(f"batches object created, saving {n_batches} batches to {output_path}")
     os.makedirs(output_path, exist_ok=True)
@@ -78,7 +83,7 @@ def save_batches(batches, output_path, num_jobs):
     jobs = [
         joblib.delayed(_save_batch)((i, batches, output_path)) for i in range(n_batches)
     ]
-    joblib.Parallel(n_jobs=num_jobs)(jobs)
+    joblib.Parallel(n_jobs=num_workers)(jobs)
 
 
 if __name__ == "__main__":
@@ -95,4 +100,5 @@ if __name__ == "__main__":
         data_config=args.data_config,
         output_path=args.output_path,
         variable_names=args.variable_names,
+        num_workers=args.num_workers,
     )
