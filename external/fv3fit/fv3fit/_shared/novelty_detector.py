@@ -48,8 +48,11 @@ class NoveltyDetector(Predictor, abc.ABC):
     ) -> Tuple[xr.DataArray, xr.Dataset]:
         diagnostics = self.predict(X)
 
-        arr = diagnostics[self._CENTERED_SCORE_OUTPUT_VAR].data
-        is_novelty = xr.where(arr > cutoff, xp.asarray(1), xp.asarray(0),)
+        is_novelty = xr.where(
+            diagnostics[self._CENTERED_SCORE_OUTPUT_VAR] > cutoff,
+            xp.asarray(1),
+            xp.asarray(0),
+        )
         diagnostics[self._NOVELTY_OUTPUT_VAR] = is_novelty
 
         return diagnostics[self._CENTERED_SCORE_OUTPUT_VAR], diagnostics
