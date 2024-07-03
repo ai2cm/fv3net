@@ -12,7 +12,9 @@ try:
     import cupy_xarray  # noqa
 
     xp = cp
+    CUPY_LOADED = True
 except ImportError:
+    CUPY_LOADED = False
     xp = np
 
 from sklearn.pipeline import Pipeline, make_pipeline
@@ -136,7 +138,10 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         X, _ = pack(
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
         )
-        stacked_scores = -1 * self.pipeline.score_samples(np.asarray(X))
+
+        if CUPY_LOADED:
+            X = X.get()
+        stacked_scores = -1 * self.pipeline.score_samples(X)
         stacked_scores = xp.asarray(stacked_scores)
 
         new_coords = {
