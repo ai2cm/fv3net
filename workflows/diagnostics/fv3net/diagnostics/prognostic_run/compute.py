@@ -18,6 +18,7 @@ import sys
 import datetime
 import intake
 import xarray as xr
+import numpy as np
 from dask.distributed import Client, worker_client
 import fsspec
 
@@ -163,15 +164,16 @@ def ignore_nan_values(x, y, w):
     if "time" not in w.dims and "time" in x.dims:
         w = w.expand_dims(dim={"time": x.time})
     mask = (x.notnull() | y.notnull()).compute()
-    x = x.where(mask, drop=True)
-    y = y.where(mask, drop=True)
-    w = w.where(mask, drop=True)
+    x = x.where(mask)
+    y = y.where(mask)
+    w = w.where(mask)
     return x, y, w
 
 
 def rms(x, y, w, dims):
     with xr.set_options(keep_attrs=True):
-        return xr.ufuncs.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
+        x, y, w = ignore_nan_values(x, y, w)
+        return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
 
 def bias(truth, prediction):
