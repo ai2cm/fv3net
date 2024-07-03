@@ -48,9 +48,7 @@ def cache(
 ) -> loaders.typing.Batches:
     logger.info("saving batches data to %s", local_download_path)
     os.makedirs(local_download_path, exist_ok=True)
-    save_batches(
-        batches, output_path=local_download_path,
-    )
+    save_batches(batches, output_path=local_download_path, num_jobs=4)
     return loaders.batches_from_netcdf(
         path=local_download_path, variable_names=variable_names
     )
