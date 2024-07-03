@@ -37,6 +37,9 @@ class ConstantArrayPredictor:
         """
         self.model = model
 
+    def __call__(self, X):
+        return self.model(X)
+
     def predict(self, X):
         return [
             self.model(X),
@@ -90,7 +93,7 @@ def _get_input_shape(da, unstacked_dims):
 
 def _get_dummy_model(input_shape):
     in_ = tf.keras.Input(shape=input_shape)
-    out_ = tf.keras.layers.Lambda(lambda x: x)(in_)
+    out_ = tf.keras.layers.Lambda(lambda x: tf.convert_to_tensor(x))(in_)
     model = tf.keras.Model(inputs=in_, outputs=out_)
     return model
 

@@ -78,7 +78,9 @@ class ScreamConfig:
     RUN_STARTDATE: Union[str, datetime.date] = "2010-01-01"
     MODEL_START_TYPE: str = "initial"
     OLD_EXECUTABLE: str = ""
-    RUNTIME: RuntimeScreamConfig = RuntimeScreamConfig()
+    RUNTIME: RuntimeScreamConfig = dataclasses.field(
+        default_factory=RuntimeScreamConfig
+    )
 
     def __post__init__(self):
         # TODO: we may want to support other option

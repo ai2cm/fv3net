@@ -9,12 +9,15 @@ from typing import (
     Set,
     cast,
 )
-import fv3fit
 import xarray as xr
 import vcm
+import logging
 
 State = MutableMapping[Hashable, xr.DataArray]
 SPHUM = "qv"
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -47,7 +50,7 @@ class MachineLearningConfig:
 class MultiModelAdapter:
     def __init__(
         self,
-        models: Iterable[fv3fit.Predictor],
+        models: Iterable,
         scaling: Optional[Mapping[str, float]] = None,
         mse_conserving_limiter: bool = True,
     ):
@@ -83,6 +86,8 @@ class MultiModelAdapter:
 
 
 def open_model(config: MachineLearningConfig) -> MultiModelAdapter:
+    import fv3fit
+
     model_paths = config.models
     models = []
     for path in model_paths:

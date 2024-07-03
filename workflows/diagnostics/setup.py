@@ -16,6 +16,7 @@ install_requirements = [
     "cftime",
     "intake",
     "numpy",
+    "flox",
     "google-cloud-storage",
     "toolz",
     "cartopy",
@@ -55,6 +56,7 @@ setup(
     name="fv3net-diagnostics",
     packages=find_namespace_packages(
         include=[
+            "fv3net.diagnostics._shared",
             "fv3net.diagnostics.prognostic_run",
             "fv3net.diagnostics.offline",
             "fv3net.diagnostics.reservoir",
