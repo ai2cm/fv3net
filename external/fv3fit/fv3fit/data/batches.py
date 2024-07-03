@@ -45,10 +45,11 @@ def cache(
     batches: loaders.typing.Batches,
     local_download_path: str,
     variable_names: Sequence[str],
+    num_workers: int = 4,
 ) -> loaders.typing.Batches:
     logger.info("saving batches data to %s", local_download_path)
     os.makedirs(local_download_path, exist_ok=True)
-    save_batches(batches, output_path=local_download_path, num_jobs=4)
+    save_batches(batches, output_path=local_download_path, num_workers=num_workers)
     return loaders.batches_from_netcdf(
         path=local_download_path, variable_names=variable_names
     )
