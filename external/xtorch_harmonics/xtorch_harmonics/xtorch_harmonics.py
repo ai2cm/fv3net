@@ -177,12 +177,14 @@ def _roundtrip_filter_dataset(
     results = []
     for da in ds.data_vars.values():
         if not horizontal_dims.issubset(da.dims):
-            results.append(da)
+            result = da
         else:
             result = _roundtrip_filter_dataarray(
                 da, forward_grid, inverse_grid, lat_dim, lon_dim, fraction_modes_kept
             )
-            results.append(result)
+        # Convert DataArrays to Datasets before merging due to an attribute
+        # promotion issue: https://github.com/pydata/xarray/issues/5436
+        results.append(result.to_dataset())
     return xr.merge(results).assign_attrs(ds.attrs)
 
 

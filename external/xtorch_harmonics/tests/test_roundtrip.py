@@ -303,7 +303,12 @@ def test_roundtrip_filter_dataset():
     lat, lon = grid_data_arrays(grid, LAT_DIM, LON_DIM)
     foo = real_spherical_harmonic_dataarray(lat, lon)
     bar = foo.copy(deep=True).rename("bar").isel({LAT_DIM: 0})
-    ds = xr.merge([foo, bar])
+
+    # Add an attribute to foo to test that DataArray-level attributes are not
+    # promoted to Dataset-level attributes in roundtrip_filter.
+    foo = foo.assign_attrs(x="y")
+    ds = xr.Dataset({foo.name: foo, bar.name: bar})
+
     ds = ds.assign_attrs(a="b")
     roundtripped = roundtrip_filter(
         ds, LAT_DIM, LON_DIM, forward_grid=grid, inverse_grid=grid,
@@ -315,5 +320,9 @@ def test_roundtrip_filter_dataset():
 
     xr.testing.assert_identical(roundtripped.bar, ds.bar)
 
-    # Check that Dataset-level attributes are preserved in the roundtrip.
+    # Check that Dataset-level attributes are preserved in the roundtrip, and
+    # that DataArray-level attributes have not been promoted. Unwanted
+    # attribute promotion is a known issue in xarray.merge,
+    # https://github.com/pydata/xarray/issues/5436, which we work around in
+    # roundtrip_filter.
     assert ds.attrs == roundtripped.attrs
