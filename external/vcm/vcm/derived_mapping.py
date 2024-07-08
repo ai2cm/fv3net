@@ -237,6 +237,159 @@ def net_shortwave_sfc_flux_via_transmissivity(self):
     return _net_sfc_shortwave_flux_via_albedo(downward_sfc_shortwave_flux, albedo)
 
 
+# TODO: make congruent with fv3net naming and make sure renames happen on load
+# This section of radiation is for EAMXX radiation model
+# NIR and VISIBLE sum to the total downwelling SW at the surface
+# From this we can piece out the fractional components for prediction
+def _limit_sw_positive(da, downward_toa_shortwave_flux):
+    return xr.where(downward_toa_shortwave_flux > 0, da, 0.0)
+
+
+@DerivedMapping.register(
+    "shortwave_transmissivity_of_atmospheric_column",
+    required_inputs=[
+        "total_sky_downward_shortwave_flux_at_surface",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+    use_nonderived_if_exists=True,
+)
+def shortwave_transmissivity_of_atmospheric_column(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    transmissivity = (
+        self["total_sky_downward_shortwave_flux_at_surface"]
+        / downward_toa_shortwave_flux
+    )
+    return _limit_sw_positive(transmissivity, downward_toa_shortwave_flux)
+
+
+@DerivedMapping.register(
+    "downward_shortwave_total_nir_at_surface",
+    required_inputs=["sfc_flux_dir_nir", "sfc_flux_dif_nir"],
+)
+def downward_shortwave_total_nir_at_surface(self):
+    return self["sfc_flux_dir_nir"] + self["sfc_flux_dif_nir"]
+
+
+@DerivedMapping.register(
+    "downward_shortwave_total_vis_at_surface",
+    required_inputs=["sfc_flux_dir_vis", "sfc_flux_dif_vis"],
+)
+def downward_shortwave_total_vis_at_surface(self):
+    return self["sfc_flux_dir_vis"] + self["sfc_flux_dif_vis"]
+
+
+@DerivedMapping.register(
+    "downward_vis_fraction_at_surface",
+    required_inputs=[
+        "total_sky_downward_shortwave_flux_at_surface",
+        "downward_shortwave_total_nir_at_surface",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+    use_nonderived_if_exists=True,
+)
+def downward_vis_fraction_at_surface(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    downward_vis_frac_sfc = (
+        self["downward_shortwave_total_vis_at_surface"]
+        / self["total_sky_downward_shortwave_flux_at_surface"]
+    )
+    return _limit_sw_positive(downward_vis_frac_sfc, downward_toa_shortwave_flux)
+
+
+@DerivedMapping.register(
+    "downward_nir_fraction_at_surface",
+    required_inputs=[
+        "downward_vis_fraction_at_surface",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+)
+def downward_nir_fraction_at_surface(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    return _limit_sw_positive(
+        1 - self["downward_vis_fraction_at_surface"], downward_toa_shortwave_flux
+    )
+
+
+@DerivedMapping.register(
+    "downward_vis_diffuse_fraction_at_surface",
+    required_inputs=[
+        "downward_shortwave_total_vis_at_surface",
+        "sfc_flux_dif_vis",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+    use_nonderived_if_exists=True,
+)
+def downward_vis_diffuse_fraction_at_surface(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    vis_diffuse_fraction = (
+        self["sfc_flux_dif_vis"] / self["downward_shortwave_total_vis_at_surface"]
+    )
+    return _limit_sw_positive(vis_diffuse_fraction, downward_toa_shortwave_flux)
+
+
+@DerivedMapping.register(
+    "downward_vis_direct_fraction_at_surface",
+    required_inputs=[
+        "downward_vis_diffuse_fraction_at_surface",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+    use_nonderived_if_exists=True,
+)
+def downward_vis_direct_fraction_at_surface(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    return _limit_sw_positive(
+        1 - self["downward_vis_diffuse_fraction_at_surface"],
+        downward_toa_shortwave_flux,
+    )
+
+
+@DerivedMapping.register(
+    "downward_nir_diffuse_fraction_at_surface",
+    required_inputs=[
+        "downward_shortwave_total_nir_at_surface",
+        "sfc_flux_dif_nir",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+    use_nonderived_if_exists=True,
+)
+def downward_nir_diffuse_fraction_at_surface(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    nir_diffuse_fraction = (
+        self["sfc_flux_dif_nir"] / self["downward_shortwave_total_nir_at_surface"]
+    )
+    return _limit_sw_positive(nir_diffuse_fraction, downward_toa_shortwave_flux)
+
+
+@DerivedMapping.register(
+    "downward_nir_direct_fraction_at_surface",
+    required_inputs=[
+        "downward_nir_diffuse_fraction_at_surface",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    ],
+    use_nonderived_if_exists=True,
+)
+def downward_nir_direct_fraction(self):
+    downward_toa_shortwave_flux = self[
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
+    ]
+    return _limit_sw_positive(
+        1 - self["downward_nir_diffuse_fraction_at_surface"],
+        downward_toa_shortwave_flux,
+    )
+
+
 @DerivedMapping.register(
     "is_land", required_inputs=["land_sea_mask"],
 )
