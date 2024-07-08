@@ -192,7 +192,7 @@ def _fix_moistening_and_prate_units_for_ml_diags(ds):
     dq2_key = "net_moistening_due_to_machine_learning"
     if prate_key in ds and dq2_key in ds:
         logger.info("Removing ML precip from SCREAM PRATEsfc")
-        ds[prate_key] = ds[prate_key] - ds[dq2_key]
+        ds[prate_key] = ds[prate_key] + ds[dq2_key]
 
     if dq2_key in ds:
         logger.info("Changing units of ml net moistening to mm/day")
