@@ -122,6 +122,8 @@ DIURNAL_CYCLE_VARS = [
     "PRATEsfc",
     "LHTFLsfc",
     "surf_evap",
+    "sfc_flux_lw_dn",  # SCREAM Variables
+    "sfc_flux_sw_net",
 ]
 
 TIME_MEAN_VARS = [
@@ -144,6 +146,8 @@ TIME_MEAN_VARS = [
     "DLWRFsfc",
     "USWRFtoa",
     "ULWRFtoa",
+    "sfc_flux_lw_dn",  # SCREAM Variables
+    "sfc_flux_sw_net",
 ]
 
 PRESSURE_INTERPOLATED_VARS = [
