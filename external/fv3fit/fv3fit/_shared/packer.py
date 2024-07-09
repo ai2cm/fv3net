@@ -18,6 +18,13 @@ import xarray as xr
 import pandas as pd
 import tensorflow as tf
 
+try:
+    import cupy_xarray  # noqa
+
+    CUPY_AVAILABLE = True
+except ImportError:
+    CUPY_AVAILABLE = False
+
 
 def _feature_dims(data: xr.Dataset, sample_dims: Sequence[str]) -> Sequence[str]:
     return [str(dim) for dim in data.dims.keys() if dim not in sample_dims]
@@ -120,9 +127,16 @@ def pack(
 
     data_clipped = xr.Dataset(clip(data, config.clip))
     stacked = data_clipped.to_stacked_array(feature_dim_name, sample_dims=sample_dims)
-    stacked = stacked.dropna(feature_dim_name)
+    if CUPY_AVAILABLE and stacked.cupy.is_cupy:
+        # dropna features a numpy function which breaks on device cupy expectations
+        stacked = stacked.cupy.as_numpy()
+        stacked = stacked.dropna(feature_dim_name)
+        stacked = stacked.cupy.as_cupy()
+    else:
+        stacked = stacked.dropna(feature_dim_name)
+
     return (
-        stacked.transpose(*sample_dims, feature_dim_name).values,
+        stacked.transpose(*sample_dims, feature_dim_name).data,
         stacked.indexes[feature_dim_name],
     )
 

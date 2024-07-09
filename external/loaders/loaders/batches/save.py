@@ -7,6 +7,7 @@ import os.path
 import logging
 import sys
 import os
+import joblib
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -39,31 +40,50 @@ def get_parser() -> argparse.ArgumentParser:
             "passed to BatchesLoader.load_batches"
         ),
     )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=1,
+        help="number of workers to use when saving batches",
+    )
     return parser
 
 
-def main(data_config: str, output_path: str, variable_names: Sequence[str]):
+def main(
+    data_config: str,
+    output_path: str,
+    variable_names: Sequence[str],
+    num_workers: int = 1,
+):
     with open(data_config, "r") as f:
         config = yaml.safe_load(f)
     loader = BatchesLoader.from_dict(config)
     logger.info("configuration loaded, creating batches object")
     batches = loader.load_batches(variables=variable_names)
-    save_batches(batches, output_path)
+    save_batches(batches, output_path, num_workers=num_workers)
 
 
-def save_batches(batches, output_path):
+def _save_batch(args):
+    i, batches, output_path = args
+    out_filename = os.path.join(output_path, f"{i:05}.nc")
+    logger.info(f"saving batch {i}")
+    try:
+        batches[i].to_netcdf(out_filename, engine="h5netcdf")
+    except NotImplementedError:
+        batches[i].reset_index(dims_or_levels=[SAMPLE_DIM_NAME]).to_netcdf(
+            out_filename, engine="h5netcdf"
+        )
+
+
+def save_batches(batches, output_path, num_workers):
     n_batches = len(batches)
     logger.info(f"batches object created, saving {n_batches} batches to {output_path}")
     os.makedirs(output_path, exist_ok=True)
-    for i, batch in enumerate(batches):
-        out_filename = os.path.join(output_path, f"{i:05}.nc")
-        logger.info(f"saving batch {i}")
-        try:
-            batch.to_netcdf(out_filename, engine="h5netcdf")
-        except NotImplementedError:
-            batch.reset_index(dims_or_levels=[SAMPLE_DIM_NAME]).to_netcdf(
-                out_filename, engine="h5netcdf"
-            )
+
+    jobs = [
+        joblib.delayed(_save_batch)((i, batches, output_path)) for i in range(n_batches)
+    ]
+    joblib.Parallel(n_jobs=num_workers)(jobs)
 
 
 if __name__ == "__main__":
@@ -80,4 +100,5 @@ if __name__ == "__main__":
         data_config=args.data_config,
         output_path=args.output_path,
         variable_names=args.variable_names,
+        num_workers=args.num_workers,
     )

@@ -7,6 +7,16 @@ import fsspec
 import joblib
 import numpy as np
 
+try:
+    import cupy as cp
+    import cupy_xarray  # noqa
+
+    xp = cp
+    CUPY_LOADED = True
+except ImportError:
+    CUPY_LOADED = False
+    xp = np
+
 from sklearn.pipeline import Pipeline, make_pipeline
 import yaml
 from fv3fit import _shared, tfdataset
@@ -128,7 +138,11 @@ class OCSVMNoveltyDetector(NoveltyDetector):
         X, _ = pack(
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
         )
+
+        if CUPY_LOADED and isinstance(X, cp.ndarray):
+            X = X.get()
         stacked_scores = -1 * self.pipeline.score_samples(X)
+        stacked_scores = xp.asarray(stacked_scores)
 
         new_coords = {
             k: v for (k, v) in stacked_data.coords.items() if k not in Z_DIM_NAMES
