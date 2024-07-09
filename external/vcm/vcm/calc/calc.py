@@ -1,4 +1,16 @@
 import numpy as np
+
+try:
+    import cupy as cp
+    import cupy_xarray  # noqa
+
+    if cp.cuda.is_available():
+        xp = cp
+    else:  # fallback to numpy if cupy is installed but no GPU is available
+        xp = np
+except ImportError:
+    xp = np
+
 import xarray as xr
 from vcm.cubedsphere.constants import INIT_TIME_DIM, VAR_LON_CENTER
 from typing import Sequence, Union
@@ -8,11 +20,6 @@ gravity = 9.81
 specific_heat = 1004
 
 HOUR_PER_DEG_LONGITUDE = 1.0 / 15
-
-
-def timedelta_to_seconds(dt):
-    one_second = np.timedelta64(1000000000, "ns")
-    return dt / one_second
 
 
 def local_time(ds, time=INIT_TIME_DIM, lon_var=VAR_LON_CENTER):
@@ -43,7 +50,7 @@ def weighted_average(
 
 
 def vertical_tapering_scale_factors(n_levels: int, cutoff: int, rate: float):
-    z_arr = np.arange(n_levels)
-    scaled = np.exp((z_arr[slice(None, cutoff)] - cutoff) / rate)
-    unscaled = np.ones(n_levels - cutoff)
-    return np.hstack([scaled, unscaled])
+    z_arr = xp.arange(n_levels)
+    scaled = xp.exp((z_arr[slice(None, cutoff)] - cutoff) / rate)
+    unscaled = xp.ones(n_levels - cutoff)
+    return xp.hstack([scaled, unscaled])
