@@ -139,7 +139,7 @@ class OCSVMNoveltyDetector(NoveltyDetector):
             stacked_data[self.input_variables], [SAMPLE_DIM_NAME], self.packer_config
         )
 
-        if CUPY_LOADED:
+        if CUPY_LOADED and isinstance(X, cp.ndarray):
             X = X.get()
         stacked_scores = -1 * self.pipeline.score_samples(X)
         stacked_scores = xp.asarray(stacked_scores)
