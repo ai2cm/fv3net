@@ -52,7 +52,7 @@ def weighted_average(
 
 
 def vertical_tapering_scale_factors(n_levels: int, cutoff: int, rate: float):
-    if CUPY_AVAILABLE:
+    if CUPY_AVAILABLE and cp.cuda.is_available():
         xp = cp
     else:
         xp = np
