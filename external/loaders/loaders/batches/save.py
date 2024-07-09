@@ -43,7 +43,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--num-workers",
         type=int,
-        default=8,
+        default=1,
         help="number of workers to use when saving batches",
     )
     return parser
