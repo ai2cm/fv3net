@@ -1,3 +1,12 @@
+try:
+    import cupy as cp
+    import cupy_xarray  # noqa
+
+    CUPY_AVAILABLE = True
+
+except ImportError:
+    CUPY_AVAILABLE = False
+
 import numpy as np
 import xarray as xr
 from vcm.cubedsphere.constants import INIT_TIME_DIM, VAR_LON_CENTER
@@ -43,7 +52,11 @@ def weighted_average(
 
 
 def vertical_tapering_scale_factors(n_levels: int, cutoff: int, rate: float):
-    z_arr = np.arange(n_levels)
-    scaled = np.exp((z_arr[slice(None, cutoff)] - cutoff) / rate)
-    unscaled = np.ones(n_levels - cutoff)
-    return np.hstack([scaled, unscaled])
+    if CUPY_AVAILABLE:
+        xp = cp
+    else:
+        xp = np
+    z_arr = xp.arange(n_levels)
+    scaled = xp.exp((z_arr[slice(None, cutoff)] - cutoff) / rate)
+    unscaled = xp.ones(n_levels - cutoff)
+    return xp.hstack([scaled, unscaled])
