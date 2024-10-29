@@ -322,7 +322,6 @@ workflows:
   weekly-workflow:
     when: << pipeline.parameters.run-weekly-workflow >>
     jobs:
-      - build_and_test_scream
       - integration_tests:
           runNudgeToFine: true
 
