@@ -158,9 +158,12 @@ jobs:
           name: Install dependencies
           command: |
             apt-get install -y wget jq make gettext gzip
-            python3 -m venv .venv
-            source .venv/bin/activate
+            apt install python3.11-venv
+            VENV_DIR="$(pwd)/.venv"
+            python3 -m venv $VENV_DIR
+            source "${VENV_DIR}/bin/activate"
             pip3 install yq==2.11.0
+            echo "source ${VENV_DIR}/bin/activate" >> $BASH_ENV
 
             # install kustomize
             wget "https://raw.githubusercontent.com/\
