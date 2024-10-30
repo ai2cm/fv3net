@@ -205,33 +205,6 @@ jobs:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
-  build_and_test_scream:
-    parameters:
-      image:
-        default: prognostic_scream_run
-        type: string
-    machine:
-      image: ubuntu-2004:202111-02
-    resource_class: large
-    environment:
-      GOOGLE_PROJECT_ID: vcm-ml
-      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-      GOOGLE_COMPUTE_ZONE: us-central1
-      IMAGE: <<parameters.image>>
-    steps:
-      - checkout
-      - run:
-          name: "gcloud auth"
-          command: |
-            echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
-            echo "export GCLOUD_SERVICE_KEY=\$(echo \$ENCODED_GOOGLE_CREDENTIALS | base64 --decode)" >> $BASH_ENV
-      - gcp-gcr/gcr-auth
-      - run:
-          name: "Build and push scream image"
-          no_output_timeout: 20m
-          command: |
-                sudo chown -R circleci:circleci /home/circleci/.docker && \
-                .circleci/build_and_push_image.sh
 parameters:
   run-weekly-workflow:
     type: boolean
