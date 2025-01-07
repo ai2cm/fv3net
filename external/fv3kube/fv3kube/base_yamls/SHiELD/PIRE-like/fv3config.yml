@@ -146,7 +146,6 @@ namelist:
     prog_ccn: false
     qi0_crt: 8.0e-05
     qi_lim: 1.0
-    ql_gen: 0.001
     ql_mlt: 0.002
     qs0_crt: 0.003
     qs_mlt: 1.0e-6
@@ -160,7 +159,6 @@ namelist:
     rewmin: 5.0  # Moved from cld_eff_rad_nml
     rh_inc: 0.2
     rh_inr: 0.3
-    rh_ins: 0.3
     rthresh: 8.0e-6
     snow_grauple_combine: false  # Restore default from PIRE simulation codebase (current default is true)
     tau_i2s: 1000.0
