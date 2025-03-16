@@ -4,6 +4,7 @@
 
 import random
 from typing import Tuple
+from fv3fit.tfdataset import apply_to_tuple
 import torch
 
 
@@ -39,34 +40,37 @@ class ImagePool:
             return images
         return_times = []
         return_images = []
-        for time, image in zip(*images):
-            time = torch.unsqueeze(time.data, 0)
-            image = torch.unsqueeze(image.data, 0)
+        time, image = images
+        if (
+            self.num_imgs < self.pool_size
+        ):  # if the buffer is not full; keep inserting current images to the buffer
+            self.num_imgs = self.num_imgs + 1
+            self.times.append(time)
+            self.images.append(image)
+            return_times.append(time)
+            return_images.append(image)
+        else:
+            p = random.uniform(0, 1)
             if (
-                self.num_imgs < self.pool_size
-            ):  # if the buffer is not full; keep inserting current images to the buffer
-                self.num_imgs = self.num_imgs + 1
-                self.times.append(time)
-                self.images.append(image)
+                p > 0.5
+            ):  # by 50% chance, the buffer will return a previously stored image, and insert the current image into the buffer
+                random_id = random.randint(
+                    0, self.pool_size - 1
+                )  # randint is inclusive
+                tmp_time = (
+                    self.times[random_id][0].clone(),
+                    self.times[random_id][1].clone(),
+                )
+                tmp_img = self.images[random_id].clone()
+                self.times[random_id] = time
+                self.images[random_id] = image
+                return_times.append(tmp_time)
+                return_images.append(tmp_img)
+            else:  # by another 50% chance, the buffer will return the current image
                 return_times.append(time)
                 return_images.append(image)
-            else:
-                p = random.uniform(0, 1)
-                if (
-                    p > 0.5
-                ):  # by 50% chance, the buffer will return a previously stored image, and insert the current image into the buffer
-                    random_id = random.randint(
-                        0, self.pool_size - 1
-                    )  # randint is inclusive
-                    tmp_time = self.times[random_id].clone()
-                    tmp_img = self.images[random_id].clone()
-                    self.times[random_id] = time
-                    self.images[random_id] = image
-                    return_times.append(tmp_time)
-                    return_images.append(tmp_img)
-                else:  # by another 50% chance, the buffer will return the current image
-                    return_times.append(time)
-                    return_images.append(image)
-        return_times = torch.cat(return_times, 0)  # collect all the times and return
-        return_images = torch.cat(return_images, 0)  # collect all the images and return
+        assert len(return_times) == 1
+        assert len(return_images) == 1
+        return_times = return_times[0]
+        return_images = return_images[0]  # collect all the images and return
         return (return_times, return_images)

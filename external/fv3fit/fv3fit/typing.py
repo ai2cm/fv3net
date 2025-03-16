@@ -1,5 +1,4 @@
-from typing_extensions import Protocol
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Protocol
 import tensorflow as tf
 
 Batch = Mapping[str, tf.Tensor]

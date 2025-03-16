@@ -238,9 +238,17 @@ def records(
             for name in variable_names:
                 config = variable_configs.get(name, default_variable_config)
                 array = config.get_record(name, window_ds, unstacked_dims)
-                if i_sample is None:
-                    i_sample = np.random.randint(array.shape[0])
-                sample = array[i_sample, :]
+                if (
+                    array.shape[0] == 1
+                ):  # special handling for values constant across samples
+                    sample = array[0, :]
+                else:
+                    if i_sample is None:
+                        i_sample = np.random.randint(array.shape[0])
+                    if len(array.shape) > 1:
+                        sample = array[i_sample, :]
+                    else:
+                        sample = array[i_sample]
                 if name == "time":
                     try:
                         item = cftime.date2num(sample, "seconds since 1970-01-01")

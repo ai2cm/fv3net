@@ -1,39 +1,57 @@
 model_type: cyclegan
 cache:
-  in_memory: true
+  in_memory: false
 hyperparameters:
-    state_variables:
-      - h500
-    normalization_fit_samples: 50_000
-    network:
-      convolution_type: halo_conv2d
-      optimizer:
-        name: Adam
-        kwargs:
-          lr: 1.0e-3
-      generator:
-        n_convolutions: 2
-        n_resnet: 6
-        kernel_size: 3
-        strided_kernel_size: 4
-        max_filters: 256
-      discriminator:
-        n_convolutions: 3
-        kernel_size: 3
-        max_filters: 256
-      identity_loss:
-        loss_type: mae
-      cycle_loss:
-        loss_type: mae
-      gan_loss:
-        loss_type: mse
-      identity_weight: 0.5
-      cycle_weight: 10.0
-      generator_weight: 1.0
-      discriminator_weight: 1.0
-    training:
-      n_epoch: 100
-      in_memory: true
-      shuffle_buffer_size: 1000
-      samples_per_batch: 1
-      validation_batch_size: 100
+  state_variables:
+    - PRATEsfc
+    # - PRATEsfc_2
+    - h500
+    # - PRESsfc
+    # - w500
+    # - TMPlowest
+    # - TMP500_300
+    # - PWAT
+  normalization_fit_samples: 50_000
+  network:
+    convolution_type: halo_conv2d
+    optimizer:
+      name: Adam
+      kwargs:
+        lr: 2.01e-6
+    generator:
+      n_convolutions: 2
+      n_resnet: 6
+      kernel_size: 3
+      strided_kernel_size: 4
+      max_filters: 256
+      use_geographic_bias: false
+      use_geographic_embedded_bias: true
+    discriminator:
+      n_convolutions: 3
+      kernel_size: 3
+      strided_kernel_size: 4
+      max_filters: 512
+      use_geographic_embedded_bias: true
+    identity_loss:
+      loss_type: mae
+    cycle_loss:
+      loss_type: mae
+    gan_loss:
+      loss_type: mse
+    identity_weight: 0.5
+    cycle_weight: 10.0
+    generator_weight: 1.0
+    discriminator_weight: 1.0
+    # reload_path: gs://vcm-ml-experiments/cyclegan/2023-02-02/cyclegan_c48_to_c384-precip-h500-2e-5
+  training:
+    n_epoch: 300
+    in_memory: false
+    shuffle_buffer_size: 1000
+    samples_per_batch: 2
+    validation_batch_size: 500
+    # checkpoint_path: gs://vcm-ml-experiments/cyclegan/checkpoints/c48_to_c384/
+    scheduler:
+      name: ExponentialLR
+      kwargs:
+        gamma: 0.79433
+        last_epoch: -1

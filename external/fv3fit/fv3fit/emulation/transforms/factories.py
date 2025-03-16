@@ -11,7 +11,7 @@ from fv3fit.emulation.transforms.transforms import (
 )
 from fv3fit.emulation.types import TensorDict
 from fv3fit.keras.math import groupby_bins, piecewise
-from typing_extensions import Protocol
+from typing import Protocol
 
 
 class TransformFactory(Protocol):

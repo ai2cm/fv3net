@@ -1,0 +1,26 @@
+batch_size: 500
+domain_configs:
+  - data_path: gs://vcm-ml-experiments/mcgibbon/2023-03-29/coarse-combined.zarr
+    unstacked_dims:
+      - time
+      - tile
+      - grid_xt
+      - grid_yt
+      - z
+    window_size: 1
+    default_variable_config:
+      times: window
+    n_windows: 40000  # 5808
+    time_end_index: 14600
+  - data_path: gs://vcm-ml-experiments/mcgibbon/2023-03-29/fine-combined.zarr
+    unstacked_dims:
+      - time
+      - tile
+      - grid_xt
+      - grid_yt
+      - z
+    window_size: 1
+    default_variable_config:
+      times: window
+    n_windows: 40000  # 5808
+    time_end_index: 14600

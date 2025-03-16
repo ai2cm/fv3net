@@ -318,9 +318,18 @@ def _pcolormesh_cube_all_handles(
 
 
 class UpdateablePColormesh:
-    def __init__(self, lat, lon, array: np.ndarray, ax: plt.axes = None, **kwargs):
+    def __init__(
+        self,
+        lat,
+        lon,
+        array: np.ndarray,
+        ax: plt.axes = None,
+        plot_colorbar: bool = True,
+        **kwargs,
+    ):
         self.handles = _pcolormesh_cube_all_handles(lat, lon, array, ax=ax, **kwargs)
-        plt.colorbar(self.handles[-1], ax=ax)
+        if plot_colorbar:
+            plt.colorbar(self.handles[-1], ax=ax)
         self.lat = lat
         self.lon = lon
         self.ax = ax

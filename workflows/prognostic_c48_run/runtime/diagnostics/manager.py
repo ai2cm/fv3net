@@ -7,8 +7,8 @@ from typing import (
     Dict,
     Optional,
     MutableMapping,
+    Protocol,
 )
-from typing_extensions import Protocol
 
 import cftime
 import logging
