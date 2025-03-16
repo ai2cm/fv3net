@@ -121,7 +121,7 @@ def _roundtrip_filter_numpy(
     fraction_modes_kept: Optional[float] = None,
 ) -> np.ndarray:
     *_, n_lat, n_lon = array.shape
-    tensor = torch.tensor(array).type(torch.double)
+    tensor = torch.tensor(array).type(torch.float)
     forward_transform = torch_harmonics.RealSHT(n_lat, n_lon, grid=forward_grid)
     inverse_transform = torch_harmonics.InverseRealSHT(n_lat, n_lon, grid=inverse_grid)
     if fraction_modes_kept is None:
