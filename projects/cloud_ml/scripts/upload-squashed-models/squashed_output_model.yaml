@@ -1,0 +1,8 @@
+base_model_path: gs://vcm-ml-experiments/cloud-ml/2023-07-04/train-cloud-ml-dense/trained_models/dense-seed-0
+squashing:
+  - squash_by_name: cloud_amount
+    additional_squash_target_names:
+      - cloud_water_mixing_ratio
+      - cloud_ice_mixing_ratio
+    squash_threshold: 0.0
+    squash_to: 0.0
