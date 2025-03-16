@@ -430,6 +430,8 @@ namelist:
 nudging: null
 online_emulator:
   limit_negative_humidity: true
+  max_limit: {}
+  min_limit: {}
   online: true
   state_predictions: {}
   tendency_predictions:

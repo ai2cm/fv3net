@@ -4,7 +4,7 @@ import vcm
 import numpy as np
 import xarray as xr
 import pytest
-from runtime.transformers.fv3fit import Config, Adapter
+from runtime.transformers.fv3fit import Config, Adapter, _limit_ds
 from runtime.transformers.core import StepTransformer
 from machine_learning_mocks import get_mock_predictor
 
@@ -117,3 +117,17 @@ def test_multimodel_adapter_integration(state, tmpdir_factory):
     assert "surface_precipitation_rate" not in state
     transform(add_one_to_temperature)()
     assert "surface_precipitation_rate" in state
+
+
+def test__limit_ds_missing():
+    with pytest.raises(KeyError):
+        _limit_ds(xr.Dataset({"a": xr.DataArray(1)}), {"b": 2}, {})
+
+
+def test__limit_ds():
+    input_ds = xr.Dataset({"a": xr.DataArray([1, 1]), "b": xr.DataArray([-3, 1])})
+    expected_limited_ds = xr.Dataset(
+        {"a": xr.DataArray([0.5, 0.5]), "b": xr.DataArray([-2, 0])}
+    )
+    _limit_ds(input_ds, {"b": -2}, {"a": 0.5, "b": 0})
+    xr.testing.assert_identical(input_ds, expected_limited_ds)
